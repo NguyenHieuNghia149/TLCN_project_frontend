@@ -1,0 +1,53 @@
+/* Reset các style có thể ảnh hưởng */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+.main-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #121418;
+  color: #ffffff;
+  width: 100%;
+  max-width: none;
+  /* Bỏ height: 100% để cho phép cuộn tự nhiên */
+}
+
+.main-layout-content {
+  flex: 1;
+  width: 100%;
+  max-width: none;
+  padding: 0;
+  /* Bỏ overflow-y: auto và min-height: 0 để content cuộn tự nhiên */
+  position: static; /* Đảm bảo flow bình thường */
+}
+
+/* Đảm bảo Header và Footer không bị cố định */
+.main-layout > header,
+.main-layout > .header {
+  flex-shrink: 0;
+  position: static; /* Không cố định, cuộn cùng với trang */
+  /* Bỏ z-index để tránh conflicts */
+}
+
+.main-layout > footer,
+.main-layout > .footer {
+  flex-shrink: 0;
+  position: static; /* Không cố định, cuộn cùng với trang */
+  /* Bỏ z-index để tránh conflicts */
+}

@@ -1,0 +1,88 @@
+.home-page {
+  background-color: #121418;
+  min-height: 100%;
+  width: 100%;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.continue-practice-card {
+  background-color: #1f202a;
+}
+
+.continue-practice-card-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  margin-left: 30px;
+}
+
+.continue-practice-card h3 {
+  font-size: 20px;
+  line-height: 2rem;
+  color: #ffffff;
+}
+
+.continue-practice-card-percentage {
+  font-size: 16px;
+  line-height: 1.5rem;
+  color: #ffffff;
+  font-weight: 700;
+  font-family: 'Satoshi', sans-serif;
+}
+
+.continue-practice-card-subtitle {
+  font-size: 100%;
+  font-weight: 100;
+  font-family: 'Satoshi' sans-serif;
+}
+
+.continue-practice-card-arrowBtn {
+  margin-right: 40px;
+  border-radius: 10px;
+  border: 1px solid #4a4b53;
+}
+
+.programming-card {
+  background-color: #1f202a;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.programming-card:hover {
+  background-color: #232533;
+  border-color: #4b5563; /* gray-600 */
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  transform: translateY(-2px);
+}
+
+/* Practice Skills card */
+.practice-skill-card {
+  background: #1f202a;
+  border-radius: 16px;
+  padding: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  width: 306px;
+  height: 80px;
+}
+
+.practice-skill-card__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.practice-skill-card__icon {
+  color: #8ab1b0; /* muted teal like screenshot */
+}
+
+.practice-skill-card__title {
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1.5rem;
+}
