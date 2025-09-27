@@ -1,10 +1,11 @@
 import React from 'react'
+import { Outlet } from 'react-router-dom'
 import Header from '../../components/Layout/Header/header'
 import Footer from '../../components/Layout/Footer/footer'
 import './MainLayout.scss'
 
 interface MainLayoutProps {
-  children: React.ReactNode
+  children?: React.ReactNode
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
@@ -12,7 +13,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     <div className="main-layout">
       <Header />
       <main className="main-layout-content" role="main">
-        {children}
+        {children || <Outlet />}
       </main>
       <Footer />
     </div>
