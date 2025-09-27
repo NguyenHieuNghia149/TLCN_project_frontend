@@ -1,31 +1,33 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { RouterProvider } from 'react-router-dom'
 import './App.css'
-import MainLayout from './layouts/MainLayout/MainLayout'
-import HomePage from './pages/home/Home'
+// import MainLayout from './layouts/MainLayout/MainLayout'
+// import HomePage from './pages/home/Home'
+import router from './routes'
 
 function App() {
-  return (
-    <BrowserRouter basename="/">
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <MainLayout>
-              <Navigate to="/dashboard" replace />
-            </MainLayout>
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={
-            <MainLayout>
-              <HomePage />
-            </MainLayout>
-          }
-        />
-      </Routes>
-    </BrowserRouter>
-  )
+  // return (
+  //   <BrowserRouter basename="/">
+  //     <Routes>
+  //       <Route
+  //         path="/"
+  //         element={
+  //           <MainLayout>
+  //             <Navigate to="/dashboard" replace />
+  //           </MainLayout>
+  //         }
+  //       />
+  //       <Route
+  //         path="/dashboard"
+  //         element={
+  //           <MainLayout>
+  //             <HomePage />
+  //           </MainLayout>
+  //         }
+  //       />
+  //     </Routes>
+  //   </BrowserRouter>
+  // )
+  return <RouterProvider router={router} />
 }
 
 export default App

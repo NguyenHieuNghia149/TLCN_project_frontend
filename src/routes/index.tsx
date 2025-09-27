@@ -5,6 +5,7 @@ import Login from '@/pages/auth/Login/Login'
 import Register from '@/pages/auth/Login/Register'
 import ForgotPassword from '@/pages/auth/Login/ForgotPassword'
 import Profile from '@/pages/profile/Profile'
+import HomePage from '@/pages/home/Home'
 
 export const router = createBrowserRouter([
   {
@@ -32,7 +33,12 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <MainLayout />,
-    children: [{ index: true, element: <div>Dashboard</div> }],
+    children: [{ index: true, path: 'dashboard', element: <HomePage /> }],
+  },
+  {
+    path: '/',
+    element: <MainLayout />,
+    children: [{ path: 'dashboard', element: <HomePage /> }],
   },
 ])
 
