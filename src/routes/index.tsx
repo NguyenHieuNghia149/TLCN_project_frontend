@@ -1,6 +1,5 @@
 import React from 'react'
 import { createBrowserRouter } from 'react-router-dom'
-import MainLayout from '@/layouts/MainLayout'
 import Login from '@/pages/auth/Login/Login'
 import Register from '@/pages/auth/Login/Register'
 import ForgotPassword from '@/pages/auth/Login/ForgotPassword'
@@ -20,14 +19,8 @@ export const router = createBrowserRouter([
     element: <ForgotPassword />,
   },
   {
-    path: '/',
-    element: <MainLayout />,
-    children: [
-      {
-        path: 'profile',
-        element: <Profile />,
-      },
-    ],
+    path: '/profile',
+    element: <Profile />,
   },
 ])
 
