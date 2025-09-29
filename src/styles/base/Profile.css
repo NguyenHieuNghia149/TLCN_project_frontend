@@ -1,0 +1,244 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* Profile page layout inspired by the screenshot */
+@layer components {
+  .profile-page {
+    @apply p-6;
+  }
+
+  .profile-grid {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 24px;
+  }
+
+  .card {
+    @apply rounded-lg border border-gray-200 bg-white shadow-md dark:border-gray-800 dark:bg-gray-900;
+  }
+
+  .muted {
+    @apply text-sm text-gray-500 dark:text-gray-400;
+  }
+
+  /* Sidebar */
+  .profile-sidebar {
+    padding: 16px;
+  }
+  .profile-card__header {
+    display: grid;
+    grid-template-columns: 64px 1fr auto;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .profile-avatar img {
+    width: 64px;
+    height: 64px;
+    border-radius: 12px;
+    object-fit: cover;
+  }
+  .profile-name {
+    @apply font-semibold text-gray-900 dark:text-gray-100;
+  }
+  .profile-rank {
+    @apply text-xs text-gray-500;
+  }
+  .edit-btn {
+    @apply inline-flex items-center justify-center rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-800 transition-colors duration-200 dark:border-gray-700 dark:text-gray-200;
+  }
+
+  .section {
+    margin-top: 14px;
+  }
+  .section-title {
+    @apply mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200;
+  }
+  .kv {
+    display: grid;
+    gap: 10px;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 4px;
+  }
+  .row-label {
+    @apply text-gray-700 dark:text-gray-200;
+  }
+  .row-value {
+    @apply font-medium text-gray-900 dark:text-gray-100;
+  }
+  .row-note {
+    grid-column: 1 / -1;
+    @apply text-xs text-gray-500;
+  }
+
+  .skills-list {
+    display: grid;
+    gap: 8px;
+  }
+  .skill {
+    display: grid;
+    grid-template-columns: 10px 1fr auto;
+    gap: 8px;
+    align-items: center;
+  }
+  .skill .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: #ef4444;
+  }
+
+  /* Main */
+  .profile-main {
+    display: grid;
+    gap: 24px;
+  }
+
+  .summary-row {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 24px;
+  }
+
+  .summary-card {
+    padding: 16px;
+  }
+  .summary-header {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 16px;
+    align-items: center;
+  }
+  .circle-meter {
+    width: 120px;
+    height: 120px;
+    border-radius: 9999px;
+    display: grid;
+    place-items: center;
+    background: radial-gradient(
+      circle at 50% 50%,
+      rgba(59, 130, 246, 0.15),
+      transparent 60%
+    );
+    @apply text-2xl font-bold text-gray-800 dark:text-gray-100;
+  }
+  .legend {
+    display: grid;
+    gap: 8px;
+  }
+  .legend-row {
+    display: flex;
+    justify-content: space-between;
+    @apply text-sm;
+  }
+  .legend-row.easy span {
+    @apply text-emerald-500;
+  }
+  .legend-row.medium span {
+    @apply text-amber-500;
+  }
+  .legend-row.hard span {
+    @apply text-rose-500;
+  }
+  .attempting {
+    @apply mt-2 text-center text-sm text-gray-500;
+  }
+
+  .badges-card {
+    padding: 16px;
+    display: grid;
+    gap: 12px;
+  }
+  .badges-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .badges-title {
+    @apply font-semibold;
+  }
+  .badges-count {
+    @apply font-bold text-gray-900 dark:text-gray-100;
+  }
+  .locked-badge {
+    @apply text-sm text-gray-500;
+  }
+
+  .heatmap {
+    padding: 16px;
+  }
+  .heatmap-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .heatmap-grid {
+    display: grid;
+    grid-template-columns: repeat(35, 10px);
+    gap: 6px;
+    padding: 12px 0;
+  }
+  .heat-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    background: #1118270d;
+  }
+  .months {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    font-size: 12px;
+    color: #6b7280;
+  }
+
+  .recent-panel {
+    padding: 0;
+    overflow: hidden;
+  }
+  .tabs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+    padding: 10px 12px;
+  }
+  .tab {
+    @apply text-sm text-gray-600 dark:text-gray-300;
+    padding: 6px 10px;
+    border-radius: 6px;
+  }
+  .tab.active {
+    @apply bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100;
+  }
+  .view-all {
+    margin-left: auto;
+    @apply text-sm text-sky-600 dark:text-sky-400;
+  }
+  .empty-state {
+    display: grid;
+    place-items: center;
+    padding: 40px 16px;
+    gap: 8px;
+  }
+  .empty-illus {
+    width: 220px;
+    height: 120px;
+    border-radius: 12px;
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.02),
+      rgba(0, 0, 0, 0.08)
+    );
+    display: grid;
+    place-items: center;
+    @apply text-4xl italic text-gray-400;
+  }
+  .empty-note {
+    @apply text-sm text-gray-500;
+  }
+}

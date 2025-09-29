@@ -65,88 +65,101 @@ const Login = () => {
         <div className="login-page__grid" />
       </div>
 
-      <div className="login-card">
-        <div className="login-card__left">
-          <div className="login-hero">
-            <div className="login-hero__badge">Code & Learn</div>
-            <h1 className="login-hero__title">
-              Practice coding like on LeetCode, HackerRank
-            </h1>
-            <p className="login-hero__desc">
-              Solve challenges, run tests, and level up your skills with our
-              modern platform.
-            </p>
-            <img
-              className="login-hero__image"
-              src={heroImg}
-              alt="Coding Illustration"
-            />
-          </div>
-        </div>
-        <div className="login-card__right">
-          <div className="login-form__header">
-            <h2>Welcome back</h2>
-            <p>Sign in to continue your coding journey</p>
-          </div>
-
-          {error && <div className="login-form__error">{error}</div>}
-
-          <form className="login-form" onSubmit={handleSubmit}>
-            <div className="form-field">
-              <label>Email</label>
-              <div className="input-group">
-                <input
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  required
+      <div className="login-container">
+        <div className="login-card">
+          <div className="login-card__left">
+            <div className="login-hero">
+              <div className="login-hero__content">
+                <div className="login-hero__badge">Code & Learn</div>
+                <h1 className="login-hero__title">
+                  Level Up Your Skills, Shape Your Future.
+                </h1>
+                <p className="login-hero__desc">
+                  Solve challenges, run tests, and level up your skills with our
+                  modern platform.
+                </p>
+              </div>
+              <div className="login-hero__image-wrapper">
+                <img
+                  className="login-hero__image"
+                  src={heroImg}
+                  alt="Coding Illustration"
                 />
               </div>
             </div>
+          </div>
 
-            <div className="form-field">
-              <label>Password</label>
-              <div className="input-group">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                />
+          <div className="login-card__right">
+            <div className="login-form-wrapper">
+              <div className="login-form__header">
+                <h2>Welcome back</h2>
+                <p>Sign in to continue your coding journey</p>
+              </div>
+
+              {error && <div className="login-form__error">{error}</div>}
+
+              <form className="login-form" onSubmit={handleSubmit}>
+                <div className="form-field">
+                  <label>Email</label>
+                  <div className="input-group">
+                    <input
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-field">
+                  <label>Password</label>
+                  <div className="input-group">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="input-group__toggle"
+                      onClick={togglePassword}
+                      aria-label="Toggle password visibility"
+                    >
+                      {showPassword ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <label className="checkbox">
+                    <input type="checkbox" />
+                    <span>Remember me</span>
+                  </label>
+                  <a href="/forgetpassword" className="link">
+                    Forgot password?
+                  </a>
+                </div>
+
                 <button
-                  type="button"
-                  className="input-group__toggle"
-                  onClick={togglePassword}
-                  aria-label="Toggle password visibility"
+                  type="submit"
+                  className="btn-primary"
+                  disabled={isLoading}
                 >
-                  {showPassword ? 'Hide' : 'Show'}
+                  {isLoading ? <span className="spinner" /> : 'Sign in'}
                 </button>
-              </div>
-            </div>
 
-            <div className="form-row">
-              <label className="checkbox">
-                <input type="checkbox" />
-                <span>Remember me</span>
-              </label>
-              <a href="/forgetpassword" className="link">
-                Forgot password?
-              </a>
+                <div className="form-footer">
+                  Don&apos;t have an account?{' '}
+                  <a className="link" href="/register">
+                    Create one
+                  </a>
+                </div>
+              </form>
             </div>
-
-            <button type="submit" className="btn-primary" disabled={isLoading}>
-              {isLoading ? <span className="spinner" /> : 'Sign in'}
-            </button>
-
-            <div className="form-footer">
-              Don&apos;t have an account?{' '}
-              <a className="link" href="/register">
-                Create one
-              </a>
-            </div>
-          </form>
+          </div>
         </div>
       </div>
     </div>

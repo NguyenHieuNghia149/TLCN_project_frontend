@@ -21,6 +21,10 @@ export const router = createBrowserRouter([
     element: <ForgotPassword />,
   },
   {
+    path: '/profile',
+    element: <Profile />,
+  },
+  {
     path: '/',
     element: <MainLayout />,
     children: [
