@@ -1,99 +1,144 @@
-import api, { setAccessToken } from '../../config/api.config'
-
-export interface LoginResponse {
-  accessToken: string
-  refreshToken: string
-  user: {
-    id: string
-    firstname: string
-    lastname: string
-    email: string
-    role: string
-    avatarUrl?: string
-  }
-}
+import { apiClient } from '../../config/axios.config'
+import { tokenManager } from '../../services/auth/token.service'
+// No persistent storage of access token; refresh cookie handled by server
+import {
+  LoginCredentials,
+  AuthResponse,
+  User,
+  RegisterData,
+} from '../../types/auth.types'
 
 export class AuthService {
-  async login(email: string, password: string): Promise<LoginResponse> {
-    try {
-      const res = await api.post<LoginResponse>('/auth/login', {
-        email,
-        password,
-      })
-      setAccessToken(res.data.accessToken)
-      return res.data
-    } catch (error: unknown) {
-      if (typeof error === 'object' && error !== null && 'response' in error) {
-        const err = error as { response: { data: { message?: string } } }
-        throw new Error(err.response.data.message || 'login failed')
-      } else if (
-        typeof error === 'object' &&
-        error !== null &&
-        'request' in error
-      ) {
-        throw new Error('No response from server')
-      } else if (error instanceof Error) {
-        throw new Error('Error: ' + error.message)
-      } else {
-        throw new Error('An unknown error occurred')
+  constructor() {
+    // Set up token auto-refresh callback (access token only)
+    tokenManager.setTokenRefreshCallback(async () => {
+      const { accessToken } = await this.refreshToken()
+      return accessToken
+    })
+  }
+
+  private handleApiError(error: unknown, defaultMessage: string): never {
+    console.error('API Error details:', error)
+
+    if (typeof error === 'object' && error !== null) {
+      // Axios error with response
+      if ('response' in error) {
+        const axiosError = error as {
+          response: {
+            data: { message?: string; error?: string }
+            status: number
+            statusText: string
+          }
+        }
+        const message =
+          axiosError.response.data.message || axiosError.response.data.error
+        const status = axiosError.response.status
+        const statusText = axiosError.response.statusText
+
+        // Removed rate limit specific handling (429/503)
+
+        throw new Error(message || `${status} ${statusText}` || defaultMessage)
       }
+      // Axios error without response (network error)
+      else if ('request' in error) {
+        throw new Error(
+          'Unable to connect to server. Please check your network connection.'
+        )
+      }
+      // Generic object with message
+      else if (
+        'message' in error &&
+        typeof (error as { message: unknown }).message === 'string'
+      ) {
+        throw new Error((error as { message: string }).message)
+      }
+    }
+
+    // Error instance
+    if (error instanceof Error) {
+      throw new Error(error.message)
+    }
+
+    // Unknown error
+    throw new Error(defaultMessage)
+  }
+
+  async login(
+    credentials: LoginCredentials
+  ): Promise<{ accessToken: string; user: User }> {
+    try {
+      const response = await apiClient.post('/auth/login', credentials)
+
+      // Expect backend to set httpOnly refresh cookie and return tokens + user
+      const data = response.data?.data ?? {}
+      const accessToken: string = data.tokens?.accessToken || data.accessToken
+      const user: User = data.user
+
+      if (!accessToken || !user) {
+        throw new Error('Invalid login response')
+      }
+
+      // Store access token in memory only
+      tokenManager.setAccessToken(accessToken)
+
+      return { accessToken, user }
+    } catch (error) {
+      console.error('Login error details:', error)
+      this.handleApiError(error, 'Login failed')
     }
   }
 
-  async register(
-    firstname: string,
-    lastname: string,
-    email: string,
-    password: string,
-    verifyEmailCode: string
-  ): Promise<LoginResponse> {
+  async register(data: RegisterData): Promise<AuthResponse> {
     try {
-      const res = await api.post<LoginResponse>('/auth/register', {
-        firstname,
-        lastname,
-        email,
-        password,
-        verifyEmailCode,
-      })
-      setAccessToken(res.data.accessToken)
-      return res.data
-    } catch (error: unknown) {
-      if (typeof error === 'object' && error !== null && 'response' in error) {
-        const err = error as { response: { data: { message?: string } } }
-        throw new Error(err.response.data.message || 'Registration failed')
-      } else if (
-        typeof error === 'object' &&
-        error !== null &&
-        'request' in error
-      ) {
-        throw new Error('No response from server')
-      } else if (error instanceof Error) {
-        throw new Error('Error: ' + error.message)
-      } else {
-        throw new Error('An unknown error occurred')
-      }
+      const response = await apiClient.post<AuthResponse>(
+        '/auth/register',
+        data
+      )
+      return response.data
+    } catch (error) {
+      this.handleApiError(error, 'Registration failed')
     }
   }
+
+  async requestRegisterOtp(email: string): Promise<void> {
+    try {
+      await apiClient.post('/auth/send-verification-email', { email })
+    } catch (error) {
+      this.handleApiError(error, 'Failed to send OTP')
+    }
+  }
+
   async logout(): Promise<void> {
     try {
-      await api.post('/auth/logout')
-      setAccessToken(null)
+      await apiClient.post('/auth/logout', {})
     } catch (error) {
       console.error('Logout error:', error)
-      throw new Error('Logout failed')
+    } finally {
+      this.clearAllAuthData()
     }
   }
 
-  async refreshToken(): Promise<{ accessToken: string | undefined } | void> {
+  async refreshToken(): Promise<{ accessToken: string }> {
     try {
-      const res = await api.post<{ accessToken: string }>(
-        '/auth/refresh-token',
-        {}
-      )
-      setAccessToken(res.data.accessToken)
-      return res.data
+      const response = await apiClient.post('/auth/refresh-token', {})
+
+      console.log('Refresh token response:', response.data)
+      const nested = response.data?.data
+      const accessToken: string =
+        nested?.tokens?.accessToken ||
+        nested?.accessToken ||
+        response.data?.accessToken
+
+      if (!accessToken) {
+        throw new Error('Access token not found in refresh response')
+      }
+
+      tokenManager.setAccessToken(accessToken)
+
+      return { accessToken }
     } catch (error) {
       console.error('Refresh token error:', error)
+      this.handleApiError(error, 'Token refresh failed')
     }
   }
 
@@ -103,7 +148,7 @@ export class AuthService {
     newPassword: string
   ): Promise<void> {
     try {
-      const res = await api.post('/auth/forget-password', {
+      const res = await apiClient.post('/auth/forget-password', {
         email,
         opt,
         newPassword,
@@ -115,12 +160,22 @@ export class AuthService {
     }
   }
 
-  // async getMe(): Promise<{ user: any } | void> {
-  //   try {
-  //     const res = await api.get<{ user: any }>('/auth/me')
-  //     return res.data
-  //   } catch (error) {
-  //     console.error('Get me error:', error)
-  //   }
-  // }
+  async getCurrentUser(): Promise<User> {
+    try {
+      const res = await apiClient.get('/auth/me')
+
+      return res.data.data
+    } catch (error) {
+      console.error('Get current user error:', error)
+      throw new Error('Get current user failed')
+    }
+  }
+  /**
+   * Clear all authentication data (memory only)
+   */
+  clearAllAuthData(): void {
+    tokenManager.clearAccessToken()
+  }
 }
+
+export const authService = new AuthService()

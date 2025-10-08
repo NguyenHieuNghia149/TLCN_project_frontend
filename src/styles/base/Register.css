@@ -240,6 +240,8 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  position: relative; /* Reserve space for error line without shifting layout */
+  padding-bottom: 18px; /* Space for one-line error message */
 }
 
 .input-group {
@@ -270,6 +272,21 @@
   box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.2);
 }
 
+/* Match Login: custom error border without default browser red */
+.input-group input.input-error {
+  border-color: rgba(239, 68, 68, 0.6);
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15);
+}
+
+.form-field__error {
+  margin-top: 6px;
+  color: #fecaca;
+  font-size: 13px;
+  position: absolute; /* Keep error text from pushing layout */
+  bottom: 0;
+  left: 0;
+}
+
 .input-group__toggle {
   position: absolute;
   right: 12px;
@@ -288,11 +305,41 @@
   color: #e9d5ff;
 }
 
+.otp-button {
+  position: absolute;
+  right: 12px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: rgba(124, 58, 237, 0.12);
+  border: 1px solid rgba(124, 58, 237, 0.28);
+  color: #c4b5fd;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.otp-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .form-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin: 8px 0;
+}
+
+/* two column support for names */
+.form-row.two-cols {
+  gap: 16px;
+}
+
+.form-row.two-cols > .form-field {
+  width: 100%;
 }
 
 .checkbox {
@@ -400,6 +447,10 @@
     flex-direction: column;
     gap: 12px;
     align-items: flex-start;
+  }
+
+  .form-row.two-cols {
+    flex-direction: column;
   }
 }
 

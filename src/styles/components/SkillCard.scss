@@ -1,0 +1,25 @@
+.practice-skill-card {
+  background: #1f202a;
+  border-radius: 16px;
+  padding: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  width: 306px;
+  height: 80px;
+}
+
+.practice-skill-card__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.practice-skill-card__icon {
+  color: #8ab1b0; /* muted teal like screenshot */
+}
+
+.practice-skill-card__title {
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1.5rem;
+}

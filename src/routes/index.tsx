@@ -6,43 +6,73 @@ import Register from '@/pages/auth/Login/Register'
 import ForgotPassword from '@/pages/auth/Login/ForgotPassword'
 import Profile from '@/pages/profile/Profile'
 import HomePage from '@/pages/home/Home'
-
+import { PublicRoute } from './PublicRoute'
+import { ProtectedRoute } from './ProtectedRoute'
+// import ProblemPage from '@/pages/problem/ProblemPage'
+import ChallengePage from '@/pages/problem/ChallengePage'
 export const router = createBrowserRouter([
   {
     path: '/login',
-    element: <Login />,
+    element: (
+      <PublicRoute>
+        {' '}
+        <Login />
+      </PublicRoute>
+    ),
   },
   {
     path: '/register',
-    element: <Register />,
+    element: (
+      <PublicRoute>
+        {' '}
+        <Register />
+      </PublicRoute>
+    ),
   },
   {
     path: '/forgetpassword',
-    element: <ForgotPassword />,
+    element: (
+      <PublicRoute>
+        {' '}
+        <ForgotPassword />
+      </PublicRoute>
+    ),
   },
   {
     path: '/profile',
-    element: <Profile />,
+    element: (
+      <ProtectedRoute>
+        {' '}
+        <Profile />
+      </ProtectedRoute>
+    ),
   },
+
   {
     path: '/',
     element: <MainLayout />,
     children: [
       {
         path: 'profile',
-        element: <Profile />,
+        element: (
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'dashboard',
+        element: <HomePage />,
+      },
+      {
+        index: true,
+        element: <HomePage />,
+      },
+      {
+        path: 'problem',
+        element: <ChallengePage />,
       },
     ],
-  },
-  {
-    path: '/',
-    element: <MainLayout />,
-    children: [{ index: true, path: 'dashboard', element: <HomePage /> }],
-  },
-  {
-    path: '/',
-    element: <MainLayout />,
-    children: [{ path: 'dashboard', element: <HomePage /> }],
   },
 ])
 

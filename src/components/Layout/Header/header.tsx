@@ -1,17 +1,19 @@
 import React from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   Search,
   MessageCircle,
   Bell,
   Sun,
-  Grid3X3,
+  Grid,
   ChevronDown,
 } from 'lucide-react'
-
+import { useAuth } from '../../../hooks/api/useAuth'
 import './header.scss'
 const Header: React.FC = () => {
   const location = useLocation()
+  const navigate = useNavigate()
+  const { isAuthenticated, isLoading, logout } = useAuth()
 
   const navItems = [
     { path: '/dashboard', label: 'Prepare' },
@@ -51,9 +53,11 @@ const Header: React.FC = () => {
         <div className="flex items-center justify-between">
           {/* Logo and Navigation Section */}
           <div className="nav-section-header max-[550]: flex items-center">
-            <Link to="/" className="flex items-center space-x-1">
-              <span className="text-2xl font-bold text-white">CodeGym</span>
-              <div className="h-3 w-3 bg-green-500"></div>
+            <Link to="/dashboard" className="flex items-center space-x-2">
+              <span className="text-2xl font-bold">
+                <span className="text-white">Algo</span>
+                <span className="text-[#20d761]">Forge</span>
+              </span>
             </Link>
 
             {/* Separator */}
@@ -89,56 +93,93 @@ const Header: React.FC = () => {
               />
             </div>
 
-            {/* Utility Icons */}
-            <div className="flex items-center space-x-3">
-              <button className="nav-icon text-white transition-colors hover:text-white">
-                <MessageCircle className="h-5 w-5" />
-              </button>
-              <button className="nav-icon text-white transition-colors hover:text-white">
-                <Bell className="h-5 w-5" />
-              </button>
-              <button className="nav-icon text-white transition-colors hover:text-white">
-                <Sun className="h-5 w-5" />
-              </button>
-              <button className="nav-icon text-white transition-colors hover:text-white">
-                <Grid3X3 className="h-5 w-5" />
-              </button>
-            </div>
+            {/* Utility Icons - Only show when authenticated; hide during loading to avoid flicker */}
+            {!isLoading && isAuthenticated && (
+              <div className="flex items-center space-x-3">
+                <button className="nav-icon text-white transition-colors hover:text-white">
+                  <MessageCircle className="h-5 w-5" />
+                </button>
+                <button className="nav-icon text-white transition-colors hover:text-white">
+                  <Bell className="h-5 w-5" />
+                </button>
+                <button className="nav-icon text-white transition-colors hover:text-white">
+                  <Sun className="h-5 w-5" />
+                </button>
+                <button className="nav-icon text-white transition-colors hover:text-white">
+                  <Grid className="h-5 w-5" />
+                </button>
+              </div>
+            )}
 
-            {/* User Profile Button */}
-            <div className="relative flex items-center" ref={profileRef}>
-              <button
-                className="header-icon flex h-10 w-14 items-center justify-between rounded-md px-0"
-                onClick={() => setIsProfileOpen(v => !v)}
-              >
-                <div className="ml-1 flex h-full w-10 items-center justify-center">
-                  <div className="h-8 w-8 overflow-hidden rounded-full">
-                    <img
-                      src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face"
-                      alt="Profile"
-                      className="h-full w-full object-cover"
-                    />
+            {/* Auth Buttons or User Profile */}
+            {isLoading ? null : !isAuthenticated ? (
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => navigate('/login')}
+                  className="rounded-lg border-gray-400 bg-transparent px-4 py-2 text-sm font-semibold text-white hover:border-transparent hover:bg-gray-400"
+                >
+                  Log In
+                </button>
+                <button
+                  onClick={() => navigate('/register')}
+                  className="rounded-lg bg-[#20d761] px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-green-300"
+                >
+                  Sign up
+                </button>
+              </div>
+            ) : (
+              <div className="relative flex items-center" ref={profileRef}>
+                <button
+                  className="header-icon flex h-10 w-14 items-center justify-between rounded-md px-0"
+                  onClick={() => setIsProfileOpen(v => !v)}
+                >
+                  <div className="ml-1 flex h-full w-10 items-center justify-center">
+                    <div className="h-8 w-8 overflow-hidden rounded-full">
+                      <img
+                        src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face"
+                        alt="Profile"
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center justify-center">
-                  <ChevronDown className="h-3 w-3 text-gray-300" />
-                </div>
-              </button>
+                  <div className="flex items-center justify-center">
+                    <ChevronDown className="h-3 w-3 text-gray-300" />
+                  </div>
+                </button>
 
-              {isProfileOpen && (
-                <div className="profile-menu absolute right-0 top-full mt-2">
-                  <ul>
-                    {profileItems.map(item => (
-                      <li key={item.key}>
-                        <button className="profile-menu__item" type="button">
-                          {item.label}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
+                {isProfileOpen && (
+                  <div className="profile-menu absolute right-0 top-full mt-2">
+                    <ul>
+                      {profileItems.map(item => (
+                        <li key={item.key}>
+                          <button
+                            className="profile-menu__item"
+                            type="button"
+                            onClick={() => {
+                              if (item.key === 'profile') {
+                                navigate('/profile')
+                                setIsProfileOpen(false)
+                                return
+                              }
+                              if (item.key === 'logout') {
+                                // Trigger logout and redirect to login
+                                logout().finally(() => {
+                                  setIsProfileOpen(false)
+                                  navigate('/login')
+                                })
+                                return
+                              }
+                            }}
+                          >
+                            {item.label}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

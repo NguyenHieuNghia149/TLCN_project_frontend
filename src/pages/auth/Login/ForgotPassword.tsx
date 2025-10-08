@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import heroImg from '../../../assets/react.svg'
 import '../../../styles/base/ForgotPassword.css'
 
 const ForgotPassword: React.FC = () => {
@@ -9,11 +8,23 @@ const ForgotPassword: React.FC = () => {
     'idle'
   )
   const [message, setMessage] = useState('')
+  const [fieldError, setFieldError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setStatus('sending')
     setMessage('')
+    setFieldError(null)
+    if (!email.trim()) {
+      setStatus('idle')
+      setFieldError('Email is required')
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setStatus('idle')
+      setFieldError('Email is not valid')
+      return
+    }
     try {
       // TODO: call your password reset API, e.g. requestPasswordReset(email)
       await new Promise(r => setTimeout(r, 900))
@@ -54,11 +65,11 @@ const ForgotPassword: React.FC = () => {
                 </p>
               </div>
               <div className="fp-hero__image-wrapper">
-                <img
+                {/* <img
                   className="fp-hero__image"
                   src={heroImg}
                   alt="Coding Illustration"
-                />
+                /> */}
               </div>
             </div>
           </div>
@@ -97,10 +108,19 @@ const ForgotPassword: React.FC = () => {
                       type="email"
                       placeholder="you@example.com"
                       value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      required
+                      onChange={e => {
+                        setEmail(e.target.value)
+                        if (fieldError) setFieldError(null)
+                      }}
+                      aria-invalid={fieldError ? 'true' : 'false'}
+                      className={fieldError ? 'input-error' : ''}
                     />
                   </div>
+                  {fieldError && (
+                    <div className="form-field__error" role="alert">
+                      {fieldError}
+                    </div>
+                  )}
                 </div>
 
                 <button

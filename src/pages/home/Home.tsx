@@ -18,6 +18,8 @@ import {
   Lock,
 } from 'lucide-react'
 import './Home.scss'
+import 'tailwindcss/tailwind.css'
+import SkillCard from '@/components/common/SkillCard'
 
 // const ProgressCard: React.FC<ProgressCardProps> = ({
 //   title,
@@ -70,21 +72,21 @@ import './Home.scss'
 //   isLocked?: boolean;
 // }
 
-interface SkillCardProps {
-  title: string
-  icon: React.ReactNode
-}
+// interface SkillCardProps {
+//   title: string
+//   icon: React.ReactNode
+// }
 
-const SkillCard: React.FC<SkillCardProps> = ({ title, icon }) => {
-  return (
-    <div className="practice-skill-card cursor-pointer">
-      <div className="practice-skill-card__row">
-        <div className="practice-skill-card__icon">{icon}</div>
-        <span className="practice-skill-card__title">{title}</span>
-      </div>
-    </div>
-  )
-}
+// const SkillCard: React.FC<SkillCardProps> = ({ title, icon }) => {
+//   return (
+//     <div className="practice-skill-card cursor-pointer">
+//       <div className="practice-skill-card__row">
+//         <div className="practice-skill-card__icon">{icon}</div>
+//         <span className="practice-skill-card__title">{title}</span>
+//       </div>
+//     </div>
+//   )
+//}
 
 // New Continue Practice Card Component
 interface ContinuePracticeCardProps {

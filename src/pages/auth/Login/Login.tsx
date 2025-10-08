@@ -1,61 +1,112 @@
 // Login.tsx
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import heroImg from '../../../assets/react.svg'
+import React, { useState, useCallback } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { useForm } from 'react-hook-form'
+import { yupResolver } from '@hookform/resolvers/yup'
+import * as yup from 'yup'
+// axios type removed
+import { useAuth } from '../../../hooks/api/useAuth'
+// Removed login rate limiting
+import { LoginCredentials } from '../../../types/auth.types'
 import '../../../styles/base/Login.css'
+import '../../../styles/components/login-security.css'
 
-// NOTE: Keep existing auth wiring as-is in your project.
-// If you have a useAuth or auth service, import and use it here.
-// Example (uncomment and adjust paths to match your app):
-// import { useAuth } from '../../../contexts/AuthContext/authContext';
-// import { loginUser } from '../../../services/auth/auth.service';
+// removed unused ApiErrorResponse
+
+// Validation schema
+const loginSchema = yup.object({
+  email: yup
+    .string()
+    .email('Email is not valid')
+    .required('Email is required')
+    .max(255, 'Email is not valid'),
+  password: yup
+    .string()
+    .required('Password is required')
+    .min(6, 'Password must be at least 6 characters')
+    .max(128, 'Password is not valid'),
+  rememberMe: yup.boolean().default(false),
+})
+
+type LoginFormData = yup.InferType<typeof loginSchema>
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  const [loginError, setLoginError] = useState<string | null>(null)
   const navigate = useNavigate()
-  const [isLoading, setIsLoading] = useState(false)
-  // const { login } = useAuth();
+  const location = useLocation()
+  const { login, isLoading, error, clearError } = useAuth()
 
-  const togglePassword = () => {
-    setShowPassword(!showPassword)
-  }
+  // Security features removed: no rate limiting / lockout
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError('')
+  // Form handling with react-hook-form
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFormData>({
+    resolver: yupResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+      rememberMe: false,
+    },
+    mode: 'onBlur', // Validate on blur for better UX
+  })
 
-    try {
-      // const userData = await loginUser(email, password);
-      // login(userData);
-      navigate('/')
-    } catch (err: unknown) {
-      console.error('Lỗi không xác định:', err)
+  // Watch rememberMe for potential future use
+  // const rememberMe = watch('rememberMe')
 
-      // Lấy message từ error object
-      let errorMessage = 'Đã xảy ra lỗi. Vui lòng thử lại sau.'
+  const togglePassword = useCallback(() => {
+    setShowPassword(prev => !prev)
+  }, [])
 
-      if (err && typeof err === 'object') {
-        if ('message' in err && typeof (err as Error).message === 'string') {
-          errorMessage = (err as Error).message
-        } else if (
-          'response' in err &&
-          typeof (err as { response?: { data?: { message?: string } } })
-            .response?.data?.message === 'string'
-        ) {
-          errorMessage = (err as { response: { data: { message: string } } })
-            .response.data.message
-        }
-      }
-
-      setError(errorMessage)
-    } finally {
-      setIsLoading(false)
+  // Clear error when user starts typing
+  const handleInputChange = useCallback(() => {
+    if (error) {
+      clearError()
     }
-  }
+    if (loginError) {
+      setLoginError(null)
+    }
+  }, [error, clearError, loginError, setLoginError])
+
+  // Submit handler without client-side rate limiting
+  const onSubmit = useCallback(
+    async (data: LoginFormData) => {
+      try {
+        // Clear any existing error
+        setLoginError(null)
+
+        const credentials = {
+          email: data.email,
+          password: data.password,
+        } as LoginCredentials
+
+        await login(credentials)
+
+        // Redirect to home or intended page
+        const redirectTo = location.state?.from?.pathname || '/'
+        navigate(redirectTo)
+      } catch (err) {
+        console.error('Login error:', err)
+        // Always show a clear, user-friendly message and keep inputs intact
+        setLoginError('Invalid email or password.')
+        return
+      }
+    },
+    [login, navigate, location.state]
+  )
+
+  // Handle form submission with loading state
+  const handleFormSubmit = useCallback(
+    async (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault()
+      e.stopPropagation()
+      await handleSubmit(onSubmit)()
+    },
+    [handleSubmit, onSubmit]
+  )
 
   return (
     <div className="login-page">
@@ -80,62 +131,123 @@ const Login = () => {
                 </p>
               </div>
               <div className="login-hero__image-wrapper">
-                <img
+                {/* <img
                   className="login-hero__image"
                   src={heroImg}
                   alt="Coding Illustration"
-                />
+                /> */}
               </div>
             </div>
           </div>
 
           <div className="login-card__right">
             <div className="login-form-wrapper">
+              <div
+                className="form-row"
+                style={{ justifyContent: 'flex-start', marginBottom: 8 }}
+              >
+                <button
+                  type="button"
+                  className="link"
+                  onClick={() => navigate('/')}
+                >
+                  ← Back to Home
+                </button>
+              </div>
               <div className="login-form__header">
                 <h2>Welcome back</h2>
                 <p>Sign in to continue your coding journey</p>
               </div>
 
-              {error && <div className="login-form__error">{error}</div>}
+              {loginError && (
+                <div className="login-form__error" role="alert">
+                  {loginError}
+                </div>
+              )}
 
-              <form className="login-form" onSubmit={handleSubmit}>
+              {/* Security status display removed */}
+
+              <form
+                className="login-form"
+                onSubmit={handleFormSubmit}
+                noValidate
+              >
                 <div className="form-field">
-                  <label>Email</label>
+                  <label htmlFor="email">Email</label>
                   <div className="input-group">
                     <input
+                      id="email"
                       type="email"
                       placeholder="you@example.com"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      required
+                      autoComplete="email"
+                      {...register('email', {
+                        onChange: handleInputChange,
+                      })}
+                      aria-invalid={errors.email ? 'true' : 'false'}
+                      aria-describedby={
+                        errors.email ? 'email-error' : undefined
+                      }
+                      className={errors.email ? 'input-error' : ''}
                     />
                   </div>
+                  {errors.email && (
+                    <div
+                      id="email-error"
+                      className="form-field__error"
+                      role="alert"
+                    >
+                      {errors.email.message}
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-field">
-                  <label>Password</label>
+                  <label htmlFor="password">Password</label>
                   <div className="input-group">
                     <input
+                      id="password"
                       type={showPassword ? 'text' : 'password'}
                       placeholder="Enter your password"
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      required
+                      autoComplete="current-password"
+                      {...register('password', {
+                        onChange: handleInputChange,
+                      })}
+                      aria-invalid={errors.password ? 'true' : 'false'}
+                      aria-describedby={
+                        errors.password ? 'password-error' : undefined
+                      }
+                      className={errors.password ? 'input-error' : ''}
                     />
                     <button
                       type="button"
                       className="input-group__toggle"
                       onClick={togglePassword}
-                      aria-label="Toggle password visibility"
+                      aria-label={
+                        showPassword ? 'Hide password' : 'Show password'
+                      }
+                      tabIndex={-1}
                     >
                       {showPassword ? 'Hide' : 'Show'}
                     </button>
                   </div>
+                  {errors.password && (
+                    <div
+                      id="password-error"
+                      className="form-field__error"
+                      role="alert"
+                    >
+                      {errors.password.message}
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-row">
                   <label className="checkbox">
-                    <input type="checkbox" />
+                    <input
+                      type="checkbox"
+                      {...register('rememberMe')}
+                      aria-describedby="remember-me-description"
+                    />
                     <span>Remember me</span>
                   </label>
                   <a href="/forgetpassword" className="link">
@@ -146,10 +258,23 @@ const Login = () => {
                 <button
                   type="submit"
                   className="btn-primary"
-                  disabled={isLoading}
+                  disabled={isLoading || isSubmitting}
+                  aria-describedby="login-button-description"
                 >
-                  {isLoading ? <span className="spinner" /> : 'Sign in'}
+                  {isLoading || isSubmitting ? (
+                    <>
+                      <span className="spinner" aria-hidden="true" />
+                      <span>Signing in...</span>
+                    </>
+                  ) : (
+                    'Sign in'
+                  )}
                 </button>
+                <div id="login-button-description" className="sr-only">
+                  {isLoading || isSubmitting
+                    ? 'Please wait while we sign you in'
+                    : 'Click to sign in to your account'}
+                </div>
 
                 <div className="form-footer">
                   Don&apos;t have an account?{' '}

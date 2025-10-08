@@ -1,0 +1,28 @@
+.nav-breadcrumb {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  background-color: #1e1e1e;
+  color: #ffffff;
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: #8b8b8b;
+    transition: color 0.2s ease;
+
+    &:hover {
+      color: #ffffff;
+    }
+
+    &.active {
+      color: #ffffff;
+    }
+
+    .separator {
+      margin: 0 0.5rem;
+      color: #8b8b8b;
+    }
+  }
+}
