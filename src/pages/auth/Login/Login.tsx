@@ -8,9 +8,8 @@ import * as yup from 'yup'
 import { useAuth } from '../../../hooks/api/useAuth'
 // Removed login rate limiting
 import { LoginCredentials } from '../../../types/auth.types'
-import '../../../styles/base/Login.css'
 import '../../../styles/components/login-security.css'
-
+import './Login.css'
 // removed unused ApiErrorResponse
 
 // Validation schema

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import '../../../styles/base/ForgotPassword.css'
+import './ForgotPassword.css'
 
 const ForgotPassword: React.FC = () => {
   const [email, setEmail] = useState('')

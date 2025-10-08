@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import '../../../styles/base/Register.css'
-import { authService } from '../../../services/auth/auth.service'
+import { authService } from '../../services/auth/auth.service'
+import './Register.css'
 
 const Register: React.FC = () => {
   const navigate = useNavigate()

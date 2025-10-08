@@ -2,14 +2,16 @@ import React from 'react'
 import { createBrowserRouter } from 'react-router-dom'
 import MainLayout from '@/layouts/MainLayout/MainLayout'
 import Login from '@/pages/auth/Login/Login'
-import Register from '@/pages/auth/Login/Register'
-import ForgotPassword from '@/pages/auth/Login/ForgotPassword'
+import Register from '@/pages/register/Register'
+import ForgotPassword from '@/pages/forgotpassword/ForgotPassword'
 import Profile from '@/pages/profile/Profile'
+import Lessons from '@/pages/lessons/Lessons'
 import HomePage from '@/pages/home/Home'
+import LessonDetail from '@/pages/LessonDetail/LessonDetail'
 import { PublicRoute } from './PublicRoute'
 import { ProtectedRoute } from './ProtectedRoute'
-// import ProblemPage from '@/pages/problem/ProblemPage'
 import ChallengePage from '@/pages/problem/ChallengePage'
+
 export const router = createBrowserRouter([
   {
     path: '/login',
@@ -38,16 +40,16 @@ export const router = createBrowserRouter([
       </PublicRoute>
     ),
   },
+
   {
-    path: '/profile',
+    path: '/lessondetail',
     element: (
-      <ProtectedRoute>
+      <PublicRoute>
         {' '}
-        <Profile />
-      </ProtectedRoute>
+        <LessonDetail />
+      </PublicRoute>
     ),
   },
-
   {
     path: '/',
     element: <MainLayout />,
@@ -63,6 +65,7 @@ export const router = createBrowserRouter([
       {
         path: 'dashboard',
         element: <HomePage />,
+        index: true,
       },
       {
         index: true,
@@ -71,6 +74,10 @@ export const router = createBrowserRouter([
       {
         path: 'problem',
         element: <ChallengePage />,
+      },
+      {
+        path: '/lessons',
+        element: <Lessons />,
       },
     ],
   },

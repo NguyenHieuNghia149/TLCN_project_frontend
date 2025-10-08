@@ -1,5 +1,5 @@
 import React from 'react'
-import '../../styles/base/Profile.css'
+import '../../pages/profile/Profile.css'
 
 type UserProfile = {
   id: string
