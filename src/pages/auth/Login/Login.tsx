@@ -2,7 +2,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import heroImg from '../../../assets/react.svg'
-import '../../../styles/base/Login.css'
+import './Login.css'
 
 // NOTE: Keep existing auth wiring as-is in your project.
 // If you have a useAuth or auth service, import and use it here.

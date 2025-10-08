@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import heroImg from '../../../assets/react.svg'
-import '../../../styles/base/ForgotPassword.css'
+import heroImg from '../../assets/react.svg'
+import './ForgotPassword.css'
 
 const ForgotPassword: React.FC = () => {
   const [email, setEmail] = useState('')

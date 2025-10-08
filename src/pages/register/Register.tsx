@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import heroImg from '../../../assets/react.svg'
-import '../../../styles/base/Register.css'
+import heroImg from '../../assets/react.svg'
+import './Register.css'
 
 const Register: React.FC = () => {
   const navigate = useNavigate()
