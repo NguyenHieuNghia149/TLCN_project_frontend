@@ -10,7 +10,8 @@ import HomePage from '@/pages/home/Home'
 import LessonDetail from '@/pages/LessonDetail/LessonDetail'
 import { PublicRoute } from './PublicRoute'
 import { ProtectedRoute } from './ProtectedRoute'
-import ChallengePage from '@/pages/problem/ChallengePage'
+import ChallengePage from '@/pages/challenge/ChallengePage'
+// removed unused import
 
 export const router = createBrowserRouter([
   {
@@ -42,15 +43,6 @@ export const router = createBrowserRouter([
   },
 
   {
-    path: '/lessondetail',
-    element: (
-      <PublicRoute>
-        {' '}
-        <LessonDetail />
-      </PublicRoute>
-    ),
-  },
-  {
     path: '/',
     element: <MainLayout />,
     children: [
@@ -65,19 +57,22 @@ export const router = createBrowserRouter([
       {
         path: 'dashboard',
         element: <HomePage />,
-        index: true,
       },
       {
         index: true,
         element: <HomePage />,
       },
       {
-        path: 'problem',
+        path: 'dashboard/challenge/:challengeId',
         element: <ChallengePage />,
       },
       {
-        path: '/lessons',
+        path: 'lessons',
         element: <Lessons />,
+      },
+      {
+        path: 'lessons/:lessonId',
+        element: <LessonDetail />,
       },
     ],
   },

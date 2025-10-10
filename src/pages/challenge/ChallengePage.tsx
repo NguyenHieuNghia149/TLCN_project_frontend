@@ -1,9 +1,18 @@
 import React, { useRef, useEffect, useMemo, useState, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import Breadcrumb from '@/components/common/Breadcrumb'
 import { useInfiniteChallenges } from '@/hooks/common/useInfiniteChallenges'
 import ChallengeCard from '@/components/challenge/ChallengeCard'
 import ChallengeSearch from '@/components/challenge/ChallengeSearch'
 
 const ChallengePage: React.FC = () => {
+  const [searchParams] = useSearchParams()
+  const rawCategory = (searchParams.get('category') || '').toLowerCase()
+  const categoryLabelMap: Record<string, string> = {
+    algorithms: 'Algorithms',
+    'data-structures': 'Data Structures',
+  }
+  const categoryLabel = categoryLabelMap[rawCategory] || 'Algorithms'
   const { challenges, fetchMoreChallenges, hasMore, loading } =
     useInfiniteChallenges(8)
   const observerRef = useRef<HTMLDivElement | null>(null)
@@ -56,7 +65,12 @@ const ChallengePage: React.FC = () => {
       <header className="min-h-24 border-b border-gray-800 bg-[#1f202a]">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
           <div>
-            <div className="text-sm text-gray-400">Prepare • Algorithms</div>
+            <Breadcrumb
+              items={[
+                { label: 'Prepare', to: '/dashboard' },
+                { label: categoryLabel },
+              ]}
+            />
             <h1 className="text-2xl font-bold">Problem Solving</h1>
           </div>
           <div className="text-right">
