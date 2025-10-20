@@ -2,10 +2,6 @@
 import { Challenge } from '@/types/challenge.types'
 import { mockChallenges } from '@/mocks/mockChallenges'
 
-/**
- * Giả lập API lấy danh sách challenge theo trang & topic.
- * Mỗi trang gồm 3 challenge để dễ test lazy loading.
- */
 export const getChallenges = async (
   page: number,
   topic?: string
@@ -24,4 +20,11 @@ export const getChallenges = async (
   await new Promise(res => setTimeout(res, 800))
 
   return pageData
+}
+
+export const getProblemById = async (
+  id: string
+): Promise<Challenge | undefined> => {
+  await new Promise(res => setTimeout(res, 200))
+  return mockChallenges.find(c => c.id === id)
 }

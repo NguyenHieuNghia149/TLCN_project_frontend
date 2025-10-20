@@ -1,21 +1,28 @@
 import React, { useRef, useEffect, useMemo, useState, useCallback } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import Breadcrumb from '@/components/common/Breadcrumb'
 import { useInfiniteChallenges } from '@/hooks/common/useInfiniteChallenges'
 import ChallengeCard from '@/components/challenge/ChallengeCard'
 import ChallengeSearch from '@/components/challenge/ChallengeSearch'
+import { ChallengeService } from '@/services/api/challenge.service'
 
 const ChallengePage: React.FC = () => {
   const [searchParams] = useSearchParams()
   const rawCategory = (searchParams.get('category') || '').toLowerCase()
-  const categoryLabelMap: Record<string, string> = {
-    algorithms: 'Algorithms',
-    'data-structures': 'Data Structures',
-  }
-  const categoryLabel = categoryLabelMap[rawCategory] || 'Algorithms'
+  const { challengeId: topicId } = useParams<{ challengeId: string }>()
+  const categoryLabel = useMemo(() => {
+    const formatted = rawCategory
+      .split('-')
+      .map(s => (s ? s[0].toUpperCase() + s.slice(1) : s))
+      .join(' ')
+    return formatted || 'Algorithms'
+  }, [rawCategory])
+
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
   const { challenges, fetchMoreChallenges, hasMore, loading } =
-    useInfiniteChallenges(8)
+    useInfiniteChallenges(8, topicId, selectedTags)
   const observerRef = useRef<HTMLDivElement | null>(null)
+  const [availableTags, setAvailableTags] = useState<string[]>([])
 
   // Filters state
   const [query, setQuery] = useState<string>('')
@@ -47,6 +54,29 @@ const ChallengePage: React.FC = () => {
     return () => observer.disconnect()
   }, [onIntersect])
 
+  // Load available tags for this topic
+  useEffect(() => {
+    let isMounted = true
+    if (!topicId) {
+      setAvailableTags([])
+      return
+    }
+    const svc = new ChallengeService()
+    svc
+      .getTagsByTopicId(topicId)
+      .then(tags => {
+        if (!isMounted) return
+        setAvailableTags(Array.isArray(tags) ? tags : [])
+      })
+      .catch(() => {
+        if (!isMounted) return
+        setAvailableTags([])
+      })
+    return () => {
+      isMounted = false
+    }
+  }, [topicId])
+
   const filtered = useMemo(() => {
     return challenges.filter(c => {
       if (query && !c.title.toLowerCase().includes(query.toLowerCase()))
@@ -71,7 +101,7 @@ const ChallengePage: React.FC = () => {
                 { label: categoryLabel },
               ]}
             />
-            <h1 className="text-2xl font-bold">Problem Solving</h1>
+            <h1 className="text-2xl font-bold">{categoryLabel}</h1>
           </div>
           <div className="text-right">
             <div className="mb-1 text-sm">
@@ -168,6 +198,40 @@ const ChallengePage: React.FC = () => {
                   />
                   <span className="text-sm">Hard</span>
                 </label>
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-transparent p-4">
+              <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-gray-400">
+                Subdomains
+              </h3>
+              <div className="space-y-3">
+                {availableTags.map(tag => {
+                  const checked = selectedTags.includes(tag)
+                  return (
+                    <label
+                      key={tag}
+                      className="flex cursor-pointer items-center gap-3"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() =>
+                          setSelectedTags(prev =>
+                            checked
+                              ? prev.filter(t => t !== tag)
+                              : [...prev, tag]
+                          )
+                        }
+                        className="h-4 w-4 rounded border-gray-700 bg-gray-800 text-green-500 focus:ring-0 focus:ring-offset-0"
+                      />
+                      <span className="text-sm capitalize">{tag}</span>
+                    </label>
+                  )
+                })}
+                {availableTags.length === 0 && (
+                  <p className="text-sm text-gray-500">No tags</p>
+                )}
               </div>
             </div>
           </aside>

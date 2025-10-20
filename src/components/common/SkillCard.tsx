@@ -5,11 +5,12 @@ import '../../styles/components/SkillCard.scss'
 interface SkillCardProps {
   title: string
   icon: React.ReactNode
+  onClick?: () => void
 }
 
-const SkillCard: React.FC<SkillCardProps> = ({ title, icon }) => {
+const SkillCard: React.FC<SkillCardProps> = ({ title, icon, onClick }) => {
   return (
-    <div className="practice-skill-card cursor-pointer">
+    <div className="practice-skill-card cursor-pointer" onClick={onClick}>
       <div className="practice-skill-card__row">
         <div className="practice-skill-card__icon">{icon}</div>
         <span className="practice-skill-card__title">{title}</span>

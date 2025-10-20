@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   Database,
   Puzzle,
@@ -20,6 +20,8 @@ import {
 import './Home.scss'
 import 'tailwindcss/tailwind.css'
 import SkillCard from '@/components/common/SkillCard'
+import { TopicService } from '@/services/api/topic.service'
+import { useNavigate } from 'react-router-dom'
 
 // const ProgressCard: React.FC<ProgressCardProps> = ({
 //   title,
@@ -144,7 +146,62 @@ const ContinuePracticeCard: React.FC<ContinuePracticeCardProps> = ({
   )
 }
 
+interface TopicItem {
+  id: string
+  topicName: string
+}
+
 const HomePage: React.FC = () => {
+  const [topics, setTopics] = useState<TopicItem[]>([])
+  const [isLoadingTopics, setIsLoadingTopics] = useState<boolean>(false)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    let isMounted = true
+    const svc = new TopicService()
+    setIsLoadingTopics(true)
+    svc
+      .getTopics()
+      .then(data => {
+        if (!isMounted) return
+        setTopics(Array.isArray(data) ? data : [])
+      })
+      .catch(() => {
+        if (!isMounted) return
+        setTopics([])
+      })
+      .finally(() => {
+        if (!isMounted) return
+        setIsLoadingTopics(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const iconForTopic = useMemo(() => {
+    const mapping: Record<string, React.ReactNode> = {
+      Algorithms: <Hash size={20} />,
+      'Data Structures': <BarChart3 size={20} />,
+      Mathematics: <Hash size={20} />,
+      'Artificial Intelligence': <Brain size={20} />,
+      C: <FileCode size={20} />,
+      'C++': <Code2 size={20} />,
+      Java: <Atom size={20} />,
+      Python: <Terminal size={20} />,
+      Ruby: <Diamond size={20} />,
+      SQL: <Database size={20} />,
+      Databases: <Server size={20} />,
+      'Linux Shell': <Terminal size={20} />,
+      'Functional Programming': <Workflow size={20} />,
+      Regex: <Hash size={20} />,
+      React: <Atom size={20} />,
+      'Dynamic Programming': <Workflow size={20} />,
+    }
+    return (name: string) => mapping[name] ?? <Hash size={20} />
+  }, [])
+
   return (
     <div className="home-page min-h-full text-white">
       <div className="mx-auto max-w-7xl p-6">
@@ -324,28 +381,31 @@ const HomePage: React.FC = () => {
           </h2>
 
           <div className="grid grid-cols-2 gap-x-8 gap-y-4 md:grid-cols-4">
-            <SkillCard title="Algorithms" icon={<Hash size={20} />} />
-            <SkillCard title="Data Structures" icon={<BarChart3 size={20} />} />
-            <SkillCard title="Mathematics" icon={<Hash size={20} />} />
-            <SkillCard
-              title="Artificial Intelligence"
-              icon={<Brain size={20} />}
-            />
-            <SkillCard title="C" icon={<FileCode size={20} />} />
-            <SkillCard title="C++" icon={<Code2 size={20} />} />
-            <SkillCard title="Java" icon={<Atom size={20} />} />
-            <SkillCard title="Python" icon={<Terminal size={20} />} />
-            <SkillCard title="Ruby" icon={<Diamond size={20} />} />
-            <SkillCard title="SQL" icon={<Database size={20} />} />
-            <SkillCard title="Databases" icon={<Server size={20} />} />
-            <SkillCard title="Linux Shell" icon={<Terminal size={20} />} />
-            <SkillCard
-              title="Functional Programming"
-              icon={<Workflow size={20} />}
-            />
-            <SkillCard title="Regex" icon={<Hash size={20} />} />
-            <SkillCard title="React" icon={<Atom size={20} />} />
-            <div></div> {/* Empty space for grid alignment */}
+            {isLoadingTopics && (
+              <div className="col-span-2 text-gray-400 md:col-span-4">
+                Loading topics...
+              </div>
+            )}
+            {!isLoadingTopics && topics.length === 0 && (
+              <div className="col-span-2 text-gray-400 md:col-span-4">
+                No topics available.
+              </div>
+            )}
+            {!isLoadingTopics &&
+              topics.map(topic => (
+                <SkillCard
+                  key={topic.id}
+                  title={topic.topicName}
+                  icon={iconForTopic(topic.topicName)}
+                  onClick={() =>
+                    navigate(
+                      `/dashboard/challenge/${topic.id}?category=${encodeURIComponent(
+                        topic.topicName.toLowerCase().replace(/\s+/g, '-')
+                      )}`
+                    )
+                  }
+                />
+              ))}
           </div>
         </div>
       </div>

@@ -1,35 +1,74 @@
-import { useState, useEffect, useCallback } from 'react'
-import { mockChallenges } from '@/mocks/mockChallenges'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Challenge } from '@/types/challenge.types'
+import { ChallengeService } from '@/services/api/challenge.service'
 
 // 🔁 Giả lập API call (fetch dữ liệu) dựa trên mockChallenges chia trang
-const fetchChallenges = async (
-  page: number,
-  limit: number
-): Promise<Challenge[]> => {
-  // mô phỏng delay 0.6s
-  await new Promise(resolve => setTimeout(resolve, 600))
+type BackendChallenge = {
+  id: string
+  title: string
+  description?: string
+  difficult?: string
+  difficulty?: string
+  topic?: string
+  createdAt?: string
+  isSolve?: boolean
+  isFavorite?: boolean
+  totalPoints?: number
+}
 
-  const start = (page - 1) * limit
-  const end = start + limit
-  return mockChallenges.slice(start, end)
+async function fetchChallengesFromService(
+  topicId?: string,
+  tags?: string[]
+): Promise<Challenge[]> {
+  if (!topicId) return []
+  const svc = new ChallengeService()
+  const data = await svc.getChallengesByTopicId(topicId, tags)
+  // data can be array or {items: [], nextCursor}
+  const items = Array.isArray(data)
+    ? (data as BackendChallenge[])
+    : (data?.items as unknown[] as BackendChallenge[]) || []
+  return items.map((it: BackendChallenge) => {
+    const difficulty = (it.difficult || it.difficulty || 'easy')
+      .toString()
+      .toLowerCase()
+    const createdAt = it.createdAt || new Date().toISOString()
+    return {
+      id: it.id,
+      title: it.title,
+      description: it.description || '',
+      difficulty: difficulty as Challenge['difficulty'],
+      topic: it.topic || '',
+      createdAt,
+      totalPoints:
+        typeof it.totalPoints === 'number' ? it.totalPoints : undefined,
+      isSolve: Boolean(it.isSolve) || false,
+      isFavorite: Boolean(it.isFavorite) || false,
+    } as Challenge
+  })
 }
 
 // ⚙️ Custom Hook: useInfiniteChallenges
-export const useInfiniteChallenges = (limit = 6) => {
+export const useInfiniteChallenges = (
+  limit = 6,
+  topicId?: string,
+  tags?: string[]
+) => {
   const [challenges, setChallenges] = useState<Challenge[]>([])
   const [page, setPage] = useState<number>(1)
   const [hasMore, setHasMore] = useState<boolean>(true)
   const [loading, setLoading] = useState<boolean>(false)
+  const allChallengesRef = useRef<Challenge[]>([])
 
   const fetchMoreChallenges = useCallback(async () => {
     if (loading || !hasMore) return
 
     setLoading(true)
     try {
-      const newData = await fetchChallenges(page, limit)
-      setChallenges(prev => [...prev, ...newData])
-      setHasMore(newData.length === limit)
+      const start = (page - 1) * limit
+      const end = start + limit
+      const nextSlice = allChallengesRef.current.slice(start, end)
+      setChallenges(prev => [...prev, ...nextSlice])
+      setHasMore(end < allChallengesRef.current.length)
       setPage(prev => prev + 1)
     } catch (error) {
       console.error('Error fetching challenges:', error)
@@ -39,9 +78,30 @@ export const useInfiniteChallenges = (limit = 6) => {
   }, [page, limit, hasMore, loading])
 
   useEffect(() => {
-    fetchMoreChallenges()
+    // reset when topicId changes
+    setChallenges([])
+    setPage(1)
+    setHasMore(true)
+    allChallengesRef.current = []
+    // kick first load
+    ;(async () => {
+      if (loading) return
+      setLoading(true)
+      try {
+        const all = await fetchChallengesFromService(topicId, tags)
+        allChallengesRef.current = all
+        const firstPage = all.slice(0, limit)
+        setChallenges(firstPage)
+        setHasMore(limit < all.length)
+        setPage(2)
+      } catch (error) {
+        console.error('Error fetching challenges:', error)
+      } finally {
+        setLoading(false)
+      }
+    })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [topicId, tags, limit])
 
   return { challenges, fetchMoreChallenges, hasMore, loading }
 }

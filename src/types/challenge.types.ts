@@ -1,4 +1,3 @@
-// src/types/challenge.type.ts
 export interface Challenge {
   id: string
   title: string
@@ -7,7 +6,7 @@ export interface Challenge {
   topic: string
   createdAt: string
   updatedAt?: string
-  maxScore?: number
+  totalPoints?: number
 
   /** Trạng thái người dùng */
   isSolve: boolean
