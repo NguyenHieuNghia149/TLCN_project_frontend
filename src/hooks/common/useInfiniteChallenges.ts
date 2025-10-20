@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Challenge } from '@/types/challenge.types'
-import { ChallengeService } from '@/services/api/challenge.service'
+import { challengeService } from '@/services/api/challenge.service'
 
 // 🔁 Giả lập API call (fetch dữ liệu) dựa trên mockChallenges chia trang
 type BackendChallenge = {
@@ -21,8 +21,7 @@ async function fetchChallengesFromService(
   tags?: string[]
 ): Promise<Challenge[]> {
   if (!topicId) return []
-  const svc = new ChallengeService()
-  const data = await svc.getChallengesByTopicId(topicId, tags)
+  const data = await challengeService.getChallengesByTopicId(topicId, tags)
   // data can be array or {items: [], nextCursor}
   const items = Array.isArray(data)
     ? (data as BackendChallenge[])

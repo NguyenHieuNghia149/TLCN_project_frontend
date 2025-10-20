@@ -19,4 +19,12 @@ export class ChallengeService {
     const tags = (data && (data as { tags?: unknown }).tags) as unknown
     return Array.isArray(tags) ? (tags as string[]) : []
   }
+
+  async getChallengeById(challengeId: string) {
+    const response = await apiClient.get(`/challenges/${challengeId}`)
+    return response.data
+  }
 }
+
+// Export a singleton instance
+export const challengeService = new ChallengeService()

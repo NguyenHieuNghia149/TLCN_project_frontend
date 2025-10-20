@@ -44,7 +44,7 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
   return (
     <div
       className={`flex flex-col border-t border-gray-800 bg-gray-950 transition-all duration-300 ${
-        consoleExpanded ? 'h-80' : 'h-24'
+        consoleExpanded ? 'h-80' : 'h-26'
       }`}
     >
       {/* Header */}

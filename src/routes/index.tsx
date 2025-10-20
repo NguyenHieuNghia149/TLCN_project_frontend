@@ -78,8 +78,12 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    path: '/problems/:problemId',
-    element: <ProblemDetailPage />,
+    path: '/problems/:id',
+    element: (
+      <ProtectedRoute>
+        <ProblemDetailPage />
+      </ProtectedRoute>
+    ),
   },
 ])
 
