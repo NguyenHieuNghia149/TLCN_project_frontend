@@ -1,6 +1,9 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Tabs, TabsContent } from '../../components/ui/Tabs'
 import CategorySection from '../../components/ui/CategorySection'
+import { useLessons } from '../../hooks/api/useLessons'
+import LoadingSpinner from '../../components/common/LoadingSpinner'
+import { createHtmlPreview } from '../../utils/htmlUtils'
 import '../../pages/lessons/Lessons.css'
 
 // Placeholder images - replace with actual imports when available
@@ -18,68 +21,75 @@ const webDev =
   'https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=400&h=300&fit=crop'
 
 const Index = () => {
-  const algorithmCourses = [
-    {
-      title: 'Algorithms & Data Structures for Beginners',
-      description:
-        'Learn the foundations of coding interviews with essential data structures and algorithms.',
-      duration: '25 hours',
-      difficulty: 'Medium' as const,
-      image: algoBeginners,
-      gradient: 'rgba(147, 51, 234, 0.1)',
-    },
-    {
-      title: 'Advanced Algorithms',
-      description:
-        'Master every algorithm you would ever need for technical interviews and competitive programming.',
-      duration: '30 hours',
-      difficulty: 'Hard' as const,
-      image: algoAdvanced,
-      gradient: 'rgba(239, 68, 68, 0.1)',
-    },
-  ]
+  const [selectedTopic] = useState<string>('')
+  const { lessons, loading, error } = useLessons({ topicId: selectedTopic })
 
-  const systemDesignCourses = [
-    {
-      title: 'System Design for Beginners',
-      description:
-        'Learn the foundations of system design interviews and building scalable applications.',
-      duration: '15 hours',
-      difficulty: 'Medium' as const,
-      image: systemDesign,
-      gradient: 'rgba(59, 130, 246, 0.1)',
+  // Group lessons by topic
+  const groupedLessons = (lessons || []).reduce(
+    (acc, lesson) => {
+      const topicName = lesson.topicName || 'Other'
+      if (!acc[topicName]) {
+        acc[topicName] = []
+      }
+      acc[topicName].push(lesson)
+      return acc
     },
-    {
-      title: 'System Design Interview',
-      description:
-        'Practice common system design interview questions with real-world scenarios.',
-      duration: '12 hours',
-      difficulty: 'Medium' as const,
-      image: systemInterview,
-      gradient: 'rgba(6, 182, 212, 0.1)',
-    },
-  ]
+    {} as Record<string, typeof lessons>
+  )
 
-  const fullStackCourses = [
-    {
-      title: 'Full Stack Development',
-      description:
-        'Build complete web applications from frontend to backend with modern technologies.',
-      duration: '40 hours',
+  // Convert lessons to course format for CategorySection
+  const convertLessonsToCourses = (lessonsData: typeof lessons) => {
+    return lessonsData.map((lesson, index) => ({
+      id: lesson.id,
+      title: lesson.title,
+      description: createHtmlPreview(lesson.content || '', 120), // Limit to 120 characters
+      duration: '1 hour', // Default duration since it's not in the database
       difficulty: 'Medium' as const,
-      image: fullstack,
-      gradient: 'rgba(16, 185, 129, 0.1)',
-    },
-    {
-      title: 'Web Development Masterclass',
-      description:
-        'Master modern web development with React, TypeScript, and responsive design.',
-      duration: '35 hours',
-      difficulty: 'Easy' as const,
-      image: webDev,
-      gradient: 'rgba(168, 85, 247, 0.1)',
-    },
-  ]
+      image: [
+        algoBeginners,
+        algoAdvanced,
+        systemDesign,
+        systemInterview,
+        fullstack,
+        webDev,
+      ][index % 6],
+      gradient: [
+        'rgba(147, 51, 234, 0.1)',
+        'rgba(239, 68, 68, 0.1)',
+        'rgba(59, 130, 246, 0.1)',
+        'rgba(6, 182, 212, 0.1)',
+        'rgba(16, 185, 129, 0.1)',
+        'rgba(168, 85, 247, 0.1)',
+      ][index % 6],
+    }))
+  }
+
+  if (loading) {
+    return (
+      <div className="lessons-page">
+        <div className="lessons-container">
+          <div className="flex h-64 items-center justify-center">
+            <LoadingSpinner />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="lessons-page">
+        <div className="lessons-container">
+          <div className="py-8 text-center">
+            <h2 className="mb-2 text-xl font-semibold text-red-600">
+              Error Loading Lessons
+            </h2>
+            <p className="text-gray-600">{error}</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="lessons-page">
@@ -93,23 +103,27 @@ const Index = () => {
 
         <Tabs defaultValue="courses" className="w-full">
           <TabsContent value="courses" className="tabs-content">
-            <CategorySection
-              title="Data Structures & Algorithms"
-              subtitle="Follow a structured path to learn all of the core data structures & algorithms. Perfect for coding interview preparation."
-              courses={algorithmCourses}
-            />
-
-            <CategorySection
-              title="System Design"
-              subtitle="Brush up on core system design concepts for designing robust and scalable backend systems."
-              courses={systemDesignCourses}
-            />
-
-            <CategorySection
-              title="Full Stack Development"
-              subtitle="Learn to build complete web applications with modern frameworks and best practices."
-              courses={fullStackCourses}
-            />
+            {Object.keys(groupedLessons).length === 0 ? (
+              <div className="py-8 text-center">
+                <h2 className="mb-2 text-xl font-semibold text-gray-600">
+                  No Lessons Available
+                </h2>
+                <p className="text-gray-500">
+                  There are no lessons in the database yet.
+                </p>
+              </div>
+            ) : (
+              Object.entries(groupedLessons).map(
+                ([topicName, topicLessons]) => (
+                  <CategorySection
+                    key={topicName}
+                    title={topicName}
+                    subtitle={`Learn about ${topicName.toLowerCase()} with structured lessons.`}
+                    courses={convertLessonsToCourses(topicLessons)}
+                  />
+                )
+              )
+            )}
           </TabsContent>
         </Tabs>
       </div>

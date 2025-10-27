@@ -1,65 +1,94 @@
 import React from 'react'
-import { FiClock } from 'react-icons/fi'
-import YouTubePlayer from '../../components/ui/YouTubePlayer'
+import { useParams } from 'react-router-dom'
+import { FiClock, FiArrowLeft } from 'react-icons/fi'
+import { useNavigate } from 'react-router-dom'
+import VideoPlayer from '../../components/ui/VideoPlayer'
+import LoadingSpinner from '../../components/common/LoadingSpinner'
+import { useLessonDetail } from '../../hooks/api/useLessonDetail'
 import './LessonDetail.css'
 
-interface Lesson {
-  id: string
-  title: string
-  videoId: string
-  duration: string
-  content: string
-}
-
-// Mock data - replace with actual data from your API
-const mockLesson: Lesson = {
-  id: '1',
-  title: 'Introduction to the Course',
-  videoId: 'dQw4w9WgXcQ',
-  duration: '5:30',
-  content: `
-    <h2>Welcome to the Course</h2>
-    <p>In this lesson, we'll cover the basic concepts and set up our development environment.</p>
-    <ul>
-      <li>Course overview</li>
-      <li>What you'll learn</li>
-      <li>Prerequisites</li>
-    </ul>
-    <div class="code-block">
-      <div class="code-header">Example Code</div>
-      <div class="code-content">
-        <pre>
-console.log('Welcome to the course!');
-        </pre>
-      </div>
-    </div>
-  `,
-}
-
 const LessonDetail: React.FC = () => {
+  const { lessonId } = useParams<{ lessonId: string }>()
+  const navigate = useNavigate()
+  const { lesson, loading, error } = useLessonDetail(lessonId || '')
+
+  const handleGoBack = () => {
+    navigate('/lessons')
+  }
+
+  if (loading) {
+    return (
+      <div className="lesson-detail-page">
+        <div className="flex h-64 items-center justify-center">
+          <LoadingSpinner />
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !lesson) {
+    return (
+      <div className="lesson-detail-page">
+        <div className="lesson-main-content">
+          <div className="py-8 text-center">
+            <h2 className="mb-2 text-xl font-semibold text-red-600">
+              Error Loading Lesson
+            </h2>
+            <p className="mb-4 text-gray-600">{error || 'Lesson not found'}</p>
+            <button
+              onClick={handleGoBack}
+              className="mx-auto flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
+            >
+              <FiArrowLeft />
+              Back to Lessons
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="lesson-detail-page">
       <main className="lesson-main-content">
         <header className="lesson-header">
-          <h1 className="lesson-title">{mockLesson.title}</h1>
+          <button
+            onClick={handleGoBack}
+            className="mb-4 flex items-center gap-2 text-gray-400 transition-colors hover:text-white"
+          >
+            <FiArrowLeft />
+            Back to Lessons
+          </button>
+          <h1 className="lesson-title">{lesson.title}</h1>
           <div className="lesson-metadata">
             <div className="metadata-item">
               <FiClock />
-              <span>{mockLesson.duration}</span>
+              <span>1 hour</span>
             </div>
+            {lesson.topicName && (
+              <div className="metadata-item">
+                <span className="text-sm text-gray-400">
+                  Topic: {lesson.topicName}
+                </span>
+              </div>
+            )}
           </div>
         </header>
 
         {/* Video Player */}
-        <div className="video-container">
-          <YouTubePlayer videoId={mockLesson.videoId} />
-        </div>
+        {lesson.videoUrl && (
+          <div className="video-container">
+            <VideoPlayer videoUrl={lesson.videoUrl} title={lesson.title} />
+          </div>
+        )}
 
         {/* Lesson Content */}
-        <div
-          className="lesson-content"
-          dangerouslySetInnerHTML={{ __html: mockLesson.content }}
-        />
+        {lesson.content && (
+          <div
+            className="lesson-content"
+            dangerouslySetInnerHTML={{ __html: lesson.content }}
+          />
+        )}
       </main>
     </div>
   )

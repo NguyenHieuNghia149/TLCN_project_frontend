@@ -2,58 +2,122 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 
-/* Profile page layout inspired by the screenshot */
+/* Profile page layout inspired by the screenshot - Dark Theme */
 @layer components {
   .profile-page {
-    @apply p-6;
+    min-height: 100vh;
+    background: #0a0a0a;
+    color: #ffffff;
+    padding: 2rem 1rem;
   }
 
   .profile-grid {
     display: grid;
     grid-template-columns: 320px 1fr;
     gap: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
   }
 
   .card {
-    @apply rounded-lg border border-gray-200 bg-white shadow-md dark:border-gray-800 dark:bg-gray-900;
+    background: rgba(17, 24, 39, 0.6);
+    border: 1px solid rgba(55, 65, 81, 0.3);
+    border-radius: 16px;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+  }
+
+  .card:hover {
+    border-color: rgba(102, 126, 234, 0.5);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
   }
 
   .muted {
-    @apply text-sm text-gray-500 dark:text-gray-400;
+    @apply text-sm;
+    color: #9ca3af;
   }
 
   /* Sidebar */
   .profile-sidebar {
-    padding: 16px;
+    padding: 1.5rem;
+    max-width: 100%;
+    overflow: hidden;
   }
   .profile-card__header {
     display: grid;
-    grid-template-columns: 64px 1fr auto;
+    grid-template-columns: 64px 1fr;
     gap: 12px;
-    align-items: center;
-    margin-bottom: 16px;
+    align-items: start;
+    margin-bottom: 12px;
+    max-width: 100%;
+    overflow: hidden;
+  }
+  .profile-avatar {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .profile-identity {
+    grid-column: 2;
+    grid-row: 1;
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+  .profile-email {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .profile-avatar img {
     width: 64px;
     height: 64px;
     border-radius: 12px;
     object-fit: cover;
+    border: 2px solid rgba(102, 126, 234, 0.3);
   }
   .profile-name {
-    @apply font-semibold text-gray-900 dark:text-gray-100;
+    font-weight: 600;
+    color: #ffffff;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
   .profile-rank {
-    @apply text-xs text-gray-500;
+    font-size: 0.75rem;
+    color: #9ca3af;
   }
   .edit-btn {
-    @apply inline-flex items-center justify-center rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-800 transition-colors duration-200 dark:border-gray-700 dark:text-gray-200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid rgba(55, 65, 81, 0.5);
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #ffffff;
+    background: rgba(31, 41, 55, 0.5);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    margin-bottom: 16px;
+  }
+  .edit-btn:hover {
+    background: rgba(102, 126, 234, 0.2);
+    border-color: rgba(102, 126, 234, 0.5);
   }
 
   .section {
     margin-top: 14px;
   }
   .section-title {
-    @apply mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #ffffff;
   }
   .kv {
     display: grid;
@@ -65,14 +129,16 @@
     gap: 4px;
   }
   .row-label {
-    @apply text-gray-700 dark:text-gray-200;
+    color: #9ca3af;
   }
   .row-value {
-    @apply font-medium text-gray-900 dark:text-gray-100;
+    font-weight: 600;
+    color: #ffffff;
   }
   .row-note {
     grid-column: 1 / -1;
-    @apply text-xs text-gray-500;
+    font-size: 0.75rem;
+    color: #6b7280;
   }
 
   .skills-list {
@@ -84,12 +150,14 @@
     grid-template-columns: 10px 1fr auto;
     gap: 8px;
     align-items: center;
+    color: #ffffff;
   }
   .skill .dot {
     width: 6px;
     height: 6px;
     border-radius: 9999px;
-    background: #ef4444;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
   }
 
   /* Main */
@@ -105,7 +173,7 @@
   }
 
   .summary-card {
-    padding: 16px;
+    padding: 1.5rem;
   }
   .summary-header {
     display: grid;
@@ -121,10 +189,13 @@
     place-items: center;
     background: radial-gradient(
       circle at 50% 50%,
-      rgba(59, 130, 246, 0.15),
+      rgba(102, 126, 234, 0.2),
       transparent 60%
     );
-    @apply text-2xl font-bold text-gray-800 dark:text-gray-100;
+    font-size: 2rem;
+    font-weight: 700;
+    color: #ffffff;
+    box-shadow: 0 0 40px rgba(102, 126, 234, 0.2);
   }
   .legend {
     display: grid;
@@ -133,23 +204,27 @@
   .legend-row {
     display: flex;
     justify-content: space-between;
-    @apply text-sm;
+    font-size: 0.875rem;
+    color: #ffffff;
   }
   .legend-row.easy span {
-    @apply text-emerald-500;
+    color: #10b981;
   }
   .legend-row.medium span {
-    @apply text-amber-500;
+    color: #f59e0b;
   }
   .legend-row.hard span {
-    @apply text-rose-500;
+    color: #ef4444;
   }
   .attempting {
-    @apply mt-2 text-center text-sm text-gray-500;
+    margin-top: 0.5rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: #9ca3af;
   }
 
   .badges-card {
-    padding: 16px;
+    padding: 1.5rem;
     display: grid;
     gap: 12px;
   }
@@ -159,23 +234,27 @@
     justify-content: space-between;
   }
   .badges-title {
-    @apply font-semibold;
+    font-weight: 600;
+    color: #ffffff;
   }
   .badges-count {
-    @apply font-bold text-gray-900 dark:text-gray-100;
+    font-weight: 700;
+    color: #fbbf24;
   }
   .locked-badge {
-    @apply text-sm text-gray-500;
+    font-size: 0.875rem;
+    color: #9ca3af;
   }
 
   .heatmap {
-    padding: 16px;
+    padding: 1.5rem;
   }
   .heatmap-header {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
     margin-bottom: 12px;
+    color: #ffffff;
   }
   .heatmap-grid {
     display: grid;
@@ -187,7 +266,8 @@
     width: 10px;
     height: 10px;
     border-radius: 2px;
-    background: #1118270d;
+    background: rgba(55, 65, 81, 0.3);
+    border: 1px solid rgba(55, 65, 81, 0.2);
   }
   .months {
     display: grid;
@@ -204,20 +284,38 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+    border-bottom: 1px solid rgba(55, 65, 81, 0.5);
     padding: 10px 12px;
+    background: rgba(31, 41, 55, 0.3);
   }
   .tab {
-    @apply text-sm text-gray-600 dark:text-gray-300;
+    font-size: 0.875rem;
     padding: 6px 10px;
     border-radius: 6px;
+    color: #9ca3af;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .tab:hover {
+    color: #ffffff;
+    background: rgba(55, 65, 81, 0.3);
   }
   .tab.active {
-    @apply bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #ffffff;
+    font-weight: 500;
   }
   .view-all {
     margin-left: auto;
-    @apply text-sm text-sky-600 dark:text-sky-400;
+    font-size: 0.875rem;
+    color: #60a5fa;
+    cursor: pointer;
+    transition: color 0.2s ease;
+  }
+  .view-all:hover {
+    color: #93c5fd;
   }
   .empty-state {
     display: grid;
@@ -230,15 +328,48 @@
     height: 120px;
     border-radius: 12px;
     background: linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.02),
-      rgba(0, 0, 0, 0.08)
+      135deg,
+      rgba(102, 126, 234, 0.1),
+      rgba(118, 75, 162, 0.1)
     );
     display: grid;
     place-items: center;
-    @apply text-4xl italic text-gray-400;
+    font-size: 2.25rem;
+    font-style: italic;
+    color: #6b7280;
+    border: 1px dashed rgba(102, 126, 234, 0.3);
   }
   .empty-note {
-    @apply text-sm text-gray-500;
+    font-size: 0.875rem;
+    color: #6b7280;
+  }
+
+  /* Responsive Design */
+  @media (max-width: 1024px) {
+    .profile-grid {
+      grid-template-columns: 280px 1fr;
+      gap: 20px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .profile-page {
+      padding: 1rem;
+    }
+
+    .profile-grid {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    .summary-row {
+      grid-template-columns: 1fr;
+    }
+
+    .circle-meter {
+      width: 100px;
+      height: 100px;
+      font-size: 1.75rem;
+    }
   }
 }
