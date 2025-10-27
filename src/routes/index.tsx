@@ -12,6 +12,7 @@ import { PublicRoute } from './PublicRoute'
 import { ProtectedRoute } from './ProtectedRoute'
 import ChallengePage from '@/pages/challenge/ChallengePage'
 import ProblemDetailPage from '@/pages/challengeDetail/ProblemDetailPage'
+import Ranking from '@/pages/ranking/Ranking'
 // removed unused import
 
 export const router = createBrowserRouter([
@@ -74,6 +75,10 @@ export const router = createBrowserRouter([
       {
         path: 'lessons/:lessonId',
         element: <LessonDetail />,
+      },
+      {
+        path: 'ranking',
+        element: <Ranking />,
       },
     ],
   },
