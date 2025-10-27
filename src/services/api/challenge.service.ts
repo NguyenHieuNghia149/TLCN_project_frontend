@@ -1,7 +1,21 @@
 import { apiClient } from '@/config/axios.config'
 
+export interface PaginatedResponse<T> {
+  items: T[]
+  nextCursor: string | null
+}
+
+export interface ChallengeItem {
+  id: string
+  title: string
+  // Add other properties as needed
+}
+
 export class ChallengeService {
-  async getChallengesByTopicId(topicId: string, tags?: string[]) {
+  async getChallengesByTopicId(
+    topicId: string,
+    tags?: string[]
+  ): Promise<ChallengeItem[]> {
     const params: Record<string, string> = {}
     if (tags && tags.length > 0) {
       params.tags = tags.join(',')
@@ -10,7 +24,22 @@ export class ChallengeService {
       `/challenges/topics/${topicId}/problems`,
       { params }
     )
-    return response.data?.data ?? []
+    const data = response.data?.data
+
+    // Handle paginated response structure: { items: [], nextCursor: null }
+    if (data && typeof data === 'object' && 'items' in data) {
+      const paginatedData = data as PaginatedResponse<ChallengeItem>
+      return Array.isArray(paginatedData.items) ? paginatedData.items : []
+    }
+
+    // Handle direct array response
+    if (Array.isArray(data)) {
+      return data as ChallengeItem[]
+    }
+
+    // If data is not in expected format, log warning and return empty array
+    console.warn('API response format not recognized:', data)
+    return []
   }
 
   async getTagsByTopicId(topicId: string) {

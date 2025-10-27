@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { useParams } from 'react-router-dom'
 import ProblemSection from '../../components/problem/ProblemSection'
 import CodeEditorSection from '../../components/editor/CodeEditorSection'
 import { challengeService } from '../../services/api/challenge.service'
 import { ProblemDetailResponse } from '../../types/challenge.types'
 import ProblemHeader from '../../components/problem/ProblemHeader'
+import { useProblemNavigation } from '../../hooks/common/useProblemNavigation'
 
 interface TestCase {
   id: string
@@ -58,7 +59,6 @@ const DEFAULT_CODE = `function findMedianSortedArrays(nums1: number[], nums2: nu
 
 export default function ProblemDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<
     'question' | 'solution' | 'submissions' | 'discussion'
   >('question')
@@ -74,9 +74,12 @@ export default function ProblemDetailPage() {
   >(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [topicChallenges, setTopicChallenges] = useState<
-    { id: string; title: string }[]
-  >([])
+  // Use custom hook for navigation logic
+  const { navigationLoading, hasPrev, hasNext, goPrev, goNext } =
+    useProblemNavigation({
+      currentProblemId: id,
+      topicId: problemData?.problem.topicId,
+    })
 
   useEffect(() => {
     const fetchProblemData = async () => {
@@ -101,49 +104,34 @@ export default function ProblemDetailPage() {
     fetchProblemData()
   }, [id])
 
-  // Load challenges in the same topic to enable prev/next navigation
+  // Keyboard shortcuts for navigation
   useEffect(() => {
-    const loadTopicChallenges = async () => {
-      const topicId = problemData?.problem.topicId
-      if (!topicId) {
-        setTopicChallenges([])
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Only handle shortcuts when not typing in input/textarea
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement ||
+        event.target instanceof HTMLSelectElement
+      ) {
         return
       }
-      try {
-        const list = await challengeService.getChallengesByTopicId(topicId)
-        const mapped = (list || []).map(
-          (item: { id: string; title: string }) => ({
-            id: item.id,
-            title: item.title,
-          })
-        )
-        setTopicChallenges(mapped)
-      } catch {
-        setTopicChallenges([])
+
+      // Alt + Left Arrow for previous
+      if (event.altKey && event.key === 'ArrowLeft') {
+        event.preventDefault()
+        goPrev()
+      }
+
+      // Alt + Right Arrow for next
+      if (event.altKey && event.key === 'ArrowRight') {
+        event.preventDefault()
+        goNext()
       }
     }
-    loadTopicChallenges()
-  }, [problemData?.problem.topicId])
 
-  const currentIndex = useMemo(() => {
-    if (!id) return -1
-    return topicChallenges.findIndex(c => c.id === id)
-  }, [id, topicChallenges])
-
-  const prevId =
-    currentIndex > 0 ? topicChallenges[currentIndex - 1]?.id : undefined
-  const nextId =
-    currentIndex >= 0 && currentIndex < topicChallenges.length - 1
-      ? topicChallenges[currentIndex + 1]?.id
-      : undefined
-
-  const goPrev = () => {
-    if (prevId) navigate(`/problems/${prevId}`)
-  }
-
-  const goNext = () => {
-    if (nextId) navigate(`/problems/${nextId}`)
-  }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [goPrev, goNext])
 
   const handleRun = () => {
     setOutput({ status: 'running', message: 'Running tests...' })
@@ -216,10 +204,11 @@ export default function ProblemDetailPage() {
       <ProblemHeader
         onPrev={goPrev}
         onNext={goNext}
-        hasPrev={Boolean(prevId)}
-        hasNext={Boolean(nextId)}
+        hasPrev={hasPrev}
+        hasNext={hasNext}
         onReset={handleReset}
         problemId={problemData?.problem.id}
+        navigationLoading={navigationLoading}
       />
 
       <div className="flex min-h-0 flex-1">

@@ -62,14 +62,14 @@ const ProblemSection: React.FC<ProblemSectionProps> = ({
   return (
     <div className="flex w-1/2 flex-col overflow-hidden border-r border-gray-800">
       {/* Tabs */}
-      <div className="flex border-b border-gray-800 bg-gray-900 hover:translate-x-0">
+      <div className="flex border-b border-gray-800 hover:translate-x-0">
         {TABS.map(tab => (
           <button
             key={tab.id}
             onClick={() => onTabChange(tab.id)}
             className={`px-4 py-3 font-medium transition-colors ${
               activeTab === tab.id
-                ? 'border-b-green-500 bg-gray-800 text-white'
+                ? 'border-b-green-500 text-white'
                 : 'text-gray-400 hover:border-transparent hover:text-gray-300'
             }`}
           >
