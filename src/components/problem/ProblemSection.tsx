@@ -2,6 +2,7 @@ import React from 'react'
 import { ProblemDetailResponse } from '@/types/challenge.types'
 import './ProblemSection.css'
 import { formatConstraintText } from '@/utils/textFormatter'
+import SubmissionsTab from './SubmissionsTab'
 
 interface TabType {
   id: 'question' | 'solution' | 'submissions' | 'discussion'
@@ -258,10 +259,8 @@ const ProblemSection: React.FC<ProblemSectionProps> = ({
           </div>
         )}
 
-        {activeTab === 'submissions' && (
-          <div className="text-sm text-gray-400">
-            <p>Your submissions will appear here...</p>
-          </div>
+        {activeTab === 'submissions' && problemData && (
+          <SubmissionsTab problemId={problemData.problem.id} />
         )}
 
         {activeTab === 'discussion' && (

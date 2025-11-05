@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Challenge } from '@/types/challenge.types'
-import { challengeService } from '@/services/api/challenge.service'
+import { challengeService } from '@/services/api/challenge.api'
 
 // 🔁 Giả lập API call (fetch dữ liệu) dựa trên mockChallenges chia trang
 type BackendChallenge = {

@@ -77,7 +77,7 @@ export const router = createBrowserRouter([
         element: <LessonDetail />,
       },
       {
-        path: 'ranking',
+        path: 'leaderboard',
         element: <Ranking />,
       },
     ],

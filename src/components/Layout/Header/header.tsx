@@ -167,6 +167,11 @@ const Header: React.FC = () => {
                                 })
                                 return
                               }
+                              if (item.key === 'leaderboard') {
+                                navigate('/leaderboard')
+                                setIsProfileOpen(false)
+                                return
+                              }
                             }}
                           >
                             {item.label}

@@ -1,27 +1,8 @@
 import { API_CONFIG } from '../../config/api.config'
-
-export interface LessonDetail {
-  id: string
-  title: string
-  content: string | null
-  videoUrl: string | null
-  topicId: string
-  topicName: string | null
-  createdAt: string
-  updatedAt: string
-}
-
-export interface LessonDetailResponse {
-  success: boolean
-  data: LessonDetail
-  message: string
-}
-
-export interface LessonDetailListResponse {
-  success: boolean
-  data: LessonDetail[]
-  message: string
-}
+import type {
+  LessonDetailResponse,
+  LessonDetailListResponse,
+} from '@/types/lessonDetail.types'
 
 class LessonDetailAPI {
   private baseURL: string

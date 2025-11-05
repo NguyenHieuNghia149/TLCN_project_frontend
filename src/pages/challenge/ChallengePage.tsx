@@ -4,7 +4,7 @@ import Breadcrumb from '@/components/common/Breadcrumb'
 import { useInfiniteChallenges } from '@/hooks/common/useInfiniteChallenges'
 import ChallengeCard from '@/components/challenge/ChallengeCard'
 import ChallengeSearch from '@/components/challenge/ChallengeSearch'
-import { challengeService } from '@/services/api/challenge.service'
+import { challengeService } from '@/services/api/challenge.api'
 
 const ChallengePage: React.FC = () => {
   const [searchParams] = useSearchParams()

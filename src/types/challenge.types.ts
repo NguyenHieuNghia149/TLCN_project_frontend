@@ -71,3 +71,14 @@ export interface ProblemDetailResponse {
     solution: Solution
   }
 }
+
+// For challenge listing service
+export interface PaginatedResponse<T> {
+  items: T[]
+  nextCursor: string | null
+}
+
+export interface ChallengeItem {
+  id: string
+  title: string
+}

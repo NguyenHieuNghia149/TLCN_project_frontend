@@ -1,15 +1,5 @@
 import { apiClient } from '@/config/axios.config'
-
-export interface PaginatedResponse<T> {
-  items: T[]
-  nextCursor: string | null
-}
-
-export interface ChallengeItem {
-  id: string
-  title: string
-  // Add other properties as needed
-}
+import type { PaginatedResponse, ChallengeItem } from '@/types/challenge.types'
 
 export class ChallengeService {
   async getChallengesByTopicId(

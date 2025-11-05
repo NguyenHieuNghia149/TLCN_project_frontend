@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { challengeService } from '../../services/api/challenge.service'
+import { challengeService } from '../../services/api/challenge.api'
 
 interface Challenge {
   id: string
