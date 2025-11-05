@@ -82,7 +82,7 @@ const ChallengePage: React.FC = () => {
         return false
       if (difficulties.length > 0 && !difficulties.includes(c.difficulty))
         return false
-      if (showSolved && !c.isSolve) return false
+      if (showSolved && !c.isSolved) return false
       if (showFavorites && !c.isFavorite) return false
       return true
     })
@@ -119,8 +119,8 @@ const ChallengePage: React.FC = () => {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
           {/* Left: List */}
           <div className="space-y-4 lg:col-span-3">
-            {filtered.map(ch => (
-              <ChallengeCard key={ch.id} challenge={ch} />
+            {filtered.map(challenge => (
+              <ChallengeCard key={challenge.id} challenge={challenge} />
             ))}
             {loading && (
               <p className="py-4 text-center text-gray-500">Loading more...</p>

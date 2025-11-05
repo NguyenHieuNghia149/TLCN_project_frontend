@@ -87,9 +87,11 @@ const ProblemSection: React.FC<ProblemSectionProps> = ({
               <h1 className="text-2xl font-bold">
                 {problemData.problem.title}
               </h1>
-              <span className="flex items-center gap-1 text-sm text-green-400">
-                ✓ Solved
-              </span>
+              {problemData.problem.isSolved && (
+                <span className="flex items-center gap-1 text-sm text-green-400">
+                  ✓ Solved
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-2">

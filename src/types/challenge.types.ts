@@ -7,10 +7,8 @@ export interface Challenge {
   createdAt: string
   updatedAt?: string
   totalPoints?: number
-
-  /** Trạng thái người dùng */
-  isSolve: boolean
-  isFavorite: boolean
+  isSolved?: boolean
+  isFavorite?: boolean
 }
 
 export interface TestCase {
@@ -59,6 +57,8 @@ export interface Problem {
   lessonId: string
   topicId: string
   totalPoints: number
+  isSolved: boolean
+  isFavorite: boolean
   createdAt: string
   updatedAt: string
 }

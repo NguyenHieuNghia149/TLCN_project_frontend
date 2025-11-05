@@ -121,8 +121,6 @@ export class AuthService {
   async refreshToken(): Promise<{ accessToken: string }> {
     try {
       const response = await apiClient.post('/auth/refresh-token', {})
-
-      console.log('Refresh token response:', response.data)
       const nested = response.data?.data
       const accessToken: string =
         nested?.tokens?.accessToken ||

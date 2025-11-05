@@ -18,7 +18,7 @@ const ChallengeCard: React.FC<Props> = ({ challenge }) => {
   const goToDetail = () => navigate(`/problems/${challenge.id}`)
 
   return (
-    <div className="rounded-xl border border-gray-800 bg-[#1f202a] p-5 transition-colors hover:border-gray-700">
+    <div className="rounded-xl border border-gray-800 bg-[#1f202a] p-5 transition-colors hover:border-gray-700 hover:bg-[#373741]">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <h3 className="mb-1 text-lg font-semibold">{challenge.title}</h3>
@@ -54,19 +54,24 @@ const ChallengeCard: React.FC<Props> = ({ challenge }) => {
             </span>
           </button>
 
-          <button
-            onClick={goToDetail}
-            className="inline-flex h-[36px] w-[150px] items-center justify-center rounded border border-gray-700 bg-green-500 text-[14px] font-medium text-black transition-colors hover:border-transparent hover:bg-green-300 disabled:cursor-default disabled:opacity-90"
-          >
-            {challenge.isSolve ? (
-              <>
-                Solved
-                <Check className="ml-2 h-4 w-4" />
-              </>
-            ) : (
-              <>Solve Challenge</>
-            )}
-          </button>
+          {challenge.isSolved && (
+            <button
+              onClick={goToDetail}
+              className="inline-flex h-[36px] w-[150px] items-center justify-center rounded border border-white bg-transparent text-[14px] font-medium text-white transition-colors hover:border-transparent hover:bg-[#373741] hover:text-white disabled:cursor-default disabled:opacity-90"
+            >
+              <Check className="mr-2 h-4 w-4" />
+              Solved
+            </button>
+          )}
+
+          {!challenge.isSolved && (
+            <button
+              onClick={goToDetail}
+              className="inline-flex h-[36px] w-[150px] items-center justify-center rounded border border-gray-700 bg-green-500 text-[14px] font-medium text-black transition-colors hover:border-transparent hover:bg-green-300 disabled:cursor-default disabled:opacity-90"
+            >
+              Solve Challenge
+            </button>
+          )}
         </div>
       </div>
     </div>

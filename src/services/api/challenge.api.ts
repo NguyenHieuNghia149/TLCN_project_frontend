@@ -14,6 +14,7 @@ export class ChallengeService {
       `/challenges/topics/${topicId}/problems`,
       { params }
     )
+    console.log('Get challenges by topic id response:', response.data)
     const data = response.data?.data
 
     // Handle paginated response structure: { items: [], nextCursor: null }
