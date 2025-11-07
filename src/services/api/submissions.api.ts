@@ -25,7 +25,6 @@ class SubmissionsService {
   async submitCode(payload: RunOrSubmitPayload): Promise<SubmitResponseData> {
     const res = await apiClient.post('/submissions', payload)
     const json = res.data as SubmitResponseWrapper
-    console.log(json)
     if (res.status !== 201 || !json?.success) {
       const message =
         (res.data && (res.data as { message?: string }).message) ||
@@ -42,6 +41,7 @@ class SubmissionsService {
       data?: SubmissionDetail
       message?: string
     }
+    console.log(json)
     if (!json?.success || !json.data) {
       throw new Error(json?.message || 'Failed to get submission')
     }

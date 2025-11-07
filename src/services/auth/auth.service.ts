@@ -13,6 +13,7 @@ export class AuthService {
     // Set up token auto-refresh callback (access token only)
     tokenManager.setTokenRefreshCallback(async () => {
       const { accessToken } = await this.refreshToken()
+      console.log(accessToken)
       return accessToken
     })
   }

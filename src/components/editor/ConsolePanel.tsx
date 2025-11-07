@@ -145,8 +145,9 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
                   </div>
                   {output.passedTests !== undefined &&
                     output.totalTests !== undefined && (
-                      <div className="text-xs text-gray-400">
-                        {output.passedTests}/{output.totalTests}
+                      <div className="ml-auto mr-4 text-right text-sm text-gray-400">
+                        Passed test cases: {output.passedTests}/
+                        {output.totalTests}
                       </div>
                     )}
                   {/* Detail panel stacked sections */}
@@ -209,9 +210,23 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
                                   <span className="text-sm text-gray-400">
                                     Expected output:
                                   </span>
-                                  <div className="mt-1 rounded border border-gray-700 bg-gray-800 px-3 py-2 font-mono text-sm text-gray-100">
-                                    {r.expectedOutput}
-                                  </div>
+                                  {(() => {
+                                    const related = testCases[r.index]
+                                    const isPublic = related?.isPublic !== false
+                                    if (isPublic) {
+                                      return (
+                                        <div className="mt-1 rounded border border-gray-700 bg-gray-800 px-3 py-2 font-mono text-sm text-gray-100">
+                                          {r.expectedOutput}
+                                        </div>
+                                      )
+                                    }
+                                    return (
+                                      <div className="mt-1 rounded border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-gray-400">
+                                        🔒 Output is hidden for private test
+                                        case
+                                      </div>
+                                    )
+                                  })()}
                                 </div>
                                 <div>
                                   <span className="text-sm text-gray-400">

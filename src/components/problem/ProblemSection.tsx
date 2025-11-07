@@ -139,36 +139,6 @@ const ProblemSection: React.FC<ProblemSectionProps> = ({
                 }}
               />
             </details>
-
-            {/* Test Cases */}
-            {/* <details className="mt-3 rounded border border-gray-700 p-4">
-              <summary className="cursor-pointer font-semibold text-white hover:text-gray-200">
-                Test Cases ({problemData.testcases.length})
-              </summary>
-              <div className="mt-2 space-y-3">
-                {problemData.testcases.map((testCase, index) => (
-                  <div key={testCase.id} className="rounded bg-gray-800 p-3">
-                    <div className="mb-2 text-sm font-medium text-gray-300">
-                      Test Case {index + 1} (Points: {testCase.point})
-                    </div>
-                    <div className="space-y-2 text-xs">
-                      <div>
-                        <span className="text-gray-400">Input:</span>
-                        <pre className="mt-1 rounded bg-gray-900 p-2 text-gray-200">
-                          {testCase.input}
-                        </pre>
-                      </div>
-                      <div>
-                        <span className="text-gray-400">Expected Output:</span>
-                        <pre className="mt-1 rounded bg-gray-900 p-2 text-gray-200">
-                          {testCase.output}
-                        </pre>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </details> */}
           </div>
         )}
 

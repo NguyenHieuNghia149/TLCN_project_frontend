@@ -407,6 +407,7 @@ export default function ProblemDetailPage() {
       name: `Case ${index + 1}`,
       input: tc.input,
       expectedOutput: tc.output,
+      isPublic: tc.isPublic,
     })) || []
 
   if (loading) {

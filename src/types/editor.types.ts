@@ -5,6 +5,7 @@ export interface TestCase {
   name: string
   input: string
   expectedOutput: string
+  isPublic?: boolean
 }
 
 export interface OutputState {
