@@ -10,7 +10,6 @@ const Profile: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
   const [updateError, setUpdateError] = useState<string | null>(null)
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
 
   // Parse names for display
   const firstName = profile?.firstName || 'User'
@@ -71,7 +70,7 @@ const Profile: React.FC = () => {
 
       const fd = new FormData()
       fd.append('avatar', file)
-      const uploadUrl = `${API_CONFIG.baseURL}/profile/upload-avatar`
+      const uploadUrl = `${API_CONFIG.baseURL}/auth/profile/upload-avatar`
 
       console.log('Uploading to:', uploadUrl)
 
@@ -103,11 +102,11 @@ const Profile: React.FC = () => {
         throw new Error(json?.message || 'Upload failed')
       }
 
-      if (!json?.url) {
-        throw new Error('Upload response invalid: Missing URL')
+      if (!json?.data?.avatar) {
+        throw new Error('Upload response invalid: Missing avatar URL')
       }
 
-      return json.url as string
+      return json.data.avatar as string
     } catch (error) {
       console.error('Avatar upload error:', error)
       if (error instanceof Error) {
@@ -141,6 +140,14 @@ const Profile: React.FC = () => {
       const gender = (formData.get('gender') as string)?.trim()
       const dateOfBirthValue = (formData.get('dateOfBirth') as string)?.trim()
 
+      console.log('Form values:', {
+        firstName,
+        lastName,
+        gender,
+        dateOfBirthValue,
+        hasAvatarFile: !!avatarFile,
+      })
+
       // Only include non-empty values
       if (firstName) {
         updateData.firstName = firstName
@@ -173,6 +180,8 @@ const Profile: React.FC = () => {
       if (dateOfBirthValue) {
         updateData.dateOfBirth = new Date(dateOfBirthValue).toISOString()
       }
+
+      console.log('Update data being sent:', updateData)
 
       await updateProfile(updateData)
       setShowEditModal(false)
@@ -390,24 +399,7 @@ const Profile: React.FC = () => {
               </label>
               <label>
                 <span>Avatar</span>
-                <input
-                  name="avatar"
-                  type="file"
-                  accept="image/*"
-                  onChange={e => {
-                    const f = e.currentTarget.files && e.currentTarget.files[0]
-                    if (f) {
-                      setAvatarPreview(URL.createObjectURL(f))
-                    } else {
-                      setAvatarPreview(null)
-                    }
-                  }}
-                />
-                {avatarPreview && (
-                  <div className="avatar-preview">
-                    <img src={avatarPreview} alt="preview" />
-                  </div>
-                )}
+                <input name="avatar" type="file" accept="image/*" />
               </label>
               <label>
                 <span>Gender</span>

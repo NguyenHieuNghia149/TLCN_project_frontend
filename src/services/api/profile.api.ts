@@ -45,13 +45,13 @@ export interface ProfileResponse {
 
 class ProfileAPI {
   async getProfile(userId?: string): Promise<ProfileResponse> {
-    const endpoint = userId ? `/profile/${userId}` : '/profile/me'
+    const endpoint = userId ? `/auth/profile/${userId}` : '/auth/me'
     const response = await apiClient.get<ProfileResponse>(endpoint)
     return response.data
   }
 
   async updateProfile(data: UpdateProfileData): Promise<ProfileResponse> {
-    const response = await apiClient.put<ProfileResponse>('/profile/me', data)
+    const response = await apiClient.put<ProfileResponse>('/auth/profile', data)
     return response.data
   }
 }
