@@ -13,6 +13,9 @@ import { ProtectedRoute } from './ProtectedRoute'
 import ChallengePage from '@/pages/challenge/ChallengePage'
 import ProblemDetailPage from '@/pages/challengeDetail/ProblemDetailPage'
 import Ranking from '@/pages/ranking/Ranking'
+import AdminHome from '@/pages/admin/adminhome/AdminHome'
+import ManageUser from '@/pages/admin/manageuser/ManageUser'
+import ManageTeacher from '@/pages/admin/manageteacher/ManageTeacher'
 // removed unused import
 
 export const router = createBrowserRouter([
@@ -44,6 +47,30 @@ export const router = createBrowserRouter([
     ),
   },
 
+  {
+    path: 'admin',
+    element: (
+      <ProtectedRoute>
+        <AdminHome />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: 'admin/users',
+    element: (
+      <ProtectedRoute>
+        <ManageUser />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: 'admin/teachers',
+    element: (
+      <ProtectedRoute>
+        <ManageTeacher />
+      </ProtectedRoute>
+    ),
+  },
   {
     path: '/',
     element: <MainLayout />,
