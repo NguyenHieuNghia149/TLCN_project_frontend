@@ -372,4 +372,157 @@
       font-size: 1.75rem;
     }
   }
+
+  /* Modal Styles */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 50;
+    backdrop-filter: blur(4px);
+  }
+
+  .modal {
+    width: 100%;
+    max-width: 560px;
+    max-height: 90vh; /* Giới hạn chiều cao tối đa là 90% chiều cao viewport */
+    background: rgba(17, 24, 39, 0.95);
+    border-radius: 16px;
+    border: 1px solid rgba(55, 65, 81, 0.5);
+    padding: 24px;
+    box-shadow: 0 20px 28px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    overflow-y: auto; /* Thêm thanh cuộn dọc khi nội dung vượt quá */
+    scrollbar-width: thin; /* Thanh cuộn mỏng cho Firefox */
+    scrollbar-color: rgba(102, 126, 234, 0.5) transparent; /* Màu thanh cuộn cho Firefox */
+  }
+
+  /* Tùy chỉnh thanh cuộn cho Chrome/Safari */
+  .modal::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .modal::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .modal::-webkit-scrollbar-thumb {
+    background-color: rgba(102, 126, 234, 0.5);
+    border-radius: 3px;
+  }
+
+  .modal::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(102, 126, 234, 0.7);
+  }
+
+  .modal h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 20px;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 12px;
+  }
+
+  .form-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .form-grid label span {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #9ca3af;
+  }
+
+  .form-grid input,
+  .form-grid select {
+    border: 1px solid rgba(55, 65, 81, 0.5);
+    border-radius: 8px;
+    padding: 10px 12px;
+    outline: none;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+    background: rgba(31, 41, 55, 0.5);
+    color: #e5e7eb;
+    font-size: 0.875rem;
+  }
+
+  .form-grid input:focus,
+  .form-grid select:focus {
+    border-color: rgba(102, 126, 234, 0.8);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.25);
+  }
+
+  .modal__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(55, 65, 81, 0.3);
+  }
+
+  .modal__actions .btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 1px solid rgba(55, 65, 81, 0.5);
+    background: rgba(31, 41, 55, 0.5);
+    color: #e5e7eb;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .modal__actions .btn:hover:not(:disabled) {
+    background: rgba(55, 65, 81, 0.7);
+    border-color: rgba(102, 126, 234, 0.5);
+  }
+
+  .modal__actions .btn--primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-color: transparent;
+    color: #ffffff;
+  }
+
+  .modal__actions .btn--primary:hover:not(:disabled) {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  }
+
+  .modal__actions .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .error-message {
+    padding: 12px;
+    border-radius: 8px;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    font-size: 0.875rem;
+  }
+
+  @media (max-width: 640px) {
+    .form-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .modal {
+      padding: 20px;
+    }
+  }
 }

@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react'
-import {
-  lessonDetailApi,
-  LessonDetail,
-} from '../../services/api/lessonDetail.api'
+import { lessonDetailApi } from '../../services/api/lessonDetail.service'
+import { LessonDetail } from '@/types/lessonDetail.types'
 
 export const useLessonDetail = (lessonId: string) => {
   const [lesson, setLesson] = useState<LessonDetail | null>(null)

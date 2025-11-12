@@ -13,7 +13,7 @@ import './header.scss'
 const Header: React.FC = () => {
   const location = useLocation()
   const navigate = useNavigate()
-  const { isAuthenticated, isLoading, logout } = useAuth()
+  const { user, isAuthenticated, isLoading, logout } = useAuth()
 
   const navItems = [
     { path: '/dashboard', label: 'Prepare' },
@@ -134,7 +134,10 @@ const Header: React.FC = () => {
                   <div className="ml-1 flex h-full w-10 items-center justify-center">
                     <div className="h-8 w-8 overflow-hidden rounded-full">
                       <img
-                        src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face"
+                        src={
+                          user?.avatar ||
+                          'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face'
+                        }
                         alt="Profile"
                         className="h-full w-full object-cover"
                       />

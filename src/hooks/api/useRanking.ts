@@ -1,9 +1,6 @@
-import { useState, useEffect } from 'react'
-import {
-  rankingAPI,
-  RankingUser,
-  RankingFilters,
-} from '../../services/api/ranking.api'
+import { useState, useEffect, useMemo } from 'react'
+import { rankingAPI } from '../../services/api/ranking.service'
+import { RankingFilters, RankingUser } from '@/types/ranking.types'
 
 export const useRanking = (filters: RankingFilters = {}) => {
   const [ranking, setRanking] = useState<RankingUser[]>([])
@@ -15,6 +12,11 @@ export const useRanking = (filters: RankingFilters = {}) => {
     total: 0,
     totalPages: 0,
   })
+
+  const serializedFilters = useMemo(
+    () => JSON.stringify(filters ?? {}),
+    [filters]
+  )
 
   useEffect(() => {
     const fetchRanking = async () => {
@@ -152,7 +154,6 @@ export const useRanking = (filters: RankingFilters = {}) => {
           const response = await rankingAPI.getRanking(filters)
           setRanking(response.data)
         } catch {
-          console.log('API not available, using mock data')
           setRanking(mockRanking)
         }
       } catch (err) {
@@ -163,7 +164,7 @@ export const useRanking = (filters: RankingFilters = {}) => {
     }
     fetchRanking()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters?.page, filters?.limit, filters?.sortBy, filters?.sortOrder])
+  }, [serializedFilters])
 
   const refetch = async () => {
     try {

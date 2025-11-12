@@ -7,7 +7,7 @@ import {
   RotateCcw,
   User,
 } from 'lucide-react'
-import { useAuthContext } from '../../contexts/AuthContext/useAuthContext'
+import { useAuth } from '../../hooks/api/useAuth'
 import { Link } from 'react-router-dom'
 
 interface ProblemHeaderProps {
@@ -29,7 +29,7 @@ const ProblemHeader: React.FC<ProblemHeaderProps> = ({
   problemId,
   navigationLoading = false,
 }) => {
-  const { user, isAuthenticated } = useAuthContext()
+  const { user, isAuthenticated } = useAuth()
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0)
   const [paused, setPaused] = useState<boolean>(false)
 
@@ -145,9 +145,9 @@ const ProblemHeader: React.FC<ProblemHeaderProps> = ({
         {isAuthenticated && user ? (
           <>
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-r from-green-500 to-blue-500">
-              {user.avatarUrl ? (
+              {user.avatar ? (
                 <img
-                  src={user.avatarUrl}
+                  src={user.avatar}
                   alt={`${user.firstname} ${user.lastname}`}
                   className="h-8 w-8 rounded-full object-cover"
                 />

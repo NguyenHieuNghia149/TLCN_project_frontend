@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react'
-import {
-  profileAPI,
-  ProfileData,
-  UpdateProfileData,
-} from '../../services/api/profile.api'
+import { profileAPI } from '@/services/api/profile.service'
+import { ProfileData, UpdateProfileData } from '@/types/profile.types'
 
 export const useProfile = (userId?: string) => {
   const [profile, setProfile] = useState<ProfileData | null>(null)
@@ -19,7 +16,6 @@ export const useProfile = (userId?: string) => {
         setProfile(response.data)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch profile')
-        console.error('Error fetching profile:', err)
       } finally {
         setLoading(false)
       }
@@ -49,7 +45,6 @@ export const useProfile = (userId?: string) => {
       setProfile(response.data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch profile')
-      console.error('Error fetching profile:', err)
     } finally {
       setLoading(false)
     }

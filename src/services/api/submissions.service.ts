@@ -41,7 +41,6 @@ class SubmissionsService {
       data?: SubmissionDetail
       message?: string
     }
-    console.log(json)
     if (!json?.success || !json.data) {
       throw new Error(json?.message || 'Failed to get submission')
     }

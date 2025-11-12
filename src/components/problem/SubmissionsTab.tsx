@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Eye, AlertTriangle, Copy } from 'lucide-react'
 import MonacoEditorWrapper from '@/components/editor/MonacoEditorWrapper'
-import { submissionsService } from '@/services/api/submissions.api'
+import { submissionsService } from '@/services/api/submissions.service'
 import type { SubmissionDetail } from '@/types/submission.types'
 
 interface SubmissionsTabProps {

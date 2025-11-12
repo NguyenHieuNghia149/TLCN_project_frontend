@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import ProblemSection from '../../components/problem/ProblemSection'
 import CodeEditorSection from '../../components/editor/CodeEditorSection'
-import { challengeService } from '../../services/api/challenge.api'
+import { challengeService } from '../../services/api/challenge.service'
 import { ProblemDetailResponse } from '../../types/challenge.types'
 import ProblemHeader from '../../components/problem/ProblemHeader'
 import { useProblemNavigation } from '../../hooks/common/useProblemNavigation'
-import { submissionsService } from '@/services/api/submissions.api'
+import { submissionsService } from '@/services/api/submissions.service'
 import type {
   SupportedLanguage,
   SandboxTestcaseResult,

@@ -20,7 +20,7 @@ import {
 import './Home.scss'
 import 'tailwindcss/tailwind.css'
 import SkillCard from '@/components/common/SkillCard'
-import { TopicService } from '@/services/api/topic.api'
+import { TopicService } from '@/services/api/topic.service'
 import { useNavigate } from 'react-router-dom'
 
 // const ProgressCard: React.FC<ProgressCardProps> = ({
