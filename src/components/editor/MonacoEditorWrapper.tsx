@@ -5,6 +5,8 @@ interface MonacoEditorWrapperProps {
   value: string
   onChange: (val: string) => void
   language?: string
+  readOnly?: boolean
+  height?: string | number
 }
 
 const MonacoEditorWrapper: React.FC<MonacoEditorWrapperProps> = props => {

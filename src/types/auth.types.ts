@@ -4,7 +4,9 @@ export interface User {
   firstname: string
   lastname: string
   role: string
-  avatarUrl?: string
+  avatar?: string
+  rankingPoint?: number
+  rank?: number
   createdAt: string
   lastLoginAt: string
 }
@@ -20,8 +22,8 @@ export interface RegisterData {
   password: string
   firstname: string
   lastname: string
-  confirmPassword: string
-  verifyEmailCode: string
+  passwordConfirm: string
+  otp: string
 }
 
 export interface AuthTokens {
@@ -43,17 +45,4 @@ export interface AuthResponse {
 
 export interface UpdateProfileData {
   user: User
-}
-
-export interface AuthContextType extends AuthState {
-  user: User | null
-  isAuthenticated: boolean
-  isLoading: boolean
-  error?: Error | null
-  login: (credentials: LoginCredentials) => Promise<void>
-  register: (data: RegisterData) => Promise<void>
-  logout: () => Promise<void>
-  refreshAuth: () => Promise<void>
-  clearError: () => void
-  hasRole: (role: string) => boolean
 }

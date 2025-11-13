@@ -127,6 +127,15 @@ class AxiosInstanceManager {
           _retryCount?: number
         }
 
+        // Suppress console errors for 401 on refresh-token (expected when not logged in)
+        if (
+          error.response?.status === 401 &&
+          originalRequest.url?.includes('/auth/refresh-token')
+        ) {
+          // Silently handle 401 on refresh-token - this is expected when user is not logged in
+          // Don't log to console to avoid noise
+        }
+
         // Don't retry these paths
         const skipRetryPaths = [
           '/auth/login',
