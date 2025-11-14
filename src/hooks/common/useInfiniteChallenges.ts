@@ -12,7 +12,7 @@ type BackendChallenge = {
   topic?: string
   createdAt?: string
   isSolved?: boolean
-  isFavorited?: boolean
+  isFavorite?: boolean
   totalPoints?: number
 }
 
@@ -41,7 +41,7 @@ async function fetchChallengesFromService(
       totalPoints:
         typeof it.totalPoints === 'number' ? it.totalPoints : undefined,
       isSolved: Boolean(it.isSolved),
-      isFavorite: Boolean(it.isFavorited),
+      isFavorite: Boolean(it.isFavorite),
     } as Challenge
   })
 }

@@ -175,6 +175,11 @@ const Header: React.FC = () => {
                                 setIsProfileOpen(false)
                                 return
                               }
+                              if (item.key === 'bookmarks') {
+                                navigate('/dashboard/bookmarks')
+                                setIsProfileOpen(false)
+                                return
+                              }
                             }}
                           >
                             {item.label}
