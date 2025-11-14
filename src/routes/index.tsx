@@ -13,6 +13,7 @@ import { ProtectedRoute } from './ProtectedRoute'
 import ChallengePage from '@/pages/challenge/ChallengePage'
 import ProblemDetailPage from '@/pages/challengeDetail/ProblemDetailPage'
 import Ranking from '@/pages/ranking/Ranking'
+import BookmarksPage from '@/pages/bookmarks/BookmarksPage'
 // removed unused import
 
 export const router = createBrowserRouter([
@@ -79,6 +80,14 @@ export const router = createBrowserRouter([
       {
         path: 'leaderboard',
         element: <Ranking />,
+      },
+      {
+        path: 'dashboard/bookmarks',
+        element: (
+          <ProtectedRoute>
+            <BookmarksPage />
+          </ProtectedRoute>
+        ),
       },
     ],
   },

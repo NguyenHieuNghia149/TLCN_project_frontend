@@ -86,7 +86,7 @@ export const initializeSession = createAsyncThunk<
   User,
   void,
   { rejectValue: string }
->('auth/initializeSession', async (_, { rejectWithValue }) => {
+>('auth/refreshToken', async (_, { rejectWithValue }) => {
   try {
     const { accessToken } = await authService.refreshToken()
     if (!accessToken) {

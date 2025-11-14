@@ -1,10 +1,12 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Check, Star } from 'lucide-react'
 import { Challenge } from '@/types/challenge.types'
+import { favoritesService } from '@/services/api/favorites.service'
 
 interface Props {
   challenge: Challenge
+  onFavoriteToggle?: (challengeId: string, isFavorite: boolean) => void
 }
 
 const difficultyColor: Record<Challenge['difficulty'], string> = {
@@ -13,9 +15,31 @@ const difficultyColor: Record<Challenge['difficulty'], string> = {
   hard: 'text-red-400',
 }
 
-const ChallengeCard: React.FC<Props> = ({ challenge }) => {
+const ChallengeCard: React.FC<Props> = ({ challenge, onFavoriteToggle }) => {
   const navigate = useNavigate()
+  const [isFavorite, setIsFavorite] = useState(challenge.isFavorite ?? false)
+  const [isToggling, setIsToggling] = useState(false)
+
   const goToDetail = () => navigate(`/problems/${challenge.id}`)
+
+  const handleToggleFavorite = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (isToggling) return
+
+    setIsToggling(true)
+    try {
+      const response = await favoritesService.toggleFavorite(challenge.id)
+      const newFavoriteStatus = response.data.isFavorite
+      setIsFavorite(newFavoriteStatus)
+      onFavoriteToggle?.(challenge.id, newFavoriteStatus)
+    } catch (error) {
+      console.error('Error toggling favorite:', error)
+      // Revert on error
+      setIsFavorite(!isFavorite)
+    } finally {
+      setIsToggling(false)
+    }
+  }
 
   return (
     <div className="rounded-xl border border-gray-800 bg-[#1f202a] p-5 transition-colors hover:border-gray-700 hover:bg-[#373741]">
@@ -41,16 +65,14 @@ const ChallengeCard: React.FC<Props> = ({ challenge }) => {
 
         <div className="ml-2 flex items-center gap-3">
           <button
-            aria-label={challenge.isFavorite ? 'Unfavorite' : 'Favorite'}
-            title={challenge.isFavorite ? 'Favorite' : 'Add to Favorite'}
-            className="rounded p-1.5 transition-colors hover:bg-gray-800"
+            onClick={handleToggleFavorite}
+            disabled={isToggling}
+            aria-label={isFavorite ? 'Unfavorite' : 'Favorite'}
+            title={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
+            className="rounded p-1.5 transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <span
-              className={
-                challenge.isFavorite ? 'text-yellow-400' : 'text-gray-500'
-              }
-            >
-              <Star className="h-4 w-4" />
+            <span className={isFavorite ? 'text-yellow-400' : 'text-gray-500'}>
+              <Star className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
             </span>
           </button>
 
