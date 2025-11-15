@@ -5,8 +5,11 @@ import { useInfiniteChallenges } from '@/hooks/common/useInfiniteChallenges'
 import ChallengeCard from '@/components/challenge/ChallengeCard'
 import ChallengeSearch from '@/components/challenge/ChallengeSearch'
 import { challengeService } from '@/services/api/challenge.service'
+import { useAuth } from '@/hooks/api/useAuth'
+import { Trophy, Sparkles } from 'lucide-react'
 
 const ChallengePage: React.FC = () => {
+  const { user, isAuthenticated } = useAuth()
   const [searchParams] = useSearchParams()
   const rawCategory = (searchParams.get('category') || '').toLowerCase()
   const { challengeId: topicId } = useParams<{ challengeId: string }>()
@@ -82,17 +85,35 @@ const ChallengePage: React.FC = () => {
         return false
       if (difficulties.length > 0 && !difficulties.includes(c.difficulty))
         return false
-      if (showSolved && !c.isSolve) return false
+      if (showSolved && !c.isSolved) return false
       if (showFavorites && !c.isFavorite) return false
       return true
     })
   }, [challenges, query, difficulties, showSolved, showFavorites])
 
+  const rankDisplay = useMemo(() => {
+    if (!user || user.rank === undefined || user.rank === null) {
+      return '—'
+    }
+    return new Intl.NumberFormat().format(user.rank)
+  }, [user])
+
+  const rankingPointDisplay = useMemo(() => {
+    if (
+      !user ||
+      user.rankingPoint === undefined ||
+      user.rankingPoint === null
+    ) {
+      return '—'
+    }
+    return new Intl.NumberFormat().format(user.rankingPoint)
+  }, [user])
+
   return (
     <div className="min-h-screen bg-[#121418] text-gray-100">
       {/* Header */}
-      <header className="min-h-24 border-b border-gray-800 bg-[#1f202a]">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
+      <header className="border-b border-gray-800 bg-[#1f202a]">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div>
             <Breadcrumb
               items={[
@@ -100,17 +121,60 @@ const ChallengePage: React.FC = () => {
                 { label: categoryLabel },
               ]}
             />
-            <h1 className="text-2xl font-bold">{categoryLabel}</h1>
+            <h1 className="mt-1 text-xl font-bold">{categoryLabel}</h1>
           </div>
           <div className="text-right">
-            <div className="mb-1 text-sm">
-              <span className="text-orange-400">39 more points</span>
-              <span className="text-white"> to get your next star!</span>
-            </div>
-            <div className="text-sm text-gray-400">
-              Rank: <span className="font-semibold text-white">2377771</span> |
-              Points: <span className="font-semibold text-white">61/100</span>
-            </div>
+            {isAuthenticated && user ? (
+              <div className="flex flex-col items-end gap-2">
+                <div className="text-xs text-gray-400">
+                  Keep going—every challenge boosts your position.
+                </div>
+                <div className="flex items-center gap-2">
+                  {/* Rank Card */}
+                  <div className="group relative overflow-hidden rounded-lg border border-emerald-500/30 bg-gradient-to-br from-emerald-500/5 to-transparent px-3 py-2 transition-all duration-300 hover:border-emerald-400/50 hover:shadow-md hover:shadow-emerald-500/20">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 transition-transform duration-300 group-hover:scale-110">
+                        <Trophy className="h-4 w-4 text-emerald-400" />
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-medium uppercase tracking-wider text-emerald-400/80">
+                          Rank
+                        </div>
+                        <div className="text-lg font-bold leading-none text-white">
+                          {rankDisplay}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Points Card */}
+                  <div className="group relative overflow-hidden rounded-lg border border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-transparent px-3 py-2 transition-all duration-300 hover:border-amber-400/50 hover:shadow-md hover:shadow-amber-500/20">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-600/10 transition-transform duration-300 group-hover:scale-110">
+                        <Sparkles className="h-4 w-4 text-amber-400" />
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-medium uppercase tracking-wider text-amber-400/80">
+                          Points
+                        </div>
+                        <div className="text-lg font-bold leading-none text-white">
+                          {rankingPointDisplay}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-end gap-0.5 text-xs text-gray-400">
+                <span className="font-medium text-gray-300">
+                  Track your competitive progress.
+                </span>
+                <span>
+                  Sign in to unlock personalized rank and point insights.
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -119,8 +183,8 @@ const ChallengePage: React.FC = () => {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
           {/* Left: List */}
           <div className="space-y-4 lg:col-span-3">
-            {filtered.map(ch => (
-              <ChallengeCard key={ch.id} challenge={ch} />
+            {filtered.map(challenge => (
+              <ChallengeCard key={challenge.id} challenge={challenge} />
             ))}
             {loading && (
               <p className="py-4 text-center text-gray-500">Loading more...</p>

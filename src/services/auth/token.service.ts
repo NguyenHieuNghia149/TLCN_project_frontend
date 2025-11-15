@@ -44,7 +44,7 @@ class TokenManager {
 
     try {
       const decoded = jwtDecode<DecodedToken>(this.accessToken)
-      return decoded.exp * 1000 // Convert to milliseconds
+      return decoded.exp // Convert to milliseconds
     } catch {
       return null
     }
@@ -76,8 +76,7 @@ class TokenManager {
         try {
           const newToken = await this.tokenRefreshCallback()
           this.setAccessToken(newToken)
-        } catch (error) {
-          console.error('Failed to refresh token:', error)
+        } catch {
           this.clearAccessToken()
         }
       }

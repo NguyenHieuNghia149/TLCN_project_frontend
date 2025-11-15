@@ -5,12 +5,16 @@ interface MonacoEditorProps {
   value: string
   onChange: (val: string) => void
   language?: string
+  readOnly?: boolean
+  height?: string | number
 }
 
 const MonacoEditor: React.FC<MonacoEditorProps> = ({
   value,
   onChange,
   language = 'cpp',
+  readOnly = false,
+  height = '100%',
 }) => {
   const handleEditorChange = (value: string | undefined) => {
     if (value !== undefined) {
@@ -21,7 +25,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
   return (
     <div className="h-full w-full">
       <Editor
-        height="100%"
+        height={height}
         language={language}
         value={value}
         onChange={handleEditorChange}
@@ -43,7 +47,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
           renderLineHighlight: 'line',
           selectOnLineNumbers: true,
           roundedSelection: false,
-          readOnly: false,
+          readOnly,
           cursorStyle: 'line',
           cursorBlinking: 'blink',
           cursorWidth: 0,

@@ -1,33 +1,9 @@
 import { API_CONFIG } from '../../config/api.config'
-
-export interface Lesson {
-  id: string
-  title: string
-  content: string | null
-  videoUrl?: string | null
-  topicId: string
-  topicName: string | null
-  createdAt: string
-  updatedAt: string
-}
-
-export interface LessonResponse {
-  success: boolean
-  data: Lesson[]
-  message: string
-}
-
-export interface SingleLessonResponse {
-  success: boolean
-  data: Lesson
-  message: string
-}
-
-export interface LessonFilters {
-  topicId?: string
-  page?: number
-  limit?: number
-}
+import type {
+  LessonResponse,
+  LessonFilters,
+  SingleLessonResponse,
+} from '@/types/lesson.types'
 
 class LessonAPI {
   private baseURL: string

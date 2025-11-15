@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
-import { lessonAPI, Lesson, LessonFilters } from '../../services/api/lesson.api'
+import { useState, useEffect, useMemo } from 'react'
+import { lessonAPI } from '../../services/api/lesson.service'
+import { Lesson, LessonFilters } from '@/types/lesson.types'
 
 export const useLessons = (filters: LessonFilters = {}) => {
   const [lessons, setLessons] = useState<Lesson[]>([])
@@ -11,6 +12,11 @@ export const useLessons = (filters: LessonFilters = {}) => {
     total: 0,
     totalPages: 0,
   })
+
+  const serializedFilters = useMemo(
+    () => JSON.stringify(filters ?? {}),
+    [filters]
+  )
 
   useEffect(() => {
     const fetchLessons = async () => {
@@ -32,7 +38,8 @@ export const useLessons = (filters: LessonFilters = {}) => {
       }
     }
     fetchLessons()
-  }, [filters.topicId, filters.page, filters.limit])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serializedFilters])
 
   const refetch = () => {
     lessonAPI

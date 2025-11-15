@@ -1,0 +1,319 @@
+/* GoogleButton.css - Modern Refactored Styles */
+
+.google-button-container {
+  width: 100%;
+  position: relative;
+}
+
+/* Native Google Button Wrapper */
+.google-button-native {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: opacity 0.3s ease;
+}
+
+.google-button-native--hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Override Google's default button styles */
+.google-button-native > div {
+  width: 100% !important;
+}
+
+.google-button-native iframe {
+  width: 100% !important;
+  height: 48px !important;
+  border-radius: 10px !important;
+}
+
+/* Custom Google Button - Base Styles */
+.google-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu,
+    Cantarell, 'Helvetica Neue', sans-serif;
+  position: relative;
+  overflow: hidden;
+  outline: none;
+}
+
+.google-button:focus-visible {
+  outline: 2px solid #4285f4;
+  outline-offset: 2px;
+}
+
+/* Button Icon */
+.google-button__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.google-button__text {
+  z-index: 1;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* Modern Variant - Gradient with Glass Effect */
+.google-button--modern {
+  height: 52px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(248, 250, 252, 0.95) 100%
+  );
+  backdrop-filter: blur(10px);
+  border: 1.5px solid rgba(226, 232, 240, 0.8);
+  color: #1e293b;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.05),
+    0 10px 20px -5px rgba(0, 0, 0, 0.04);
+}
+
+.google-button--modern::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(66, 133, 244, 0.05) 0%,
+    rgba(234, 67, 53, 0.05) 100%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.google-button--modern:hover:not(:disabled)::before {
+  opacity: 1;
+}
+
+.google-button--modern:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: rgba(203, 213, 225, 1);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.08),
+    0 20px 30px -10px rgba(66, 133, 244, 0.15);
+}
+
+.google-button--modern:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.08),
+    0 4px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* Minimal Variant - Clean & Subtle */
+.google-button--minimal {
+  height: 48px;
+  background: transparent;
+  border: 2px solid rgba(148, 163, 184, 0.25);
+  color: #334155;
+}
+
+.google-button--minimal:hover:not(:disabled) {
+  background: rgba(148, 163, 184, 0.05);
+  border-color: rgba(148, 163, 184, 0.4);
+  transform: translateY(-1px);
+}
+
+.google-button--minimal:active:not(:disabled) {
+  transform: translateY(0);
+  background: rgba(148, 163, 184, 0.1);
+}
+
+/* Dark Theme Variants */
+.google-button--modern.google-button--filled_black,
+.google-button--minimal.google-button--filled_black {
+  background: linear-gradient(
+    135deg,
+    rgba(30, 41, 59, 0.95) 0%,
+    rgba(15, 23, 42, 0.95) 100%
+  );
+  border-color: rgba(71, 85, 105, 0.5);
+  color: #f1f5f9;
+}
+
+.google-button--modern.google-button--filled_black::before {
+  background: linear-gradient(
+    135deg,
+    rgba(66, 133, 244, 0.1) 0%,
+    rgba(234, 67, 53, 0.1) 100%
+  );
+}
+
+.google-button--modern.google-button--filled_black:hover:not(:disabled) {
+  border-color: rgba(100, 116, 139, 0.8);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 20px 30px -10px rgba(66, 133, 244, 0.2);
+}
+
+/* Outline Theme */
+.google-button--outline {
+  background: transparent;
+  border: 2px solid rgba(66, 133, 244, 0.3);
+  color: #4285f4;
+}
+
+.google-button--outline:hover:not(:disabled) {
+  background: rgba(66, 133, 244, 0.05);
+  border-color: rgba(66, 133, 244, 0.5);
+}
+
+.google-button--outline:active:not(:disabled) {
+  background: rgba(66, 133, 244, 0.1);
+}
+
+/* Disabled State */
+.google-button--disabled,
+.google-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.google-button--disabled::before,
+.google-button:disabled::before {
+  display: none;
+}
+
+/* Loading State Animation */
+.google-button--loading {
+  pointer-events: none;
+}
+
+.google-button--loading .google-button__icon {
+  animation: googleIconPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes googleIconPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(0.95);
+  }
+}
+
+/* Ripple Effect */
+.google-button::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(66, 133, 244, 0.2);
+  transform: translate(-50%, -50%);
+  transition:
+    width 0.6s ease,
+    height 0.6s ease;
+}
+
+.google-button:active:not(:disabled)::after {
+  width: 300px;
+  height: 300px;
+  transition:
+    width 0s,
+    height 0s;
+}
+
+/* Size Variants */
+.google-button--small {
+  height: 40px;
+  font-size: 14px;
+  padding: 0 16px;
+  gap: 8px;
+}
+
+.google-button--small .google-button__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.google-button--medium {
+  height: 46px;
+  font-size: 15px;
+  padding: 0 20px;
+  gap: 10px;
+}
+
+.google-button--large {
+  height: 52px;
+  font-size: 16px;
+  padding: 0 24px;
+  gap: 12px;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .google-button--modern,
+  .google-button--minimal {
+    height: 48px;
+    font-size: 15px;
+  }
+
+  .google-button__icon svg {
+    width: 19px;
+    height: 19px;
+  }
+}
+
+@media (max-width: 480px) {
+  .google-button--modern,
+  .google-button--minimal {
+    height: 44px;
+    font-size: 14px;
+    gap: 10px;
+  }
+
+  .google-button__icon svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+/* Accessibility - High Contrast Mode */
+@media (prefers-contrast: high) {
+  .google-button--modern,
+  .google-button--minimal {
+    border-width: 2px;
+    border-color: currentColor;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .google-button,
+  .google-button::before,
+  .google-button::after {
+    transition: none;
+    animation: none;
+  }
+}

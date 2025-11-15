@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useCallback, useRef, useState } from 'react'
 import {
   ChevronDown,
   RotateCcw,
@@ -10,20 +10,9 @@ import {
 } from 'lucide-react'
 import MonacoEditorWrapper from './MonacoEditorWrapper'
 import ConsolePanel from './ConsolePanel'
+import type { TestCase, OutputState } from '@/types/editor.types'
 
-interface TestCase {
-  id: string
-  name: string
-  input: string
-  expectedOutput: string
-}
-
-interface OutputState {
-  status: 'idle' | 'running' | 'accepted' | 'rejected'
-  message: string
-  passedTests?: number
-  totalTests?: number
-}
+// Types moved to src/types/editor.types.ts
 
 interface CodeEditorSectionProps {
   code: string
@@ -39,7 +28,7 @@ interface CodeEditorSectionProps {
   onReset: () => void
 }
 
-const LANGUAGES = ['Python', 'Java', 'C++', 'JavaScript', 'C#', 'Go']
+const LANGUAGES = ['C++', 'Python', 'Java', 'JavaScript']
 
 const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
   code,
@@ -57,6 +46,36 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
   const [copied, setCopied] = useState(false)
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false)
   const [consoleExpanded, setConsoleExpanded] = useState(false)
+  const [consoleHeight, setConsoleHeight] = useState<number>(280)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+
+  const startResizeConsole = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      e.preventDefault()
+      e.stopPropagation()
+      const startY = e.clientY
+      const startHeight = consoleHeight
+      const containerEl = containerRef.current
+      const containerRect = containerEl?.getBoundingClientRect()
+      const maxHeight = containerRect
+        ? Math.max(120, Math.floor(containerRect.height * 0.9))
+        : 600
+
+      const onMove = (ev: MouseEvent) => {
+        const delta = startY - ev.clientY
+        const next = Math.min(maxHeight, Math.max(120, startHeight + delta))
+        setConsoleHeight(next)
+        if (!consoleExpanded) setConsoleExpanded(true)
+      }
+      const onUp = () => {
+        window.removeEventListener('mousemove', onMove)
+        window.removeEventListener('mouseup', onUp)
+      }
+      window.addEventListener('mousemove', onMove)
+      window.addEventListener('mouseup', onUp)
+    },
+    [consoleHeight, consoleExpanded]
+  )
   const [activeConsoleTab, setActiveConsoleTab] = useState<
     'testcase' | 'output'
   >('testcase')
@@ -145,7 +164,7 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
       </div>
 
       {/* Editor Area */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div ref={containerRef} className="flex flex-1 flex-col overflow-hidden">
         {/* Monaco-style Code Editor */}
         <div className="flex-1 overflow-hidden px-3 py-3">
           <MonacoEditorWrapper
@@ -159,10 +178,17 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
           />
         </div>
 
-        {/* Console/Output Area - Collapsible */}
+        {/* Resize handle */}
+        <div
+          onMouseDown={startResizeConsole}
+          className="h-2 w-full cursor-row-resize bg-gray-900 hover:bg-gray-800"
+          title="Drag to resize"
+        />
+        {/* Console/Output Area - Resizable, Collapsible */}
         <ConsolePanel
           consoleExpanded={consoleExpanded}
           onToggleConsole={() => setConsoleExpanded(!consoleExpanded)}
+          consoleHeight={consoleHeight}
           activeConsoleTab={activeConsoleTab}
           onConsoleTabChange={setActiveConsoleTab}
           testCases={testCases}

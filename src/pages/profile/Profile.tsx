@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useProfile } from '../../hooks/api/useProfile'
-import { UpdateProfileData } from '../../services/api/profile.api'
+import { UpdateProfileData } from '../../services/api/profile.service'
 import '../../pages/profile/Profile.css'
 import { API_CONFIG } from '../../config/api.config'
 import { tokenManager } from '../../services/auth/token.service'
@@ -72,8 +72,6 @@ const Profile: React.FC = () => {
       fd.append('avatar', file)
       const uploadUrl = `${API_CONFIG.baseURL}/auth/profile/upload-avatar`
 
-      console.log('Uploading to:', uploadUrl)
-
       const res = await fetch(uploadUrl, {
         method: 'POST',
         headers: {
@@ -83,20 +81,13 @@ const Profile: React.FC = () => {
         credentials: 'include',
       })
 
-      // Log response status and headers
-      console.log('Response status:', res.status)
-      console.log('Response type:', res.headers.get('content-type'))
-
       // Check if response is JSON
       const contentType = res.headers.get('content-type')
       if (!contentType || !contentType.includes('application/json')) {
-        const text = await res.text()
-        console.error('Received non-JSON response:', text)
         throw new Error('Server returned invalid format')
       }
 
       const json = await res.json()
-      console.log('Response JSON:', json)
 
       if (!res.ok) {
         throw new Error(json?.message || 'Upload failed')
@@ -108,7 +99,6 @@ const Profile: React.FC = () => {
 
       return json.data.avatar as string
     } catch (error) {
-      console.error('Avatar upload error:', error)
       if (error instanceof Error) {
         throw new Error(`Avatar upload failed: ${error.message}`)
       }
@@ -140,14 +130,6 @@ const Profile: React.FC = () => {
       const gender = (formData.get('gender') as string)?.trim()
       const dateOfBirthValue = (formData.get('dateOfBirth') as string)?.trim()
 
-      console.log('Form values:', {
-        firstName,
-        lastName,
-        gender,
-        dateOfBirthValue,
-        hasAvatarFile: !!avatarFile,
-      })
-
       // Only include non-empty values
       if (firstName) {
         updateData.firstName = firstName
@@ -158,12 +140,9 @@ const Profile: React.FC = () => {
       // If user selected a new avatar file, upload it first and use returned URL
       if (avatarFile && avatarFile.size) {
         try {
-          console.log('Uploading avatar file:', avatarFile.name)
           const uploadUrl = await uploadAvatar(avatarFile)
-          console.log('Upload successful, got URL:', uploadUrl)
           if (uploadUrl) updateData.avatar = uploadUrl
         } catch (upErr) {
-          console.error('Avatar upload error in handleSubmit:', upErr)
           throw new Error(
             upErr instanceof Error
               ? upErr.message
@@ -180,8 +159,6 @@ const Profile: React.FC = () => {
       if (dateOfBirthValue) {
         updateData.dateOfBirth = new Date(dateOfBirthValue).toISOString()
       }
-
-      console.log('Update data being sent:', updateData)
 
       await updateProfile(updateData)
       setShowEditModal(false)

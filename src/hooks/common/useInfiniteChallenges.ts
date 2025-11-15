@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { Challenge } from '@/types/challenge.types'
+import type { Challenge, PaginatedResponse } from '@/types/challenge.types'
 import { challengeService } from '@/services/api/challenge.service'
 
 // 🔁 Giả lập API call (fetch dữ liệu) dựa trên mockChallenges chia trang
@@ -11,7 +11,7 @@ type BackendChallenge = {
   difficulty?: string
   topic?: string
   createdAt?: string
-  isSolve?: boolean
+  isSolved?: boolean
   isFavorite?: boolean
   totalPoints?: number
 }
@@ -25,7 +25,7 @@ async function fetchChallengesFromService(
   // data can be array or {items: [], nextCursor}
   const items = Array.isArray(data)
     ? (data as BackendChallenge[])
-    : (data?.items as unknown[] as BackendChallenge[]) || []
+    : (data as PaginatedResponse<Challenge>)?.items || []
   return items.map((it: BackendChallenge) => {
     const difficulty = (it.difficult || it.difficulty || 'easy')
       .toString()
@@ -40,8 +40,8 @@ async function fetchChallengesFromService(
       createdAt,
       totalPoints:
         typeof it.totalPoints === 'number' ? it.totalPoints : undefined,
-      isSolve: Boolean(it.isSolve) || false,
-      isFavorite: Boolean(it.isFavorite) || false,
+      isSolved: Boolean(it.isSolved),
+      isFavorite: Boolean(it.isFavorite),
     } as Challenge
   })
 }
