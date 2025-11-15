@@ -1,4 +1,4 @@
-import { API_CONFIG } from '../../config/api.config'
+import { apiClient } from '../../config/axios.config'
 import type {
   LessonResponse,
   LessonFilters,
@@ -6,48 +6,20 @@ import type {
 } from '@/types/lesson.types'
 
 class LessonAPI {
-  private baseURL: string
-
-  constructor() {
-    this.baseURL = `${API_CONFIG.baseURL}/lessons`
-  }
-
   async getAllLessons(filters: LessonFilters = {}): Promise<LessonResponse> {
-    const params = new URLSearchParams()
+    const params: Record<string, string | number> = {}
 
-    if (filters.topicId) params.append('topicId', filters.topicId)
-    if (filters.page) params.append('page', filters.page.toString())
-    if (filters.limit) params.append('limit', filters.limit.toString())
+    if (filters.topicId) params.topicId = filters.topicId
+    if (filters.page) params.page = filters.page
+    if (filters.limit) params.limit = filters.limit
 
-    const url = `${this.baseURL}${params.toString() ? `?${params.toString()}` : ''}`
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch lessons: ${response.statusText}`)
-    }
-
-    return response.json()
+    const response = await apiClient.get('/lessons', { params })
+    return response.data
   }
 
   async getLessonById(id: string): Promise<SingleLessonResponse> {
-    const response = await fetch(`${this.baseURL}/${id}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch lesson: ${response.statusText}`)
-    }
-
-    return response.json()
+    const response = await apiClient.get(`/lessons/${id}`)
+    return response.data
   }
 
   async getLessonsByTopic(
@@ -55,23 +27,11 @@ class LessonAPI {
     page: number = 1,
     limit: number = 10
   ): Promise<LessonResponse> {
-    const response = await fetch(
-      `${this.baseURL}/topic/${topicId}?page=${page}&limit=${limit}`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    )
-
-    if (!response.ok) {
-      throw new Error(
-        `Failed to fetch lessons by topic: ${response.statusText}`
-      )
-    }
-
-    return response.json()
+    const params = { page, limit }
+    const response = await apiClient.get(`/lessons/topic/${topicId}`, {
+      params,
+    })
+    return response.data
   }
 
   async createLesson(lessonData: {
@@ -79,19 +39,8 @@ class LessonAPI {
     content?: string
     topicId: string
   }): Promise<SingleLessonResponse> {
-    const response = await fetch(this.baseURL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(lessonData),
-    })
-
-    if (!response.ok) {
-      throw new Error(`Failed to create lesson: ${response.statusText}`)
-    }
-
-    return response.json()
+    const response = await apiClient.post('/lessons', lessonData)
+    return response.data
   }
 
   async updateLesson(
@@ -102,36 +51,15 @@ class LessonAPI {
       topicId?: string
     }
   ): Promise<SingleLessonResponse> {
-    const response = await fetch(`${this.baseURL}/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(lessonData),
-    })
-
-    if (!response.ok) {
-      throw new Error(`Failed to update lesson: ${response.statusText}`)
-    }
-
-    return response.json()
+    const response = await apiClient.put(`/lessons/${id}`, lessonData)
+    return response.data
   }
 
   async deleteLesson(
     id: string
   ): Promise<{ success: boolean; message: string }> {
-    const response = await fetch(`${this.baseURL}/${id}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error(`Failed to delete lesson: ${response.statusText}`)
-    }
-
-    return response.json()
+    const response = await apiClient.delete(`/lessons/${id}`)
+    return response.data
   }
 }
 

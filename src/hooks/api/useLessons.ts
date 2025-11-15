@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useLocation } from 'react-router-dom'
 import { lessonAPI } from '../../services/api/lesson.service'
 import { Lesson, LessonFilters } from '@/types/lesson.types'
 
 export const useLessons = (filters: LessonFilters = {}) => {
+  const location = useLocation()
   const [lessons, setLessons] = useState<Lesson[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -39,7 +41,7 @@ export const useLessons = (filters: LessonFilters = {}) => {
     }
     fetchLessons()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serializedFilters])
+  }, [serializedFilters, location.pathname])
 
   const refetch = () => {
     lessonAPI

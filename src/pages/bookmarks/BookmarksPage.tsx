@@ -2,26 +2,39 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Breadcrumb from '@/components/common/Breadcrumb'
 import ChallengeCard from '@/components/challenge/ChallengeCard'
+import LessonCard from '@/components/lesson/LessonCard'
 import ChallengeSearch from '@/components/challenge/ChallengeSearch'
+import LessonSearch from '@/components/lesson/LessonSearch'
 import { favoritesService } from '@/services/api/favorites.service'
 import { useAuth } from '@/hooks/api/useAuth'
 import { Trophy, Sparkles, Bookmark } from 'lucide-react'
 import type { Challenge } from '@/types/challenge.types'
+import type { Lesson } from '@/types/lesson.types'
 
 const BookmarksPage: React.FC = () => {
   const { user, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const [challenges, setChallenges] = useState<Challenge[]>([])
+  const [lessons, setLessons] = useState<Lesson[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Filters state
-  const [query, setQuery] = useState<string>('')
+  // Challenge filters state
+  const [challengeQuery, setChallengeQuery] = useState<string>('')
   const [difficulties, setDifficulties] = useState<string[]>([])
-  const [showSolved, setShowSolved] = useState<boolean>(false)
+
+  // Lesson filters state
+  const [lessonQuery, setLessonQuery] = useState<string>('')
+  const [topics, setTopics] = useState<string[]>([])
 
   const toggleDifficulty = (value: string) => {
     setDifficulties(prev =>
+      prev.includes(value) ? prev.filter(d => d !== value) : [...prev, value]
+    )
+  }
+
+  const toggleTopic = (value: string) => {
+    setTopics(prev =>
       prev.includes(value) ? prev.filter(d => d !== value) : [...prev, value]
     )
   }
@@ -38,26 +51,74 @@ const BookmarksPage: React.FC = () => {
       try {
         setLoading(true)
         setError(null)
-        const response = await favoritesService.getFavorites()
-        const favoriteItems = response.data || []
 
-        const transformedChallenges: Challenge[] = favoriteItems.map(data => ({
-          id: data.problem.id,
-          title: data.problem.title,
-          description: data.problem.description,
-          difficulty: data.problem.difficulty,
-          topic: '', // You might want to fetch topic name separately
-          createdAt: data.problem.createdAt,
-          updatedAt: data.problem.updatedAt,
-          totalPoints: data.problem.totalPoints,
-          isSolved: data.problem.isSolved,
-          isFavorite: data.problem.isFavorite,
-        }))
+        // Fetch both challenge and lesson favorites in parallel
+        const [challengesRes, lessonsRes] = await Promise.allSettled([
+          favoritesService.getFavorites(),
+          favoritesService.getLessonFavorites(),
+        ])
+
+        // Handle challenges result
+        let transformedChallenges: Challenge[] = []
+        if (challengesRes.status === 'fulfilled') {
+          const favoriteItems = challengesRes.value?.data || []
+          transformedChallenges = favoriteItems
+            .filter(data => {
+              const passes = data && data.problem && data.problem.id
+              return passes
+            })
+            .map(data => ({
+              id: data.problem.id,
+              title: data.problem.title,
+              description: data.problem.description,
+              difficulty: data.problem.difficulty,
+              topic: '', // You might want to fetch topic name separately
+              createdAt: data.problem.createdAt,
+              updatedAt: data.problem.updatedAt,
+              totalPoints: data.problem.totalPoints,
+              isSolved: data.problem.isSolved,
+              isFavorite: data.problem.isFavorite,
+            }))
+            .filter(c => c.id)
+        } else {
+          console.error(
+            '[BookmarksPage] Error fetching challenges:',
+            challengesRes.reason
+          )
+        }
+
+        // Handle lessons result
+        let transformedLessons: Lesson[] = []
+        if (lessonsRes.status === 'fulfilled') {
+          const favoriteLessons = lessonsRes.value?.data || []
+          transformedLessons = favoriteLessons
+            .filter(data => {
+              const passes = data && data.lesson && data.lesson.id
+              return passes
+            })
+            .map(data => ({
+              id: data.lesson.id,
+              title: data.lesson.title,
+              content: data.lesson.content,
+              videoUrl: data.lesson.videoUrl,
+              topicId: data.lesson.topicId,
+              topicName: data.lesson.topicName,
+              createdAt: data.lesson.createdAt,
+              updatedAt: data.lesson.updatedAt,
+              isFavorite: true,
+            }))
+            .filter(l => l.id)
+        } else {
+          console.error(
+            '[BookmarksPage] Error fetching lessons:',
+            lessonsRes.reason
+          )
+        }
 
         setChallenges(transformedChallenges)
+        setLessons(transformedLessons)
       } catch (err) {
-        console.error('Error fetching favorites:', err)
-        setError('Failed to load bookmarks. Please try again.')
+        console.error('[BookmarksPage] Unexpected error:', err)
       } finally {
         setLoading(false)
       }
@@ -68,19 +129,50 @@ const BookmarksPage: React.FC = () => {
 
   const filtered = useMemo(() => {
     return challenges.filter(c => {
-      if (query && !c.title.toLowerCase().includes(query.toLowerCase()))
+      if (
+        challengeQuery &&
+        !c.title.toLowerCase().includes(challengeQuery.toLowerCase())
+      )
         return false
       if (difficulties.length > 0 && !difficulties.includes(c.difficulty))
         return false
-      if (showSolved && !c.isSolved) return false
       return true
     })
-  }, [challenges, query, difficulties, showSolved])
+  }, [challenges, challengeQuery, difficulties])
+
+  const filteredLessons = useMemo(() => {
+    return lessons.filter(l => {
+      if (
+        lessonQuery &&
+        !l.title.toLowerCase().includes(lessonQuery.toLowerCase())
+      )
+        return false
+      if (topics.length > 0 && !topics.includes(l.topicName || '')) return false
+      return true
+    })
+  }, [lessons, lessonQuery, topics])
+
+  const uniqueTopics = useMemo(() => {
+    const topicSet = new Set(
+      lessons.map(l => l.topicName).filter((t): t is string => Boolean(t))
+    )
+    return Array.from(topicSet)
+  }, [lessons])
 
   const handleFavoriteToggle = (challengeId: string, isFavorite: boolean) => {
     // Remove from list if unfavorited
     if (!isFavorite) {
       setChallenges(prev => prev.filter(c => c.id !== challengeId))
+    }
+  }
+
+  const handleLessonFavoriteToggle = (
+    lessonId: string,
+    isFavorite: boolean
+  ) => {
+    // Remove from list if unfavorited
+    if (!isFavorite) {
+      setLessons(prev => prev.filter(l => l.id !== lessonId))
     }
   }
 
@@ -196,58 +288,84 @@ const BookmarksPage: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-            {/* Left: List */}
-            <div className="space-y-4 lg:col-span-3">
-              {filtered.length === 0 ? (
-                <div className="rounded-lg border border-gray-800 bg-[#1f202a] p-8 text-center">
-                  <Bookmark className="mx-auto mb-4 h-12 w-12 text-gray-500" />
-                  <h3 className="mb-2 text-lg font-semibold">
-                    No bookmarks yet
-                  </h3>
-                  <p className="mb-4 text-gray-400">
-                    Start bookmarking challenges to see them here
-                  </p>
-                  <button
-                    onClick={() => navigate('/dashboard')}
-                    className="rounded bg-green-500 px-4 py-2 text-black transition-colors hover:bg-green-400"
-                  >
-                    Browse Challenges
-                  </button>
-                </div>
-              ) : (
-                <>
-                  {filtered.map(challenge => (
-                    <ChallengeCard
-                      key={challenge.id}
-                      challenge={challenge}
-                      onFavoriteToggle={handleFavoriteToggle}
-                    />
-                  ))}
-                </>
-              )}
+            {/* Left: Bookmarks Content */}
+            <div className="space-y-8 lg:col-span-3">
+              {/* Problems Section */}
+              <section>
+                <h2 className="mb-4 text-2xl font-bold">Problems</h2>
+                {filtered.length === 0 ? (
+                  <div className="rounded-lg border border-gray-800 bg-[#1f202a] p-8 text-center">
+                    <Bookmark className="mx-auto mb-4 h-12 w-12 text-gray-500" />
+                    <h3 className="mb-2 text-lg font-semibold">
+                      No problem bookmarks yet
+                    </h3>
+                    <p className="mb-4 text-gray-400">
+                      Start bookmarking challenges to see them here
+                    </p>
+                    <button
+                      onClick={() => navigate('/dashboard')}
+                      className="rounded bg-green-500 px-4 py-2 text-black transition-colors hover:bg-green-400"
+                    >
+                      Browse Challenges
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {filtered.map(challenge => (
+                      <ChallengeCard
+                        key={challenge.id}
+                        challenge={challenge}
+                        onFavoriteToggle={handleFavoriteToggle}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              {/* Lessons Section */}
+              <section>
+                <h2 className="mb-4 text-2xl font-bold">Lessons</h2>
+                {filteredLessons.length === 0 ? (
+                  <div className="rounded-lg border border-gray-800 bg-[#1f202a] p-8 text-center">
+                    <Bookmark className="mx-auto mb-4 h-12 w-12 text-gray-500" />
+                    <h3 className="mb-2 text-lg font-semibold">
+                      No lesson bookmarks yet
+                    </h3>
+                    <p className="mb-4 text-gray-400">
+                      Start bookmarking lessons to see them here
+                    </p>
+                    <button
+                      onClick={() => navigate('/lessons')}
+                      className="rounded bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-400"
+                    >
+                      Browse Lessons
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {filteredLessons.map(lesson => (
+                      <LessonCard
+                        key={lesson.id}
+                        lesson={lesson}
+                        onFavoriteToggle={handleLessonFavoriteToggle}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
             </div>
 
             {/* Right: Filters */}
             <aside className="space-y-6">
+              {/* Challenge Search and Filters */}
               <div className="bg-transparent">
-                <ChallengeSearch query={query} onChange={setQuery} />
-              </div>
-
-              <div className="rounded-lg bg-transparent p-4">
                 <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-gray-400">
-                  Status
+                  Problems Filters
                 </h3>
-                <div className="space-y-3">
-                  <label className="flex cursor-pointer items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={showSolved}
-                      onChange={e => setShowSolved(e.target.checked)}
-                      className="h-4 w-4 rounded border-gray-700 bg-gray-800 text-green-500 focus:ring-0 focus:ring-offset-0"
-                    />
-                    <span className="text-sm">Solved</span>
-                  </label>
-                </div>
+                <ChallengeSearch
+                  query={challengeQuery}
+                  onChange={setChallengeQuery}
+                />
               </div>
 
               <div className="rounded-lg bg-transparent p-4">
@@ -282,6 +400,40 @@ const BookmarksPage: React.FC = () => {
                     />
                     <span className="text-sm">Hard</span>
                   </label>
+                </div>
+              </div>
+
+              {/* Lesson Search and Filters */}
+              <div className="bg-transparent pt-6">
+                <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-gray-400">
+                  Lessons Filters
+                </h3>
+                <LessonSearch query={lessonQuery} onChange={setLessonQuery} />
+              </div>
+
+              <div className="rounded-lg bg-transparent p-4">
+                <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-gray-400">
+                  Topics
+                </h3>
+                <div className="space-y-3">
+                  {uniqueTopics.length === 0 ? (
+                    <p className="text-xs text-gray-500">No topics available</p>
+                  ) : (
+                    uniqueTopics.map(topic => (
+                      <label
+                        key={topic}
+                        className="flex cursor-pointer items-center gap-3"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={topics.includes(topic)}
+                          onChange={() => toggleTopic(topic)}
+                          className="h-4 w-4 rounded border-gray-700 bg-gray-800 text-blue-500 focus:ring-0 focus:ring-offset-0"
+                        />
+                        <span className="text-sm">{topic}</span>
+                      </label>
+                    ))
+                  )}
                 </div>
               </div>
             </aside>
