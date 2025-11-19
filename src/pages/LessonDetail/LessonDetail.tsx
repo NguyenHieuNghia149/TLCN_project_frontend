@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import VideoPlayer from '../../components/ui/VideoPlayer'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import { useLessonDetail } from '../../hooks/api/useLessonDetail'
+import CommentsSection from '../../components/lesson/CommentsSection'
 import './LessonDetail.css'
 
 const LessonDetail: React.FC = () => {
@@ -89,6 +90,9 @@ const LessonDetail: React.FC = () => {
             dangerouslySetInnerHTML={{ __html: lesson.content }}
           />
         )}
+
+        {/* Comments */}
+        <CommentsSection lessonId={lesson.id} />
       </main>
     </div>
   )
