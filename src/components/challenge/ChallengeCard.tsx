@@ -34,7 +34,6 @@ const ChallengeCard: React.FC<Props> = ({ challenge, onFavoriteToggle }) => {
       onFavoriteToggle?.(challenge.id, newFavoriteStatus)
     } catch (error) {
       console.error('Error toggling favorite:', error)
-      // Revert on error
       setIsFavorite(!isFavorite)
     } finally {
       setIsToggling(false)
