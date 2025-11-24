@@ -44,7 +44,9 @@ class TokenManager {
 
     try {
       const decoded = jwtDecode<DecodedToken>(this.accessToken)
-      return decoded.exp // Convert to milliseconds
+      if (!decoded.exp) return null
+      // exp is in seconds since epoch; convert to milliseconds for comparison with Date.now()
+      return decoded.exp * 1000
     } catch {
       return null
     }

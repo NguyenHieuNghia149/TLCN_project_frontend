@@ -62,7 +62,7 @@ const ProblemSection: React.FC<ProblemSectionProps> = ({
   }
 
   return (
-    <div className="flex min-w-0 flex-[0.55] flex-col overflow-hidden border-r border-gray-800">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-r border-gray-800">
       {/* Tabs */}
       <div className="flex border-b border-gray-800 hover:translate-x-0">
         {TABS.map(tab => (

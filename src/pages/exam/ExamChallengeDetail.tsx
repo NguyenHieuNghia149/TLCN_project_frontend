@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Clock, List } from 'lucide-react'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
@@ -52,6 +52,74 @@ const ExamChallengeDetail: React.FC = () => {
   })
   const [selectedTestCase, setSelectedTestCase] = useState<string>('1')
   const [showChallengeList, setShowChallengeList] = useState(false)
+  const [problemPanelWidth, setProblemPanelWidth] = useState(60)
+  const splitPaneRef = useRef<HTMLDivElement | null>(null)
+  const isDraggingSplitRef = useRef(false)
+  const clampPanelWidth = useCallback((value: number) => {
+    const MIN = 35
+    const MAX = 75
+    return Math.min(MAX, Math.max(MIN, value))
+  }, [])
+
+  const updateSplitFromClientX = useCallback(
+    (clientX: number) => {
+      if (!splitPaneRef.current) return
+      const rect = splitPaneRef.current.getBoundingClientRect()
+      if (!rect.width) return
+      const relativeX = clientX - rect.left
+      const nextWidth = (relativeX / rect.width) * 100
+      setProblemPanelWidth(clampPanelWidth(nextWidth))
+    },
+    [clampPanelWidth]
+  )
+
+  useEffect(() => {
+    const onMouseMove = (event: MouseEvent) => {
+      if (!isDraggingSplitRef.current) return
+      event.preventDefault()
+      updateSplitFromClientX(event.clientX)
+    }
+
+    const onTouchMove = (event: TouchEvent) => {
+      if (!isDraggingSplitRef.current) return
+      const touch = event.touches[0]
+      if (!touch) return
+      updateSplitFromClientX(touch.clientX)
+    }
+
+    const stopDragging = () => {
+      isDraggingSplitRef.current = false
+    }
+
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('touchmove', onTouchMove)
+    window.addEventListener('mouseup', stopDragging)
+    window.addEventListener('touchend', stopDragging)
+    window.addEventListener('touchcancel', stopDragging)
+
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('mouseup', stopDragging)
+      window.removeEventListener('touchend', stopDragging)
+      window.removeEventListener('touchcancel', stopDragging)
+    }
+  }, [updateSplitFromClientX])
+
+  const startDraggingSplit = (
+    event: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>
+  ) => {
+    event.preventDefault()
+    isDraggingSplitRef.current = true
+    if ('touches' in event) {
+      const touch = event.touches[0]
+      if (touch) {
+        updateSplitFromClientX(touch.clientX)
+      }
+    }
+  }
+
+  const resetSplit = () => setProblemPanelWidth(60)
 
   const pollTimerRef = useRef<number | null>(null)
   const socketRef = useRef<Socket | null>(null)
@@ -634,26 +702,59 @@ const ExamChallengeDetail: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <div className="flex min-h-0 flex-1">
-        <ExamProblemSection
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          problemData={problemData}
+      <div
+        ref={splitPaneRef}
+        className="flex min-h-0 flex-1 flex-col lg:flex-row"
+        style={{ borderTop: '1px solid var(--surface-border)' }}
+      >
+        <div
+          className="flex h-full min-h-0 min-w-[280px] flex-col overflow-hidden lg:border-r"
+          style={{
+            borderColor: 'var(--surface-border)',
+            flexBasis: `${problemPanelWidth}%`,
+            maxWidth: `${problemPanelWidth}%`,
+          }}
+        >
+          <ExamProblemSection
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            problemData={problemData}
+          />
+        </div>
+
+        <div
+          className="hidden w-1 cursor-col-resize select-none lg:block"
+          style={{ backgroundColor: 'var(--surface-border)' }}
+          onMouseDown={startDraggingSplit}
+          onTouchStart={startDraggingSplit}
+          onDoubleClick={resetSplit}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize panels"
+          tabIndex={-1}
         />
 
-        <CodeEditorSection
-          code={code}
-          onCodeChange={setCode}
-          selectedLanguage={selectedLanguage}
-          onLanguageChange={setSelectedLanguage}
-          testCases={testCases}
-          selectedTestCase={selectedTestCase}
-          onTestCaseSelect={setSelectedTestCase}
-          output={output}
-          onRun={handleRun}
-          onSubmit={handleSubmit}
-          onReset={handleReset}
-        />
+        <div
+          className="flex h-full min-h-0 min-w-[320px] flex-1 overflow-hidden"
+          style={{
+            flexBasis: `${100 - problemPanelWidth}%`,
+            maxWidth: `${100 - problemPanelWidth}%`,
+          }}
+        >
+          <CodeEditorSection
+            code={code}
+            onCodeChange={setCode}
+            selectedLanguage={selectedLanguage}
+            onLanguageChange={setSelectedLanguage}
+            testCases={testCases}
+            selectedTestCase={selectedTestCase}
+            onTestCaseSelect={setSelectedTestCase}
+            output={output}
+            onRun={handleRun}
+            onSubmit={handleSubmit}
+            onReset={handleReset}
+          />
+        </div>
       </div>
 
       {showChallengeList &&

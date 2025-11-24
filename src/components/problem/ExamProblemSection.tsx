@@ -34,7 +34,7 @@ const ExamProblemSection: React.FC<ExamProblemSectionProps> = ({
 
   return (
     <div
-      className="flex min-w-0 flex-[0.55] flex-col overflow-hidden border-r"
+      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-r"
       style={{ borderColor: 'var(--surface-border)' }}
     >
       {/* Tabs */}
