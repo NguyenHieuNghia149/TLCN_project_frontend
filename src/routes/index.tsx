@@ -10,6 +10,7 @@ import HomePage from '@/pages/home/Home'
 import LessonDetail from '@/pages/LessonDetail/LessonDetail'
 import { PublicRoute } from './PublicRoute'
 import { ProtectedRoute } from './ProtectedRoute'
+import { TeacherRoute } from './TeacherRoute'
 import ChallengePage from '@/pages/challenge/ChallengePage'
 import ProblemDetailPage from '@/pages/challengeDetail/ProblemDetailPage'
 import Ranking from '@/pages/ranking/Ranking'
@@ -178,9 +179,9 @@ export const router = createBrowserRouter([
   {
     path: 'exam/:examId/results/manage',
     element: (
-      <ProtectedRoute>
+      <TeacherRoute>
         <ExamResultsAdmin />
-      </ProtectedRoute>
+      </TeacherRoute>
     ),
   },
   {
