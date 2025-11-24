@@ -7,6 +7,7 @@ export interface Lesson {
   topicName: string | null
   createdAt: string
   updatedAt: string
+  isFavorite?: boolean
 }
 
 export interface LessonResponse {

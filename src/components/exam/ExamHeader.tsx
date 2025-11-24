@@ -1,4 +1,5 @@
 import React from 'react'
+import Button from '@/components/common/Button/Button'
 import { Clock, BarChart3, List } from 'lucide-react'
 
 interface ExamHeaderProps {
@@ -32,63 +33,111 @@ const ExamHeader: React.FC<ExamHeaderProps> = ({
   const isTimeWarning = timeRemaining < 5 * 60
 
   return (
-    <header className="sticky top-0 z-30 border-b border-white/5 bg-[#05060c]/95 shadow-[0_25px_60px_rgba(2,3,8,0.85)] backdrop-blur-2xl">
-      <div className="mx-auto flex max-w-6xl flex-col gap-5 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
+    <header
+      className="sticky top-0 z-30 border-b shadow-sm"
+      style={{
+        backgroundColor: 'var(--exam-panel-bg)',
+        borderColor: 'var(--surface-border)',
+        transition: 'background-color 200ms ease, border-color 200ms ease',
+      }}
+    >
+      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-3 md:px-6 md:py-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.4em] text-gray-500">
+          <p
+            className="text-xs uppercase tracking-wider"
+            style={{ color: 'var(--muted-text)' }}
+          >
             Exam
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-semibold text-white lg:text-3xl">
+            <h1
+              className="text-xl font-semibold md:text-2xl"
+              style={{ color: 'var(--text-color)' }}
+            >
               {examTitle}
             </h1>
-            <span className="inline-flex items-center rounded-full bg-white/5 px-3 py-1 text-xs font-semibold text-gray-300">
+            <span
+              className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold"
+              style={{
+                backgroundColor: 'var(--editor-bg)',
+                color: 'var(--muted-text)',
+                border: '1px solid var(--surface-border)',
+              }}
+            >
               Challenge {currentChallenge}/{totalChallenges}
             </span>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-3 rounded-2xl border border-white/5 bg-[#0c0f1c] px-4 py-3 shadow-[0_15px_35px_rgba(6,8,20,0.45)]">
+        <div className="flex flex-wrap items-center gap-3">
+          <div
+            className="flex items-center gap-3 rounded-lg px-3 py-2"
+            style={{
+              backgroundColor: 'var(--exam-toolbar-bg)',
+              border: '1px solid var(--surface-border)',
+              transition:
+                'background-color 200ms ease, border-color 200ms ease',
+            }}
+          >
             <Clock
-              size={22}
-              className={`${
-                isTimeWarning
-                  ? 'animate-pulse text-amber-300'
-                  : 'text-emerald-300'
-              }`}
+              size={18}
+              className={isTimeWarning ? 'animate-pulse' : ''}
+              aria-hidden
+              style={{ color: isTimeWarning ? '#f59e0b' : 'var(--accent)' }}
             />
             <div className="leading-tight">
-              <p className="text-[11px] uppercase tracking-[0.4em] text-gray-500">
+              <p
+                className="text-[11px] uppercase tracking-wider"
+                style={{ color: 'var(--muted-text)' }}
+              >
                 Time left
               </p>
               <p
-                className={`text-lg font-semibold ${
-                  isTimeWarning ? 'text-amber-200' : 'text-white'
-                }`}
+                className="text-base font-semibold md:text-lg"
+                style={{
+                  color: isTimeWarning ? '#f59e0b' : 'var(--text-color)',
+                }}
               >
                 {formatTime(timeRemaining)}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 rounded-2xl border border-white/5 bg-[#0c0f1c] px-4 py-3 shadow-[0_15px_35px_rgba(6,8,20,0.45)]">
-            <BarChart3 size={22} className="text-sky-300" />
+          <div
+            className="flex items-center gap-3 rounded-lg px-3 py-2"
+            style={{
+              backgroundColor: 'var(--exam-toolbar-bg)',
+              border: '1px solid var(--surface-border)',
+              transition:
+                'background-color 200ms ease, border-color 200ms ease',
+            }}
+          >
+            <BarChart3 size={18} style={{ color: 'var(--accent)' }} />
             <div className="leading-tight">
-              <p className="text-[11px] uppercase tracking-[0.4em] text-gray-500">
+              <p
+                className="text-[11px] uppercase tracking-wider"
+                style={{ color: 'var(--muted-text)' }}
+              >
                 Total score
               </p>
-              <p className="text-lg font-semibold text-white">{totalScore}%</p>
+              <p
+                className="text-base font-semibold md:text-lg"
+                style={{ color: 'var(--text-color)' }}
+              >
+                {totalScore}%
+              </p>
             </div>
           </div>
 
-          <button
+          <Button
             onClick={onShowChallengeList}
-            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-gradient-to-r from-primary-500/80 to-sky-400/80 px-4 py-3 text-sm font-semibold text-black shadow-[0_15px_40px_rgba(37,99,235,0.45)] transition hover:from-primary-400 hover:to-sky-300"
+            variant="primary"
+            size="md"
+            icon={<List size={16} />}
+            aria-label="Show challenge list"
           >
-            <List size={18} />
             <span className="hidden sm:inline">Challenge list</span>
-          </button>
+          </Button>
         </div>
       </div>
     </header>

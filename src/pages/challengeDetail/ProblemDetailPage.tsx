@@ -26,15 +26,8 @@ int main() {
 }
 `
 
-export interface ProblemDetailPageProps {
-  problemIdOverride?: string
-}
-
-export default function ProblemDetailPage({
-  problemIdOverride,
-}: ProblemDetailPageProps = {}) {
-  const params = useParams<{ id: string }>()
-  const effectiveProblemId = problemIdOverride ?? params.id
+export default function ProblemDetailPage() {
+  const { id } = useParams<{ id: string }>()
   const [activeTab, setActiveTab] = useState<
     'question' | 'solution' | 'submissions' | 'discussion'
   >('question')
@@ -53,18 +46,17 @@ export default function ProblemDetailPage({
   // Use custom hook for navigation logic
   const { navigationLoading, hasPrev, hasNext, goPrev, goNext } =
     useProblemNavigation({
-      currentProblemId: effectiveProblemId,
+      currentProblemId: id,
       topicId: problemData?.problem.topicId,
     })
 
   useEffect(() => {
     const fetchProblemData = async () => {
-      if (!effectiveProblemId) return
+      if (!id) return
 
       try {
         setLoading(true)
-        const response =
-          await challengeService.getChallengeById(effectiveProblemId)
+        const response = await challengeService.getChallengeById(id)
         if (response.success) {
           setProblemData(response.data)
         } else {
@@ -79,7 +71,7 @@ export default function ProblemDetailPage({
     }
 
     fetchProblemData()
-  }, [effectiveProblemId])
+  }, [id])
 
   // Keyboard shortcuts for navigation
   useEffect(() => {
@@ -446,7 +438,7 @@ export default function ProblemDetailPage({
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-950 text-gray-100">
+    <div className="flex h-screen flex-col bg-gray-950 text-gray-100">
       {/* Problem Header */}
       <ProblemHeader
         onPrev={goPrev}

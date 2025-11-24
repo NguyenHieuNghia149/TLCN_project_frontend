@@ -1,7 +1,6 @@
 import forms from '@tailwindcss/forms'
 import typography from '@tailwindcss/typography'
 import aspectRatio from '@tailwindcss/aspect-ratio'
-import lineClamp from '@tailwindcss/line-clamp'
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -33,9 +32,25 @@ export default {
     },
   },
   plugins: [
+    {
+      handler: ({ addBase }) => {
+        addBase({
+          // Reset form input validation styles from @tailwindcss/forms
+          'input:valid, textarea:valid, select:valid': {
+            borderColor: 'inherit',
+            backgroundColor: 'inherit',
+            boxShadow: 'none',
+          },
+          'input:invalid, textarea:invalid, select:invalid': {
+            borderColor: 'inherit',
+            backgroundColor: 'inherit',
+            boxShadow: 'none',
+          },
+        })
+      },
+    },
     forms,
     typography,
     aspectRatio,
-    lineClamp,
   ],
 }

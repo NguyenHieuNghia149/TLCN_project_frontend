@@ -95,7 +95,7 @@ $text-lighter: #94a3b8;
 }
 
 @mixin button-primary {
-  background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
+  background: #20d761;
   color: white;
   border: none;
   border-radius: 0.5rem;
@@ -106,11 +106,13 @@ $text-lighter: #94a3b8;
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+    box-shadow: 0 8px 20px rgba(32, 215, 97, 0.4);
+    background: #1ec355;
   }
 
   &:active {
     transform: translateY(0);
+    background: #1ab04a;
   }
 
   &:disabled {
@@ -162,10 +164,7 @@ $text-lighter: #94a3b8;
 }
 
 @mixin text-gradient {
-  background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #20d761;
 }
 
 @mixin scrollbar-style {

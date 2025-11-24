@@ -10,6 +10,8 @@ interface Course {
   difficulty: 'Easy' | 'Medium' | 'Hard'
   image: string
   gradient: string
+  isFavorite?: boolean
+  onToggleFavorite?: () => void
 }
 
 interface CategorySectionProps {
@@ -114,6 +116,26 @@ const CategorySection: React.FC<CategorySectionProps> = ({
                   <Clock className="h-4 w-4" />
                   <span>{course.duration}</span>
                 </div>
+                {course.onToggleFavorite && (
+                  <button
+                    className="course-favorite-button"
+                    onClick={e => {
+                      e.preventDefault()
+                      course.onToggleFavorite?.()
+                    }}
+                    title={
+                      course.isFavorite
+                        ? 'Remove from favorites'
+                        : 'Add to favorites'
+                    }
+                  >
+                    <Star
+                      className="h-5 w-5"
+                      fill={course.isFavorite ? 'currentColor' : 'none'}
+                      color={course.isFavorite ? '#FFD700' : 'white'}
+                    />
+                  </button>
+                )}
               </div>
 
               <div className="course-content">
@@ -121,12 +143,6 @@ const CategorySection: React.FC<CategorySectionProps> = ({
                 <p className="course-description">{course.description}</p>
 
                 <div className="course-footer">
-                  <div className="course-rating">
-                    <Star className="h-4 w-4" />
-                    <span>4.8</span>
-                    <span>(1,234 reviews)</span>
-                  </div>
-
                   <button
                     className="course-button"
                     onClick={() => handleStartLesson(course.id)}

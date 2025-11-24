@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Search } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import Input from '@/components/common/Input/Input'
+import Button from '@/components/common/Button/Button'
 import { ExamSubmission, Exam } from '@/types/exam.types'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import { useAuth } from '@/hooks/api/useAuth'
+import { buildMockExam, buildMockSubmissions } from '@/mocks/exam.mock'
+
+const PAGE_SIZE = 10
 
 const ExamResults: React.FC = () => {
   const { examId } = useParams<{ examId: string }>()
@@ -12,99 +17,22 @@ const ExamResults: React.FC = () => {
   const [submissions, setSubmissions] = useState<ExamSubmission[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [page, setPage] = useState(1)
   const { user } = useAuth()
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true)
-        // Mock exam data
-        const mockExam: Exam = {
-          id: examId || '1',
-          title: 'Algorithms Midterm Test',
-          password: 'test123',
-          duration: 90,
-          challenges: [],
-          startDate: new Date().toISOString(),
-          endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          createdBy: 'lecturer1',
-          createdAt: new Date().toISOString(),
-        }
-
-        // Mock submissions data
-        const mockSubmissions: ExamSubmission[] = [
-          {
-            id: '1',
-            userId: 'student1',
-            examId: examId || '1',
-            user: {
-              id: 'student1',
-              firstname: 'John',
-              lastname: 'Doe',
-              email: 'john@example.com',
-              role: 'student',
-              avatar: '',
-              createdAt: new Date().toISOString(),
-              lastLoginAt: new Date().toISOString(),
-            },
-            solutions: [],
-            totalScore: 85,
-            startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-            submittedAt: new Date(
-              Date.now() - 1 * 60 * 60 * 1000
-            ).toISOString(),
-            duration: 60,
-          },
-          {
-            id: '2',
-            userId: 'student2',
-            examId: examId || '1',
-            user: {
-              id: 'student2',
-              firstname: 'Jane',
-              lastname: 'Smith',
-              email: 'jane@example.com',
-              role: 'student',
-              avatar: '',
-              createdAt: new Date().toISOString(),
-              lastLoginAt: new Date().toISOString(),
-            },
-            solutions: [],
-            totalScore: 92,
-            startedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-            submittedAt: new Date(
-              Date.now() - 2 * 60 * 60 * 1000
-            ).toISOString(),
-            duration: 75,
-          },
-          {
-            id: '3',
-            userId: 'student3',
-            examId: examId || '1',
-            user: {
-              id: 'student3',
-              firstname: 'Bob',
-              lastname: 'Johnson',
-              email: 'bob@example.com',
-              role: 'student',
-              avatar: '',
-              createdAt: new Date().toISOString(),
-              lastLoginAt: new Date().toISOString(),
-            },
-            solutions: [],
-            totalScore: 78,
-            startedAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-            submittedAt: new Date(
-              Date.now() - 3 * 60 * 60 * 1000
-            ).toISOString(),
-            duration: 85,
-          },
-        ]
+        const mockExam = buildMockExam({
+          id: examId || 'exam-001',
+        })
+        const mockSubmissions = buildMockSubmissions(mockExam.id)
 
         setExam(mockExam)
         setSubmissions(mockSubmissions)
       } catch (error) {
-        console.error('Failed to fetch data:', error)
+        console.error('Failed to fetch exam results:', error)
       } finally {
         setLoading(false)
       }
@@ -113,9 +41,19 @@ const ExamResults: React.FC = () => {
     fetchData()
   }, [examId])
 
-  // Helper to get full name
-  const getFullName = (firstname?: string, lastname?: string) => {
-    return `${firstname || ''} ${lastname || ''}`.trim()
+  const formatDateTime = (value: string) =>
+    new Date(value).toLocaleString(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    })
+
+  const getFullName = (firstname?: string, lastname?: string) =>
+    [firstname, lastname].filter(Boolean).join(' ') || 'Unknown student'
+
+  const scoreClass = (score: number) => {
+    if (score >= 90) return 'bg-emerald-100 text-emerald-600'
+    if (score >= 70) return 'bg-amber-100 text-amber-600'
+    return 'bg-rose-100 text-rose-600'
   }
 
   const filteredSubmissions = useMemo(() => {
@@ -133,117 +71,267 @@ const ExamResults: React.FC = () => {
       )
   }, [submissions, searchTerm])
 
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredSubmissions.length / PAGE_SIZE)
+  )
+
+  const paginatedSubmissions = useMemo(() => {
+    const startIndex = (page - 1) * PAGE_SIZE
+    const endIndex = startIndex + PAGE_SIZE
+    return filteredSubmissions.slice(startIndex, endIndex)
+  }, [filteredSubmissions, page])
+
+  useEffect(() => {
+    setPage(1)
+  }, [searchTerm])
+
+  useEffect(() => {
+    const resultsTable = document.getElementById('results-table')
+    if (resultsTable) {
+      resultsTable.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [page])
+
   if (loading) {
     return <LoadingSpinner />
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
+  if (!exam) {
+    return (
+      <div
+        className="flex min-h-screen items-center justify-center"
+        style={{ backgroundColor: 'var(--background-color)' }}
+      >
+        <div
+          className="rounded-xl border px-8 py-10 text-center"
+          style={{
+            borderColor: 'var(--surface-border)',
+            color: 'var(--text-color)',
+          }}
+        >
+          <p className="text-lg font-semibold">Exam not found</p>
+          <Button className="mt-4" onClick={() => navigate(-1)}>
+            Go back
+          </Button>
+        </div>
+      </div>
+    )
   }
 
-  const isInstructor =
-    !!user &&
-    (user.role === 'admin' ||
-      user.role === 'lecturer' ||
-      (exam ? user.id === exam.createdBy : false))
-
   return (
-    <div className="min-h-screen bg-[#02030a] text-gray-100">
-      <div className="mx-auto max-w-4xl space-y-8 px-4 py-10">
-        <header className="rounded-[32px] border border-white/5 bg-gradient-to-br from-[#10132a] via-[#090b16] to-[#04050a] p-8 shadow-[0_40px_120px_rgba(2,3,8,0.9)]">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <button
-                onClick={() => navigate(-1)}
-                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.4em] text-gray-300 transition hover:border-white/30 hover:bg-white/10"
-              >
-                <ArrowLeft size={14} />
-                Back
-              </button>
-              <h1 className="mt-4 text-3xl font-semibold text-white">
-                {exam?.title}
-              </h1>
-              <p className="mt-1 text-sm text-gray-400">
-                Recently submitted solutions from your cohort
-              </p>
-            </div>
-
-            {isInstructor && (
-              <button
-                onClick={() => navigate(`/exam/${examId}/results/manage`)}
-                className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:border-primary-400/40 hover:bg-primary-500/10"
-              >
-                Open instructor view
-              </button>
-            )}
+    <div
+      className="min-h-screen"
+      style={{
+        backgroundColor: 'var(--background-color)',
+        color: 'var(--text-color)',
+      }}
+    >
+      <div className="mx-auto max-w-[1400px] px-4 py-10">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* <Button
+            onClick={() => navigate(-1)}
+            variant="secondary"
+            size="sm"
+            icon={<ChevronLeft size={16} />}
+          >
+            Back to exam
+          </Button> */}
+          <div>
+            <p
+              className="text-xs uppercase tracking-wider"
+              style={{ color: 'var(--muted-text)' }}
+            >
+              Exam results
+            </p>
+            <h1 className="text-2xl font-semibold">{exam.title}</h1>
           </div>
-        </header>
+        </div>
 
-        <section className="rounded-[32px] border border-white/5 bg-[#060812] p-6 shadow-[0_30px_90px_rgba(2,3,10,0.85)]">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.4em] text-gray-500">
-                Submissions
-              </p>
-              <h2 className="text-2xl font-semibold text-white">
-                Who has turned in?
-              </h2>
-            </div>
-            <div className="relative w-full sm:w-64">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                placeholder="Search student..."
-                className="h-11 w-full rounded-2xl border border-white/5 bg-[#0b0f1d] pl-11 pr-4 text-sm text-gray-100 outline-none transition focus:border-primary-400/50 focus:bg-[#11162a]"
-              />
+        <section
+          className="mt-8 rounded-lg border p-6"
+          style={{ borderColor: 'var(--surface-border)' }}
+        >
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <Input
+              icon={<Search size={16} />}
+              placeholder="Search by student name"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+
+            <div className="text-sm" style={{ color: 'var(--muted-text)' }}>
+              {filteredSubmissions.length} submission
+              {filteredSubmissions.length === 1 ? '' : 's'}
             </div>
           </div>
 
-          {filteredSubmissions.length === 0 ? (
-            <div className="mt-6 rounded-2xl border border-dashed border-white/10 bg-white/5 px-4 py-10 text-center text-sm text-gray-400">
-              No one has submitted yet. Your results will appear here once
-              classmates finish.
-            </div>
-          ) : (
-            <ul className="mt-6 space-y-3">
-              {filteredSubmissions.map(submission => (
-                <li
-                  key={submission.id}
-                  className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/5 bg-white/5 px-5 py-4 text-sm text-gray-300"
+          <div
+            id="results-table"
+            className="mt-6 overflow-x-auto rounded-lg border"
+            style={{ borderColor: 'var(--surface-border)' }}
+          >
+            <table className="w-full min-w-[720px] border-collapse text-sm">
+              <thead>
+                <tr
+                  className="border-b"
+                  style={{ borderColor: 'var(--surface-border)' }}
                 >
-                  <div>
-                    <p className="text-base font-semibold text-white">
-                      {getFullName(
-                        submission.user?.firstname,
-                        submission.user?.lastname
-                      ) || 'Unknown student'}
-                    </p>
-                    <p className="text-xs uppercase tracking-[0.35em] text-gray-500">
-                      {formatDate(submission.submittedAt)}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-[0.35em] text-gray-500">
-                      Total score
-                    </p>
-                    <span
-                      className={`mt-1 inline-flex rounded-full px-3 py-1 text-sm font-semibold ${scoreClass(
-                        submission.totalScore
-                      )}`}
+                  <th
+                    className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider"
+                    style={{ color: 'var(--muted-text)' }}
+                  >
+                    #
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">
+                    Student
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">
+                    Submitted at
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider">
+                    Total score
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedSubmissions.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="px-4 py-6 text-center text-sm"
+                      style={{ color: 'var(--muted-text)' }}
                     >
-                      {submission.totalScore}%
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                      No submissions found
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedSubmissions.map((submission, index) => (
+                    <tr
+                      key={`${submission.id}-${submission.userId}`}
+                      className="border-b"
+                      style={{
+                        borderColor: 'var(--surface-border)',
+                        backgroundColor:
+                          submission.userId === user?.id
+                            ? 'rgba(32, 215, 97, 0.05)'
+                            : 'transparent',
+                      }}
+                    >
+                      <td className="px-4 py-4">
+                        {(page - 1) * PAGE_SIZE + index + 1}
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">
+                            {getFullName(
+                              submission.user?.firstname,
+                              submission.user?.lastname
+                            )}
+                          </span>
+                          {submission.userId === user?.id && (
+                            <span
+                              className="rounded-full px-2 py-0.5 text-xs font-semibold"
+                              style={{
+                                backgroundColor: 'rgba(32, 215, 97, 0.1)',
+                                color: 'var(--accent)',
+                              }}
+                            >
+                              You
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td
+                        className="px-4 py-4"
+                        style={{ color: 'var(--muted-text)' }}
+                      >
+                        {formatDateTime(submission.submittedAt)}
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${scoreClass(
+                            submission.totalScore
+                          )}`}
+                        >
+                          {submission.totalScore}%
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {totalPages > 1 && (
+            <div
+              className="mt-6 flex flex-col items-center gap-4 border-t pt-4 sm:flex-row sm:justify-between"
+              style={{ borderColor: 'var(--surface-border)' }}
+            >
+              <div className="text-sm" style={{ color: 'var(--muted-text)' }}>
+                Showing {(page - 1) * PAGE_SIZE + 1} to{' '}
+                {Math.min(page * PAGE_SIZE, filteredSubmissions.length)} of{' '}
+                {filteredSubmissions.length} results
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  variant="secondary"
+                  size="sm"
+                >
+                  <ChevronLeft size={16} />
+                  Previous
+                </Button>
+                <div className="flex gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    p => {
+                      if (
+                        p === 1 ||
+                        p === totalPages ||
+                        Math.abs(p - page) <= 1
+                      ) {
+                        return (
+                          <Button
+                            key={p}
+                            onClick={() => setPage(p)}
+                            variant={page === p ? 'primary' : 'ghost'}
+                            size="sm"
+                          >
+                            {p}
+                          </Button>
+                        )
+                      }
+                      if (
+                        (p === page - 2 && page > 2) ||
+                        (p === page + 2 && page < totalPages - 1)
+                      ) {
+                        return (
+                          <span
+                            key={`ellipsis-${p}`}
+                            className="px-2 py-1 text-sm"
+                            style={{ color: 'var(--muted-text)' }}
+                          >
+                            ...
+                          </span>
+                        )
+                      }
+                      return null
+                    }
+                  )}
+                </div>
+                <Button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  variant="secondary"
+                  size="sm"
+                >
+                  Next
+                  <ChevronRight size={16} />
+                </Button>
+              </div>
+            </div>
           )}
         </section>
       </div>
@@ -252,11 +340,3 @@ const ExamResults: React.FC = () => {
 }
 
 export default ExamResults
-
-const scoreClass = (score: number) => {
-  if (score >= 90) return 'bg-emerald-500/15 text-emerald-200'
-  if (score >= 80) return 'bg-primary-500/15 text-primary-200'
-  if (score >= 70) return 'bg-amber-500/15 text-amber-200'
-  if (score >= 60) return 'bg-rose-500/15 text-rose-200'
-  return 'bg-rose-600/20 text-rose-100'
-}

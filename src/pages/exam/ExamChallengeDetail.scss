@@ -1,5 +1,5 @@
 // ExamChallengeDetail.scss
-@import '../../styles/themes/variables';
+@use '../../styles/themes/variables' as *;
 
 .exam-challenge-detail-page {
   min-height: 100vh;
@@ -37,7 +37,8 @@
 
     .btn-back-home {
       padding: 0.75rem 2rem;
-      background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
+      // background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
+      background: #20d761;
       color: white;
       border: none;
       border-radius: 0.5rem;
@@ -192,6 +193,12 @@
         font-size: 0.95rem;
       }
     }
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
   }
 
   @media (max-width: 768px) {

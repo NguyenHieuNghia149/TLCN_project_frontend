@@ -28,7 +28,7 @@ interface CodeEditorSectionProps {
   onReset: () => void
 }
 
-const LANGUAGES = ['C++', 'Python', 'Java', 'JavaScript']
+const LANGUAGES = ['C++']
 
 const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
   code,
@@ -87,22 +87,53 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
   }
 
   return (
-    <div className="flex w-1/2 flex-col bg-gray-900">
+    <div
+      className="flex flex-1 flex-col"
+      style={{
+        backgroundColor: 'var(--editor-bg)',
+        border: '1px solid var(--surface-border)',
+        borderRadius: '8px',
+        overflow: 'hidden',
+      }}
+    >
       {/* Toolbar */}
-      <div className="flex items-center justify-between border-b border-gray-800 bg-gray-950 p-3">
+      <div
+        className="flex items-center justify-between border-b p-3"
+        style={{
+          borderColor: 'var(--surface-border)',
+          backgroundColor: 'var(--exam-toolbar-bg)',
+        }}
+      >
         <div className="flex items-center gap-2">
           {/* Language Selector */}
           <div className="relative">
             <button
               onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
-              className="flex items-center gap-2 rounded bg-gray-800 px-3 py-2 text-sm font-medium transition-colors hover:bg-gray-700"
+              className="flex items-center gap-2 rounded px-3 py-2 text-sm font-medium transition-colors"
+              style={{
+                backgroundColor: 'var(--exam-panel-bg)',
+                color: 'var(--text-color)',
+                border: '1px solid var(--surface-border)',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.backgroundColor = 'var(--exam-panel-bg)'
+              }}
             >
               <span>{selectedLanguage}</span>
               <ChevronDown size={16} />
             </button>
 
             {showLanguageDropdown && (
-              <div className="absolute left-0 top-full z-10 mt-1 rounded border border-gray-700 bg-gray-800 shadow-lg">
+              <div
+                className="absolute left-0 top-full z-10 mt-1 rounded border shadow-lg"
+                style={{
+                  backgroundColor: 'var(--exam-panel-bg)',
+                  borderColor: 'var(--surface-border)',
+                }}
+              >
                 {LANGUAGES.map(lang => (
                   <button
                     key={lang}
@@ -110,9 +141,25 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
                       onLanguageChange(lang)
                       setShowLanguageDropdown(false)
                     }}
-                    className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-700 ${
-                      selectedLanguage === lang ? 'bg-gray-600' : ''
-                    }`}
+                    className="w-full px-4 py-2 text-left text-sm transition-colors"
+                    style={{
+                      color: 'var(--text-color)',
+                      backgroundColor:
+                        selectedLanguage === lang
+                          ? 'var(--editor-bg)'
+                          : 'transparent',
+                    }}
+                    onMouseEnter={e => {
+                      if (selectedLanguage !== lang) {
+                        e.currentTarget.style.backgroundColor =
+                          'var(--editor-bg)'
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      if (selectedLanguage !== lang) {
+                        e.currentTarget.style.backgroundColor = 'transparent'
+                      }
+                    }}
                   >
                     {lang}
                   </button>
@@ -127,36 +174,71 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
           <button
             onClick={onReset}
             title="Reset Code"
-            className="rounded p-2 transition-colors hover:bg-gray-800"
+            className="rounded p-2 transition-colors"
+            style={{ color: 'var(--text-color)' }}
+            onMouseEnter={e => {
+              e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.backgroundColor = 'transparent'
+            }}
           >
             <RotateCcw size={18} />
           </button>
           <button
             onClick={handleCopyCode}
             title="Copy Code"
-            className="rounded p-2 transition-colors hover:bg-gray-800"
+            className="rounded p-2 transition-colors"
+            style={{ color: 'var(--text-color)' }}
+            onMouseEnter={e => {
+              e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.backgroundColor = 'transparent'
+            }}
           >
             {copied ? (
-              <Check size={18} className="text-green-400" />
+              <Check size={18} style={{ color: '#10b981' }} />
             ) : (
               <Copy size={18} />
             )}
           </button>
           <button
             title="Settings"
-            className="rounded p-2 transition-colors hover:bg-gray-800"
+            className="rounded p-2 transition-colors"
+            style={{ color: 'var(--text-color)' }}
+            onMouseEnter={e => {
+              e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.backgroundColor = 'transparent'
+            }}
           >
             <Settings size={18} />
           </button>
           <button
             title="Report Bug"
-            className="rounded p-2 transition-colors hover:bg-gray-800"
+            className="rounded p-2 transition-colors"
+            style={{ color: 'var(--text-color)' }}
+            onMouseEnter={e => {
+              e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.backgroundColor = 'transparent'
+            }}
           >
             <Bug size={18} />
           </button>
           <button
             title="Fullscreen"
-            className="rounded p-2 transition-colors hover:bg-gray-800"
+            className="rounded p-2 transition-colors"
+            style={{ color: 'var(--text-color)' }}
+            onMouseEnter={e => {
+              e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.backgroundColor = 'transparent'
+            }}
           >
             <Maximize2 size={18} />
           </button>
@@ -164,9 +246,16 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
       </div>
 
       {/* Editor Area */}
-      <div ref={containerRef} className="flex flex-1 flex-col overflow-hidden">
+      <div
+        ref={containerRef}
+        className="flex flex-1 flex-col overflow-hidden"
+        style={{ minHeight: 0 }}
+      >
         {/* Monaco-style Code Editor */}
-        <div className="flex-1 overflow-hidden px-3 py-3">
+        <div
+          className="flex-1 overflow-hidden px-3 py-3"
+          style={{ minHeight: 0 }}
+        >
           <MonacoEditorWrapper
             value={code}
             onChange={onCodeChange}
@@ -181,8 +270,15 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
         {/* Resize handle */}
         <div
           onMouseDown={startResizeConsole}
-          className="h-2 w-full cursor-row-resize bg-gray-900 hover:bg-gray-800"
+          className="h-2 w-full cursor-row-resize transition-colors"
+          style={{ backgroundColor: 'var(--surface-border)' }}
           title="Drag to resize"
+          onMouseEnter={e => {
+            e.currentTarget.style.backgroundColor = 'var(--accent)'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.backgroundColor = 'var(--surface-border)'
+          }}
         />
         {/* Console/Output Area - Resizable, Collapsible */}
         <ConsolePanel

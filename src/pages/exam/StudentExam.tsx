@@ -10,10 +10,16 @@ import {
 } from 'lucide-react'
 import { Exam } from '@/types/exam.types'
 import ExamHeader from '@/components/exam/ExamHeader'
+import Button from '@/components/common/Button/Button'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import ChallengePicker from '@/components/exam/ChallengePicker'
 import ProblemDetailPage from '@/pages/challengeDetail/ProblemDetailPage'
 import './StudentExam.scss'
+import { buildMockExam } from '@/mocks/exam.mock'
+
+const ExamProblemDetail = ProblemDetailPage as React.ComponentType<{
+  problemIdOverride: string
+}>
 
 const StudentExam: React.FC = () => {
   const { examId, challengeId } = useParams<{
@@ -30,9 +36,6 @@ const StudentExam: React.FC = () => {
   const [showPicker, setShowPicker] = useState(false)
 
   const handleSubmitExam = useCallback(() => {
-    // Submit exam logic
-    console.log('Submitting exam...')
-    // Navigate to results page
     navigate(`/exam/${examId}/results`)
   }, [navigate, examId])
 
@@ -41,46 +44,9 @@ const StudentExam: React.FC = () => {
     const fetchExam = async () => {
       try {
         setLoading(true)
-        // Mock data - replace with actual API call
-        const mockExam: Exam = {
-          id: examId || '1',
-          title: 'Algorithms Midterm Test',
-          password: 'test123',
-          duration: 90,
-          challenges: [
-            {
-              id: '1',
-              title: 'Two Sum',
-              description: 'Find two numbers that add up to target',
-              difficulty: 'easy',
-              topic: 'Array',
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-            {
-              id: '2',
-              title: 'Longest Substring',
-              description: 'Find longest substring without repeating chars',
-              difficulty: 'medium',
-              topic: 'String',
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-            {
-              id: '3',
-              title: 'Merge K Lists',
-              description: 'Merge k sorted linked lists',
-              difficulty: 'hard',
-              topic: 'LinkedList',
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-          ],
-          startDate: new Date().toISOString(),
-          endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          createdBy: 'lecturer1',
-          createdAt: new Date().toISOString(),
-        }
+        const mockExam: Exam = buildMockExam({
+          id: examId || 'exam-001',
+        })
         setExam(mockExam)
         setTimeRemaining(mockExam.duration * 60) // Convert to seconds
 
@@ -174,7 +140,14 @@ const StudentExam: React.FC = () => {
   const isLastChallenge = currentChallengeIndex === exam.challenges.length - 1
 
   return (
-    <div className="min-h-screen bg-[#010308] text-gray-100">
+    <div
+      className="min-h-screen"
+      style={{
+        backgroundColor: 'var(--background-color)',
+        color: 'var(--text-color)',
+        transition: 'background-color 200ms ease, color 200ms ease',
+      }}
+    >
       <ExamHeader
         examTitle={exam.title}
         totalChallenges={exam.challenges.length}
@@ -185,8 +158,17 @@ const StudentExam: React.FC = () => {
       />
 
       {showWarning && (
-        <div className="bg-amber-500/10 text-amber-200">
-          <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 text-sm font-semibold">
+        <div
+          className="border-b"
+          style={{
+            backgroundColor: 'rgba(251, 191, 36, 0.1)',
+            borderColor: 'rgba(251, 191, 36, 0.3)',
+          }}
+        >
+          <div
+            className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 text-sm font-semibold"
+            style={{ color: '#f59e0b' }}
+          >
             <AlertCircle size={18} />
             You have only 5 minutes remaining!
           </div>
@@ -194,54 +176,59 @@ const StudentExam: React.FC = () => {
       )}
 
       <div className="relative">
-        <ProblemDetailPage
+        <ExamProblemDetail
           key={currentChallenge.id}
           problemIdOverride={currentChallenge.id}
         />
 
-        <div className="fixed bottom-6 left-6 z-30 flex flex-wrap gap-3">
-          <button
+        <div className="fixed bottom-4 left-4 z-30 flex flex-wrap gap-2 md:bottom-6 md:left-6 md:gap-3">
+          <Button
             onClick={handlePrevChallenge}
             disabled={isFirstChallenge}
-            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition disabled:opacity-40"
+            variant="secondary"
+            size="md"
+            icon={<ChevronLeft size={16} />}
           >
-            <ChevronLeft size={16} />
             Previous
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleNextChallenge}
             disabled={isLastChallenge}
-            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition disabled:opacity-40"
+            variant="secondary"
+            size="md"
+            icon={<ChevronRight size={16} />}
           >
             Next
-            <ChevronRight size={16} />
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setShowPicker(true)}
-            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition"
+            variant="secondary"
+            size="md"
+            icon={<List size={16} />}
           >
-            <List size={16} />
             Challenges
-          </button>
+          </Button>
         </div>
 
-        <div className="fixed bottom-6 right-6 z-30 flex flex-col gap-3">
+        <div className="fixed bottom-4 right-4 z-30 mb-10 flex flex-col gap-2 md:bottom-6 md:right-6 md:gap-3">
           {isLastChallenge && (
-            <button
+            <Button
               onClick={handleSubmitExam}
-              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-400 to-primary-400 px-5 py-3 text-sm font-semibold text-black shadow-[0_20px_45px_rgba(16,185,129,0.45)]"
+              variant="primary"
+              size="md"
+              icon={<RotateCcw size={16} />}
             >
-              <RotateCcw size={16} />
               Submit exam
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             onClick={handleExitExam}
-            className="inline-flex items-center gap-2 rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-100"
+            variant="secondary"
+            size="md"
+            icon={<LogOut size={16} />}
           >
-            <LogOut size={16} />
             Exit
-          </button>
+          </Button>
         </div>
       </div>
 

@@ -11,6 +11,14 @@
   --background-color: #f8fafc;
   --text-color: #0f172a;
   --card-color: #ffffff;
+  /* Exam / editor tokens */
+  --exam-panel-bg: #ffffff;
+  --exam-toolbar-bg: #f3f4f6;
+  --editor-bg: #ffffff;
+  --muted-text: #6b7280;
+  --accent: #20d761;
+  --surface-border: #e5e7eb;
+  --focus-ring: rgba(32, 215, 97, 0.18);
 }
 
 /* Support both dark class and data-theme attribute */
@@ -20,6 +28,13 @@
   --background-color: #121418;
   --text-color: #f8fafc;
   --card-color: #1f202a;
+  --exam-panel-bg: #0b0c10;
+  --exam-toolbar-bg: #0f1720;
+  --editor-bg: #0b0c10;
+  --muted-text: #9ca3af;
+  --accent: #20d761;
+  --surface-border: #27272a;
+  --focus-ring: rgba(32, 215, 97, 0.12);
 }
 
 .light,
@@ -41,6 +56,9 @@
     min-height: 100vh;
     background-color: var(--background-color);
     color: var(--text-color);
+    transition:
+      background-color 200ms ease,
+      color 200ms ease;
   }
 
   html,
@@ -62,5 +80,44 @@
 
   .card {
     @apply rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800;
+  }
+
+  /* Exam / Editor specific styles */
+  .exam-panel {
+    @apply flex flex-1 flex-col overflow-hidden rounded-md;
+    background-color: var(--exam-panel-bg);
+    color: var(--text-color);
+    border: 1px solid var(--surface-border);
+    transition:
+      background-color 180ms ease,
+      color 180ms ease,
+      border-color 180ms ease;
+  }
+
+  .exam-toolbar {
+    @apply flex items-center justify-between px-3 py-2;
+    background-color: var(--exam-toolbar-bg);
+    border-bottom: 1px solid var(--surface-border);
+  }
+
+  .editor-area {
+    @apply flex-1 overflow-hidden p-3;
+    background-color: var(--editor-bg);
+  }
+
+  .resize-handle {
+    height: 6px;
+    cursor: row-resize;
+    background-color: transparent;
+  }
+
+  .testcase-panel {
+    @apply flex flex-1 flex-col overflow-auto rounded-md p-3;
+    background-color: var(--exam-panel-bg);
+    border: 1px solid var(--surface-border);
+  }
+
+  .muted {
+    color: var(--muted-text);
   }
 }

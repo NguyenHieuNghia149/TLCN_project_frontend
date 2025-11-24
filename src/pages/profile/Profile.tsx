@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useProfile } from '../../hooks/api/useProfile'
-import { UpdateProfileData } from '@/types/profile.types'
+import { UpdateProfileData } from '../../services/api/profile.service'
 import '../../pages/profile/Profile.css'
 import { API_CONFIG } from '../../config/api.config'
 import { tokenManager } from '../../services/auth/token.service'

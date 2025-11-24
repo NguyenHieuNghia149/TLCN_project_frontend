@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Code, Check, X } from 'lucide-react'
 import { ExamSubmission } from '@/types/exam.types'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
+import Button from '@/components/common/Button/Button'
 
 const ExamSubmissionDetail: React.FC = () => {
   const { examId, submissionId } = useParams<{
@@ -96,47 +97,87 @@ const ExamSubmissionDetail: React.FC = () => {
     })
 
   return (
-    <div className="min-h-screen bg-[#02030a] text-gray-100">
-      <div className="mx-auto max-w-6xl space-y-6 px-4 py-10">
-        <div className="flex flex-wrap items-center gap-4 rounded-[32px] border border-white/5 bg-gradient-to-br from-[#10132a] via-[#090b16] to-[#04050a] p-6 shadow-[0_40px_120px_rgba(3,4,12,0.9)]">
-          <button
+    <div
+      className="min-h-screen"
+      style={{
+        backgroundColor: 'var(--background-color)',
+        color: 'var(--text-color)',
+        transition: 'background-color 200ms ease, color 200ms ease',
+      }}
+    >
+      <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 md:py-10">
+        <div
+          className="flex flex-wrap items-center gap-4 rounded-md border p-4 md:p-6"
+          style={{
+            borderColor: 'var(--surface-border)',
+            backgroundColor: 'var(--exam-panel-bg)',
+            transition: 'background-color 200ms ease, border-color 200ms ease',
+          }}
+        >
+          <Button
             onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.4em] text-gray-300 transition hover:border-white/30 hover:bg-white/10"
+            variant="secondary"
+            size="sm"
+            icon={<ArrowLeft size={14} />}
           >
-            <ArrowLeft size={14} />
             Back
-          </button>
+          </Button>
           <div>
-            <h1 className="text-2xl font-semibold text-white">
+            <h1
+              className="text-lg font-semibold md:text-xl"
+              style={{ color: 'var(--text-color)' }}
+            >
               {submission.user?.firstname} {submission.user?.lastname}
             </h1>
-            <p className="text-sm text-gray-400">
+            <p className="mt-1 text-sm" style={{ color: 'var(--muted-text)' }}>
               Submitted {formatDate(submission.submittedAt)} • Duration{' '}
               {submission.duration} mins
             </p>
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-white/5 bg-[#060812] p-6">
-          <div className="flex gap-4 border-b border-white/5 pb-4">
+        <div
+          className="rounded-md border p-4 md:p-6"
+          style={{
+            borderColor: 'var(--surface-border)',
+            backgroundColor: 'var(--exam-panel-bg)',
+            transition: 'background-color 200ms ease, border-color 200ms ease',
+          }}
+        >
+          <div
+            className="flex gap-4 border-b pb-4"
+            style={{ borderColor: 'var(--surface-border)' }}
+          >
             {(['overview', 'details'] as const).map(tab => (
-              <button
+              <Button
                 key={tab}
+                variant={activeTab === tab ? 'secondary' : 'ghost'}
+                size="sm"
+                className="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wider"
+                style={{
+                  color:
+                    activeTab === tab
+                      ? 'var(--text-color)'
+                      : 'var(--muted-text)',
+                }}
                 onClick={() => setActiveTab(tab)}
-                className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] ${
-                  activeTab === tab
-                    ? 'bg-primary-500/20 text-primary-200'
-                    : 'text-gray-500 hover:text-white'
-                }`}
               >
                 {tab}
-              </button>
+              </Button>
             ))}
           </div>
 
           {activeTab === 'overview' && (
-            <div className="space-y-6 pt-6">
-              <div className="flex flex-wrap gap-6 rounded-3xl border border-white/5 bg-gradient-to-br from-[#0b0f1f] to-[#05060d] p-6">
+            <div className="space-y-6 pt-4">
+              <div
+                className="flex flex-wrap gap-6 rounded-md border p-4 md:p-6"
+                style={{
+                  borderColor: 'var(--surface-border)',
+                  backgroundColor: 'var(--editor-bg)',
+                  transition:
+                    'background-color 200ms ease, border-color 200ms ease',
+                }}
+              >
                 <OverviewStat
                   label="Total score"
                   value={`${submission.totalScore}%`}
@@ -151,43 +192,66 @@ const ExamSubmissionDetail: React.FC = () => {
                 />
               </div>
 
-              <div className="rounded-3xl border border-white/5 bg-[#05060d] p-6">
-                <h3 className="text-lg font-semibold text-white">
+              <div
+                className="rounded-md border p-4 md:p-6"
+                style={{
+                  borderColor: 'var(--surface-border)',
+                  backgroundColor: 'var(--editor-bg)',
+                  transition:
+                    'background-color 200ms ease, border-color 200ms ease',
+                }}
+              >
+                <h3
+                  className="text-lg font-semibold md:text-xl"
+                  style={{ color: 'var(--text-color)' }}
+                >
                   Challenge results
                 </h3>
                 <div className="mt-4 space-y-4">
                   {submission.solutions.map((solution, index) => (
                     <div
                       key={solution.challengeId}
-                      className="rounded-2xl border border-white/5 bg-white/5 p-4"
+                      className="rounded-md border p-4"
+                      style={{
+                        borderColor: 'var(--surface-border)',
+                        backgroundColor: 'var(--exam-panel-bg)',
+                        transition:
+                          'background-color 200ms ease, border-color 200ms ease',
+                      }}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">
+                        <span
+                          className="text-sm"
+                          style={{ color: 'var(--muted-text)' }}
+                        >
                           Challenge {index + 1}
                         </span>
                         <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold ${scoreBadge(
-                            solution.score
-                          )}`}
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${scoreBadge(solution.score)}`}
                         >
                           {solution.score}%
                         </span>
                       </div>
-                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-gray-400">
+                      <div
+                        className="mt-3 flex flex-wrap gap-2 text-xs"
+                        style={{ color: 'var(--muted-text)' }}
+                      >
                         {solution.results?.map((result, idx) => (
                           <span
                             key={idx}
-                            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 ${
-                              result.passed
-                                ? 'bg-emerald-500/10 text-emerald-200'
-                                : 'bg-rose-500/10 text-rose-200'
-                            }`}
+                            className="inline-flex items-center gap-1 rounded-full px-3 py-1"
+                            style={{
+                              backgroundColor: result.passed
+                                ? 'rgba(16,185,129,0.1)'
+                                : 'rgba(240,68,68,0.1)',
+                              border: `1px solid ${result.passed ? 'rgba(16,185,129,0.3)' : 'rgba(240,68,68,0.3)'}`,
+                            }}
                           >
                             {result.passed ? (
                               <Check size={12} />
                             ) : (
                               <X size={12} />
-                            )}
+                            )}{' '}
                             Test {idx + 1}
                           </span>
                         ))}
@@ -200,29 +264,51 @@ const ExamSubmissionDetail: React.FC = () => {
           )}
 
           {activeTab === 'details' && (
-            <div className="space-y-6 pt-6">
+            <div className="space-y-6 pt-4">
               {submission.solutions.length === 0 ? (
-                <div className="rounded-3xl border border-dashed border-white/10 bg-[#05060d] p-12 text-center text-sm text-gray-400">
+                <div
+                  className="rounded-md border-dashed p-6 text-center"
+                  style={{
+                    borderColor: 'var(--surface-border)',
+                    color: 'var(--muted-text)',
+                  }}
+                >
                   No solution details available
                 </div>
               ) : (
                 submission.solutions.map((solution, index) => (
                   <div
                     key={solution.challengeId}
-                    className="rounded-3xl border border-white/5 bg-[#05060d] p-6"
+                    className="rounded-md border p-4 md:p-6"
+                    style={{
+                      borderColor: 'var(--surface-border)',
+                      backgroundColor: 'var(--editor-bg)',
+                      transition:
+                        'background-color 200ms ease, border-color 200ms ease',
+                    }}
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 pb-4">
-                      <h3 className="text-lg font-semibold text-white">
+                    <div
+                      className="flex flex-wrap items-center justify-between gap-2 border-b pb-4"
+                      style={{ borderColor: 'var(--surface-border)' }}
+                    >
+                      <h3
+                        className="text-lg font-semibold md:text-xl"
+                        style={{ color: 'var(--text-color)' }}
+                      >
                         Challenge {index + 1}
                       </h3>
                       <div className="flex items-center gap-2">
-                        <span className="rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-[0.3em] text-gray-300">
+                        <span
+                          className="rounded-full border px-3 py-1 text-xs uppercase tracking-wider"
+                          style={{
+                            borderColor: 'var(--surface-border)',
+                            color: 'var(--muted-text)',
+                          }}
+                        >
                           {solution.language}
                         </span>
                         <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold ${scoreBadge(
-                            solution.score
-                          )}`}
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${scoreBadge(solution.score)}`}
                         >
                           {solution.score}%
                         </span>
@@ -231,11 +317,21 @@ const ExamSubmissionDetail: React.FC = () => {
 
                     <div className="mt-4 space-y-4">
                       <div>
-                        <div className="flex items-center gap-2 text-sm font-semibold text-gray-200">
+                        <div
+                          className="flex items-center gap-2 text-sm font-semibold"
+                          style={{ color: 'var(--text-color)' }}
+                        >
                           <Code size={16} />
                           Code
                         </div>
-                        <pre className="mt-2 max-h-[320px] overflow-auto rounded-2xl bg-[#0f111a] p-4 text-xs text-gray-200">
+                        <pre
+                          className="mt-2 max-h-[320px] overflow-auto rounded-md border p-4"
+                          style={{
+                            backgroundColor: 'var(--exam-panel-bg)',
+                            color: 'var(--text-color)',
+                            borderColor: 'var(--surface-border)',
+                          }}
+                        >
                           <code>{solution.code}</code>
                         </pre>
                       </div>
@@ -245,18 +341,31 @@ const ExamSubmissionDetail: React.FC = () => {
                           {solution.results.map((result, idx) => (
                             <div
                               key={idx}
-                              className="rounded-2xl border border-white/5 bg-white/5 p-4"
+                              className="rounded-md border p-4"
+                              style={{
+                                borderColor: 'var(--surface-border)',
+                                backgroundColor: 'var(--exam-panel-bg)',
+                                transition:
+                                  'background-color 200ms ease, border-color 200ms ease',
+                              }}
                             >
                               <div className="flex items-center justify-between">
-                                <span className="text-sm text-gray-400">
+                                <span
+                                  className="text-sm"
+                                  style={{ color: 'var(--muted-text)' }}
+                                >
                                   Test case {idx + 1}
                                 </span>
                                 <span
-                                  className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${
-                                    result.passed
-                                      ? 'bg-emerald-500/10 text-emerald-200'
-                                      : 'bg-rose-500/10 text-rose-200'
-                                  }`}
+                                  className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold"
+                                  style={{
+                                    backgroundColor: result.passed
+                                      ? 'rgba(16,185,129,0.1)'
+                                      : 'rgba(240,68,68,0.1)',
+                                    borderColor: result.passed
+                                      ? 'rgba(16,185,129,0.3)'
+                                      : 'rgba(240,68,68,0.3)',
+                                  }}
                                 >
                                   {result.passed ? (
                                     <Check size={12} />
@@ -266,30 +375,67 @@ const ExamSubmissionDetail: React.FC = () => {
                                   {result.passed ? 'Passed' : 'Failed'}
                                 </span>
                               </div>
-                              <div className="mt-4 grid gap-3 text-xs text-gray-300 lg:grid-cols-2">
+                              <div className="mt-4 grid gap-3 text-sm lg:grid-cols-2">
                                 <div>
-                                  <p className="text-[11px] uppercase tracking-[0.35em] text-gray-500">
+                                  <p
+                                    className="text-xs uppercase tracking-wider"
+                                    style={{ color: 'var(--muted-text)' }}
+                                  >
                                     Expected
                                   </p>
-                                  <div className="mt-1 rounded-xl bg-[#111426] p-3 text-white">
-                                    <code>{result.expectedOutput}</code>
+                                  <div
+                                    className="mt-1 rounded-md border p-3"
+                                    style={{
+                                      backgroundColor: 'var(--editor-bg)',
+                                      borderColor: 'var(--surface-border)',
+                                    }}
+                                  >
+                                    <code
+                                      style={{ color: 'var(--text-color)' }}
+                                    >
+                                      {result.expectedOutput}
+                                    </code>
                                   </div>
                                 </div>
                                 <div>
-                                  <p className="text-[11px] uppercase tracking-[0.35em] text-gray-500">
+                                  <p
+                                    className="text-xs uppercase tracking-wider"
+                                    style={{ color: 'var(--muted-text)' }}
+                                  >
                                     Actual
                                   </p>
-                                  <div className="mt-1 rounded-xl bg-[#111426] p-3 text-white">
-                                    <code>{result.actualOutput}</code>
+                                  <div
+                                    className="mt-1 rounded-md border p-3"
+                                    style={{
+                                      backgroundColor: 'var(--editor-bg)',
+                                      borderColor: 'var(--surface-border)',
+                                    }}
+                                  >
+                                    <code
+                                      style={{ color: 'var(--text-color)' }}
+                                    >
+                                      {result.actualOutput}
+                                    </code>
                                   </div>
                                 </div>
                               </div>
                               {result.error && (
-                                <div className="mt-3 rounded-xl border border-rose-400/40 bg-rose-500/5 p-3 text-xs text-rose-200">
-                                  <p className="text-[11px] uppercase tracking-[0.35em]">
+                                <div
+                                  className="mt-3 rounded-md border p-3"
+                                  style={{
+                                    backgroundColor: 'rgba(240,68,68,0.1)',
+                                    borderColor: 'rgba(240,68,68,0.3)',
+                                  }}
+                                >
+                                  <p
+                                    className="text-xs uppercase tracking-wider"
+                                    style={{ color: 'var(--muted-text)' }}
+                                  >
                                     Error
                                   </p>
-                                  <code>{result.error}</code>
+                                  <code style={{ color: '#ef4444' }}>
+                                    {result.error}
+                                  </code>
                                 </div>
                               )}
                             </div>
@@ -312,9 +458,17 @@ const OverviewStat: React.FC<{ label: string; value: string | number }> = ({
   label,
   value,
 }) => (
-  <div className="flex flex-1 flex-col items-center justify-center gap-1 text-white">
-    <span className="text-4xl font-semibold">{value}</span>
-    <span className="text-xs uppercase tracking-[0.4em] text-gray-500">
+  <div className="flex flex-1 flex-col items-center justify-center gap-1">
+    <span
+      className="text-3xl font-semibold md:text-4xl"
+      style={{ color: 'var(--text-color)' }}
+    >
+      {value}
+    </span>
+    <span
+      className="text-xs uppercase tracking-wider"
+      style={{ color: 'var(--muted-text)' }}
+    >
       {label}
     </span>
   </div>

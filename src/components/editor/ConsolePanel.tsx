@@ -48,15 +48,29 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
 
   return (
     <div
-      className={`flex flex-col border-t border-gray-800 bg-gray-900 transition-all duration-300`}
-      style={{ height: consoleExpanded ? consoleHeight || 320 : 110 }}
+      className="flex flex-col border-t transition-all duration-300"
+      style={{
+        height: consoleExpanded ? consoleHeight || 320 : 110,
+        backgroundColor: 'var(--exam-panel-bg)',
+        borderColor: 'var(--surface-border)',
+      }}
     >
       {/* Header */}
       <div
-        className="flex cursor-pointer items-center justify-between border-b border-gray-800 px-4 py-3 hover:bg-gray-900"
+        className="flex cursor-pointer items-center justify-between border-b px-4 py-3 transition-colors"
+        style={{ borderColor: 'var(--surface-border)' }}
         onClick={onToggleConsole}
+        onMouseEnter={e => {
+          e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.backgroundColor = 'transparent'
+        }}
       >
-        <div className="flex items-center gap-2">
+        <div
+          className="flex items-center gap-2"
+          style={{ color: 'var(--text-color)' }}
+        >
           {consoleExpanded ? (
             <ChevronUp size={20} />
           ) : (
@@ -69,24 +83,67 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
       {/* Tabs */}
       {consoleExpanded && (
         <>
-          <div className="flex border-b border-gray-800 bg-gray-900">
+          <div
+            className="flex border-b"
+            style={{
+              borderColor: 'var(--surface-border)',
+              backgroundColor: 'var(--exam-toolbar-bg)',
+            }}
+          >
             <button
               onClick={() => onConsoleTabChange('testcase')}
-              className={`rounded px-3 py-2 text-sm font-medium transition-colors ${
-                activeConsoleTab === 'testcase'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-              }`}
+              className="rounded px-3 py-2 text-sm font-medium transition-colors"
+              style={{
+                backgroundColor:
+                  activeConsoleTab === 'testcase'
+                    ? 'var(--accent)'
+                    : 'transparent',
+                color:
+                  activeConsoleTab === 'testcase'
+                    ? '#ffffff'
+                    : 'var(--muted-text)',
+                marginLeft: '0.5rem',
+              }}
+              onMouseEnter={e => {
+                if (activeConsoleTab !== 'testcase') {
+                  e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
+                  e.currentTarget.style.color = 'var(--text-color)'
+                }
+              }}
+              onMouseLeave={e => {
+                if (activeConsoleTab !== 'testcase') {
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                  e.currentTarget.style.color = 'var(--muted-text)'
+                }
+              }}
             >
               Test Case
             </button>
             <button
               onClick={() => onConsoleTabChange('output')}
-              className={`ml-2 rounded px-3 py-2 text-sm font-medium transition-colors ${
-                activeConsoleTab === 'output'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-              }`}
+              className="ml-2 rounded px-3 py-2 text-sm font-medium transition-colors"
+              style={{
+                backgroundColor:
+                  activeConsoleTab === 'output'
+                    ? 'var(--accent)'
+                    : 'transparent',
+                color:
+                  activeConsoleTab === 'output'
+                    ? '#ffffff'
+                    : 'var(--muted-text)',
+              }}
+              onMouseEnter={e => {
+                if (activeConsoleTab !== 'output') {
+                  e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
+                  e.currentTarget.style.color = 'var(--text-color)'
+                }
+              }}
+              onMouseLeave={e => {
+                if (activeConsoleTab !== 'output') {
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                  e.currentTarget.style.color = 'var(--muted-text)'
+                }
+              }}
             >
               Output
             </button>
@@ -102,7 +159,10 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
           )}
 
           {activeConsoleTab === 'output' && (
-            <div className="flex min-h-0 flex-1 overflow-hidden bg-gray-900">
+            <div
+              className="flex min-h-0 flex-1 overflow-hidden"
+              style={{ backgroundColor: 'var(--exam-panel-bg)' }}
+            >
               {/* When running or idle, show single column status */}
               {output.status === 'running' && (
                 <div className="space-y-4 p-4">
@@ -260,10 +320,23 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
       )}
 
       {/* Submit Buttons - Always visible */}
-      <div className="flex items-center justify-between border-t border-gray-800 px-4 py-3">
+      <div
+        className="flex items-center justify-between border-t px-4 py-3"
+        style={{
+          borderColor: 'var(--surface-border)',
+          backgroundColor: 'var(--exam-toolbar-bg)',
+        }}
+      >
         <button
           onClick={onToggleConsole}
-          className="text-sm font-medium text-blue-400 hover:text-blue-300"
+          className="text-sm font-medium transition-colors"
+          style={{ color: 'var(--accent)' }}
+          onMouseEnter={e => {
+            e.currentTarget.style.opacity = '0.8'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.opacity = '1'
+          }}
         >
           {consoleExpanded ? 'Collapse' : 'Expand'} Console
         </button>
@@ -274,7 +347,18 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
               onConsoleTabChange('output')
               onRun()
             }}
-            className="rounded bg-gray-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-600"
+            className="rounded px-4 py-2 text-sm font-medium text-white transition-colors"
+            style={{
+              backgroundColor: 'var(--editor-bg)',
+              color: 'var(--text-color)',
+              border: '1px solid var(--surface-border)',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.backgroundColor = 'var(--exam-panel-bg)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
+            }}
           >
             Run
           </button>
@@ -284,7 +368,14 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
               onConsoleTabChange('output')
               onSubmit()
             }}
-            className="rounded bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700"
+            className="rounded px-4 py-2 text-sm font-medium text-white transition-colors"
+            style={{ backgroundColor: '#10b981' }}
+            onMouseEnter={e => {
+              e.currentTarget.style.backgroundColor = '#059669'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.backgroundColor = '#10b981'
+            }}
           >
             Submit
           </button>

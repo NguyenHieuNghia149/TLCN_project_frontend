@@ -1,10 +1,24 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Calendar, Clock, MoreVertical, Search } from 'lucide-react'
+import {
+  Plus,
+  Calendar,
+  Clock,
+  MoreVertical,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react'
+import Input from '@/components/common/Input/Input'
 import { useAuth } from '@/hooks/api/useAuth'
 import { Exam } from '@/types/exam.types'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
+import Button from '@/components/common/Button/Button'
+import { buildMockExamList } from '@/mocks/exam.mock'
+import { isTeacherOrAdmin } from '@/utils/roleUtils'
 import './ExamList.scss'
+
+const PAGE_SIZE = 6
 
 const ExamList: React.FC = () => {
   const navigate = useNavigate()
@@ -15,39 +29,13 @@ const ExamList: React.FC = () => {
   const [filterType, setFilterType] = useState<'all' | 'my' | 'participated'>(
     'all'
   )
+  const [page, setPage] = useState(1)
 
   useEffect(() => {
     const fetchExams = async () => {
       setLoading(true)
       try {
-        const mockExams: Exam[] = [
-          {
-            id: '1',
-            title: 'Algorithms Midterm Test',
-            password: 'test123',
-            duration: 90,
-            challenges: [],
-            startDate: new Date().toISOString(),
-            endDate: new Date(
-              Date.now() + 7 * 24 * 60 * 60 * 1000
-            ).toISOString(),
-            createdBy: 'lecturer1',
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: '2',
-            title: 'Data Structures Final',
-            password: 'final456',
-            duration: 120,
-            challenges: [],
-            startDate: new Date().toISOString(),
-            endDate: new Date(
-              Date.now() + 14 * 24 * 60 * 60 * 1000
-            ).toISOString(),
-            createdBy: 'lecturer2',
-            createdAt: new Date().toISOString(),
-          },
-        ]
+        const mockExams: Exam[] = buildMockExamList(12)
         setExams(mockExams)
       } catch (error) {
         console.error('Failed to fetch exams:', error)
@@ -59,19 +47,39 @@ const ExamList: React.FC = () => {
     fetchExams()
   }, [])
 
-  const isLecturer = user?.role === 'lecturer' || user?.role === 'admin'
+  const canManageExam = isTeacherOrAdmin(user)
 
-  const filteredExams = exams.filter(exam => {
-    const matchesSearch = exam.title
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase())
+  const filteredExams = useMemo(() => {
+    return exams.filter(exam => {
+      const matchesSearch = exam.title
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase())
 
-    if (filterType === 'my') {
-      return matchesSearch && exam.createdBy === user?.id
-    }
+      if (filterType === 'my') {
+        return matchesSearch && exam.createdBy === user?.id
+      }
 
-    return matchesSearch
-  })
+      return matchesSearch
+    })
+  }, [exams, searchTerm, filterType, user?.id])
+
+  // Pagination
+  const totalPages = Math.ceil(filteredExams.length / PAGE_SIZE)
+  const paginatedExams = useMemo(() => {
+    const startIndex = (page - 1) * PAGE_SIZE
+    const endIndex = startIndex + PAGE_SIZE
+    return filteredExams.slice(startIndex, endIndex)
+  }, [filteredExams, page])
+
+  // Reset to page 1 when search term or filter changes
+  useEffect(() => {
+    setPage(1)
+  }, [searchTerm, filterType])
+
+  // Scroll to top when page changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [page])
 
   const stats = {
     total: exams.length,
@@ -87,34 +95,57 @@ const ExamList: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#03040a] text-gray-100">
-      <div className="mx-auto max-w-6xl px-4 py-12">
-        <section className="rounded-3xl border border-white/5 bg-gradient-to-br from-[#101325] via-[#090a14] to-[#05060c] p-8 shadow-[0_40px_120px_rgba(3,4,12,0.85)]">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+    <div
+      className="min-h-screen"
+      style={{
+        backgroundColor: 'var(--background-color)',
+        color: 'var(--text-color)',
+        transition: 'background-color 200ms ease, color 200ms ease',
+      }}
+    >
+      <div className="mx-auto max-w-6xl px-4 py-8 md:py-12">
+        <section
+          className="rounded-lg border p-6"
+          style={{
+            backgroundColor: 'var(--card-color)',
+            borderColor: 'var(--surface-border)',
+            transition: 'background-color 200ms ease, border-color 200ms ease',
+          }}
+        >
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.45em] text-gray-500">
+              <p
+                className="text-xs uppercase tracking-wider"
+                style={{ color: 'var(--muted-text)' }}
+              >
                 Assessment Hub
               </p>
-              <h1 className="mt-3 text-3xl font-semibold text-white lg:text-4xl">
+              <h1
+                className="mt-2 text-2xl font-semibold"
+                style={{ color: 'var(--text-color)' }}
+              >
                 Exam Control Center
               </h1>
-              <p className="mt-2 text-sm text-gray-400">
-                Craft immersive coding exams, monitor performance and keep your
-                cohorts engaged.
+              <p
+                className="mt-2 text-sm"
+                style={{ color: 'var(--muted-text)' }}
+              >
+                Craft focused coding exams and monitor cohort performance.
               </p>
             </div>
-            {isLecturer && (
-              <button
+            {canManageExam && (
+              <Button
                 onClick={() => navigate('/exam/create')}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:border-primary-400/50 hover:bg-primary-500/10"
+                variant="primary"
+                size="md"
+                icon={<Plus size={16} />}
               >
-                <Plus size={18} />
                 New Exam
-              </button>
+              </Button>
             )}
           </div>
 
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+          <div className="mt-6 grid gap-4 sm:grid-cols-3">
             <StatPill label="Total Exams" value={stats.total} />
             <StatPill
               label="Active Now"
@@ -125,17 +156,24 @@ const ExamList: React.FC = () => {
           </div>
         </section>
 
-        <section className="mt-10 space-y-6">
-          <div className="flex flex-col gap-4 rounded-3xl border border-white/5 bg-[#060812] p-6 shadow-[0_30px_80px_rgba(2,3,10,0.8)]">
+        <section className="mt-8 space-y-6">
+          <div
+            className="rounded-lg border p-4"
+            style={{
+              borderColor: 'var(--surface-border)',
+              backgroundColor: 'var(--exam-panel-bg)',
+              transition:
+                'background-color 200ms ease, border-color 200ms ease',
+            }}
+          >
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="relative flex-1">
-                <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-600" />
-                <input
-                  type="text"
+              <div className="flex-1">
+                <Input
                   value={searchTerm}
                   onChange={event => setSearchTerm(event.target.value)}
                   placeholder="Search exam by title..."
-                  className="h-12 w-full rounded-2xl border border-white/5 bg-[#0b0f1d] pl-12 pr-4 text-sm text-gray-100 outline-none transition focus:border-primary-400/50 focus:bg-[#11162a]"
+                  icon={<Search size={18} />}
+                  className="w-full"
                 />
               </div>
               <div className="flex flex-wrap gap-3">
@@ -144,7 +182,7 @@ const ExamList: React.FC = () => {
                   active={filterType === 'all'}
                   onClick={() => setFilterType('all')}
                 />
-                {isLecturer && (
+                {canManageExam && (
                   <FilterChip
                     label="My exams"
                     active={filterType === 'my'}
@@ -161,26 +199,145 @@ const ExamList: React.FC = () => {
           </div>
 
           {filteredExams.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-white/10 bg-[#070910] p-12 text-center text-gray-400">
-              <p className="text-lg font-semibold text-white">No exams found</p>
-              <p className="mt-2 text-sm">
-                {isLecturer
+            <div
+              className="rounded-md border-dashed p-8 text-center"
+              style={{
+                borderColor: 'var(--surface-border)',
+                transition: 'border-color 200ms ease',
+              }}
+            >
+              <p
+                className="text-lg font-semibold"
+                style={{ color: 'var(--text-color)' }}
+              >
+                No exams found
+              </p>
+              <p
+                className="mt-2 text-sm"
+                style={{ color: 'var(--muted-text)' }}
+              >
+                {canManageExam
                   ? 'Create your first curated exam to get started.'
                   : 'Please check back soon or contact your instructor.'}
               </p>
             </div>
           ) : (
-            <div className="grid gap-6 md:grid-cols-2">
-              {filteredExams.map(exam => (
-                <ExamCard
-                  key={exam.id}
-                  exam={exam}
-                  isOwner={exam.createdBy === user?.id}
-                  onView={() => navigate(`/exam/${exam.id}`)}
-                  onResults={() => navigate(`/exam/${exam.id}/results/manage`)}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid gap-6 md:grid-cols-2">
+                {paginatedExams.map(exam => (
+                  <ExamCard
+                    key={exam.id}
+                    exam={exam}
+                    isOwner={exam.createdBy === user?.id}
+                    onView={() => navigate(`/exam/${exam.id}`)}
+                    onResults={() =>
+                      navigate(`/exam/${exam.id}/results/manage`)
+                    }
+                  />
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div
+                  className="mt-6 flex flex-col gap-4 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"
+                  style={{ borderColor: 'var(--surface-border)' }}
+                >
+                  <div
+                    className="text-sm"
+                    style={{ color: 'var(--muted-text)' }}
+                  >
+                    Showing {(page - 1) * PAGE_SIZE + 1} to{' '}
+                    {Math.min(page * PAGE_SIZE, filteredExams.length)} of{' '}
+                    {filteredExams.length} exams
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      variant="secondary"
+                      size="sm"
+                      icon={<ChevronLeft size={16} />}
+                    >
+                      Previous
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                        pageNum => {
+                          if (
+                            pageNum === 1 ||
+                            pageNum === totalPages ||
+                            (pageNum >= Math.max(1, page - 1) &&
+                              pageNum <= Math.min(totalPages, page + 1))
+                          ) {
+                            return (
+                              <button
+                                key={pageNum}
+                                onClick={() => setPage(pageNum)}
+                                className="min-w-[2.5rem] rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
+                                style={{
+                                  borderColor:
+                                    page === pageNum
+                                      ? 'var(--accent)'
+                                      : 'var(--surface-border)',
+                                  backgroundColor:
+                                    page === pageNum
+                                      ? 'rgba(32, 215, 97, 0.1)'
+                                      : 'transparent',
+                                  color:
+                                    page === pageNum
+                                      ? 'var(--accent)'
+                                      : 'var(--text-color)',
+                                }}
+                                onMouseEnter={e => {
+                                  if (page !== pageNum) {
+                                    e.currentTarget.style.backgroundColor =
+                                      'var(--exam-panel-bg)'
+                                  }
+                                }}
+                                onMouseLeave={e => {
+                                  if (page !== pageNum) {
+                                    e.currentTarget.style.backgroundColor =
+                                      'transparent'
+                                  }
+                                }}
+                              >
+                                {pageNum}
+                              </button>
+                            )
+                          } else if (
+                            pageNum === page - 2 ||
+                            pageNum === page + 2
+                          ) {
+                            return (
+                              <span
+                                key={pageNum}
+                                className="px-2 text-sm"
+                                style={{ color: 'var(--muted-text)' }}
+                              >
+                                ...
+                              </span>
+                            )
+                          }
+                          return null
+                        }
+                      )}
+                    </div>
+                    <Button
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                      variant="secondary"
+                      size="sm"
+                    >
+                      <span className="flex items-center gap-2">
+                        Next
+                        <ChevronRight size={16} />
+                      </span>
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </section>
       </div>
@@ -214,70 +371,104 @@ const ExamCard: React.FC<ExamCardProps> = ({
   const isActive = Date.now() < new Date(exam.endDate).getTime()
 
   return (
-    <div className="group relative overflow-hidden rounded-3xl border border-white/5 bg-gradient-to-br from-[#0c101f] via-[#070912] to-[#04050a] p-6 shadow-[0_35px_100px_rgba(3,5,15,0.9)] transition hover:-translate-y-1">
-      <div className="absolute inset-0 opacity-0 transition group-hover:opacity-100">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary-500/20 via-transparent to-emerald-400/20 blur-3xl" />
-      </div>
-
+    <div
+      className="group relative overflow-hidden rounded-lg border p-6 transition-all duration-200 hover:-translate-y-0.5"
+      style={{
+        borderColor: 'var(--surface-border)',
+        backgroundColor: 'var(--card-color)',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      }}
+    >
       <div className="relative z-10 space-y-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.4em] text-gray-500">
+            <div
+              className="flex items-center gap-2 text-xs uppercase tracking-wider"
+              style={{ color: 'var(--muted-text)' }}
+            >
               <span>{formatDate(exam.startDate)}</span>
-              <span className="text-gray-600">•</span>
+              <span>•</span>
               <span>{exam.duration}m</span>
             </div>
-            <h3 className="mt-2 text-xl font-semibold text-white">
+            <h3
+              className="mt-2 text-xl font-semibold"
+              style={{ color: 'var(--text-color)' }}
+            >
               {exam.title}
             </h3>
           </div>
           {isOwner && (
             <div className="relative">
-              <button
+              <Button
                 onClick={() => setShowMenu(prev => !prev)}
-                className="rounded-full border border-white/10 bg-white/5 p-2 text-gray-400 transition hover:text-white"
+                variant="ghost"
+                className="rounded-full p-2"
+                size="sm"
               >
                 <MoreVertical size={18} />
-              </button>
+              </Button>
               {showMenu && (
                 <div className="absolute right-0 mt-2 w-44 rounded-2xl border border-white/10 bg-[#070a12] p-2 text-sm shadow-2xl">
-                  <button
-                    className="flex w-full items-center rounded-xl px-3 py-2 text-left text-gray-300 hover:bg-white/5"
+                  <Button
+                    className="flex w-full items-center rounded-xl px-3 py-2 text-left text-gray-300"
                     onClick={() => navigate(`/exam/edit/${exam.id}`)}
+                    variant="ghost"
                   >
                     Edit exam
-                  </button>
-                  <button
-                    className="flex w-full items-center rounded-xl px-3 py-2 text-left text-gray-300 hover:bg-white/5"
+                  </Button>
+                  <Button
+                    className="flex w-full items-center rounded-xl px-3 py-2 text-left text-gray-300"
                     onClick={onResults}
+                    variant="ghost"
                   >
                     View results
-                  </button>
-                  <button className="flex w-full items-center rounded-xl px-3 py-2 text-left text-rose-300 hover:bg-rose-500/10">
+                  </Button>
+                  <Button
+                    className="flex w-full items-center rounded-xl px-3 py-2 text-left text-rose-300"
+                    variant="outline"
+                  >
                     Delete
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
           )}
         </div>
 
-        <div className="grid gap-4 rounded-2xl border border-white/5 bg-[#090c17] p-4 text-sm text-gray-300">
-          <div className="flex items-center gap-3">
-            <Clock size={16} className="text-emerald-300" />
+        <div
+          className="grid gap-4 rounded-lg border p-4 text-sm"
+          style={{
+            borderColor: 'var(--surface-border)',
+            backgroundColor: 'var(--exam-panel-bg)',
+          }}
+        >
+          <div
+            className="flex items-center gap-3"
+            style={{ color: 'var(--text-color)' }}
+          >
+            <Clock size={16} style={{ color: 'var(--accent)' }} />
             <span>{exam.duration} minutes</span>
           </div>
-          <div className="flex items-center gap-3">
-            <Calendar size={16} className="text-primary-300" />
+          <div
+            className="flex items-center gap-3"
+            style={{ color: 'var(--text-color)' }}
+          >
+            <Calendar size={16} style={{ color: 'var(--accent)' }} />
             <span>
               {formatDate(exam.startDate)} → {formatDate(exam.endDate)}
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <p className="text-xs uppercase tracking-[0.4em] text-gray-500">
+            <p
+              className="text-xs uppercase tracking-wider"
+              style={{ color: 'var(--muted-text)' }}
+            >
               Challenges
             </p>
-            <p className="text-lg font-semibold text-white">
+            <p
+              className="text-lg font-semibold"
+              style={{ color: 'var(--text-color)' }}
+            >
               {exam.challenges?.length || 0}
             </p>
           </div>
@@ -285,20 +476,28 @@ const ExamCard: React.FC<ExamCardProps> = ({
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span
-            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.35em] ${
-              isActive
-                ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-200'
-                : 'border-rose-400/40 bg-rose-500/10 text-rose-200'
-            }`}
+            className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wider"
+            style={{
+              borderColor: isActive
+                ? 'rgba(16, 185, 129, 0.4)'
+                : 'rgba(239, 68, 68, 0.4)',
+              backgroundColor: isActive
+                ? 'rgba(16, 185, 129, 0.1)'
+                : 'rgba(239, 68, 68, 0.1)',
+              color: isActive ? '#10b981' : '#ef4444',
+            }}
           >
             {isActive ? 'Active' : 'Closed'}
           </span>
-          <button
+          <Button
             onClick={onView}
-            className="inline-flex items-center rounded-2xl bg-gradient-to-r from-primary-500 to-sky-400 px-4 py-2 text-sm font-semibold text-black shadow-[0_20px_45px_rgba(59,130,246,0.5)] transition hover:from-primary-400 hover:to-sky-300"
+            variant="primary"
+            size="sm"
+            className="inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold"
+            aria-label={isOwner ? 'Manage exam' : 'Enter exam'}
           >
             {isOwner ? 'Manage exam' : 'Enter exam'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -310,21 +509,31 @@ const StatPill: React.FC<{
   value: number
   accent?: 'emerald' | 'amber'
 }> = ({ label, value, accent }) => {
-  const accentClasses =
+  const accentColor =
     accent === 'emerald'
-      ? 'from-emerald-500/20 to-emerald-500/5 text-emerald-200'
+      ? '#10b981'
       : accent === 'amber'
-        ? 'from-amber-500/20 to-amber-500/5 text-amber-200'
-        : 'from-white/10 to-transparent text-white'
+        ? '#f59e0b'
+        : 'var(--accent)'
 
   return (
     <div
-      className={`rounded-2xl border border-white/5 bg-gradient-to-br ${accentClasses} p-5`}
+      className="rounded-lg border p-5"
+      style={{
+        borderColor: 'var(--surface-border)',
+        backgroundColor: 'var(--exam-panel-bg)',
+        transition: 'background-color 200ms ease, border-color 200ms ease',
+      }}
     >
-      <p className="text-xs uppercase tracking-[0.35em] text-gray-400">
+      <p
+        className="text-xs uppercase tracking-wider"
+        style={{ color: 'var(--muted-text)' }}
+      >
         {label}
       </p>
-      <p className="mt-2 text-3xl font-semibold">{value}</p>
+      <p className="mt-2 text-3xl font-semibold" style={{ color: accentColor }}>
+        {value}
+      </p>
     </div>
   )
 }
@@ -334,16 +543,20 @@ const FilterChip: React.FC<{
   active: boolean
   onClick: () => void
 }> = ({ label, active, onClick }) => (
-  <button
+  <Button
     onClick={onClick}
-    className={`rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] transition ${
-      active
-        ? 'border-primary-400/60 bg-primary-500/10 text-white'
-        : 'border-white/10 text-gray-400 hover:border-primary-400/30 hover:text-white'
-    }`}
+    size="sm"
+    variant={active ? 'primary' : 'ghost'}
+    className="rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-wider transition"
+    style={{
+      borderColor: active ? 'var(--accent)' : 'var(--surface-border)',
+      backgroundColor: active ? 'var(--accent)' : 'transparent',
+      color: active ? '#ffffff' : 'var(--muted-text)',
+    }}
+    aria-pressed={active}
   >
     {label}
-  </button>
+  </Button>
 )
 
 export default ExamList

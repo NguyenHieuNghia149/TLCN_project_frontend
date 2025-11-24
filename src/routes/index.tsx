@@ -21,6 +21,10 @@ import ExamResults from '@/pages/exam/ExamResults'
 import ExamResultsAdmin from '@/pages/exam/ExamResultsAdmin'
 import ExamSubmissionDetail from '@/pages/exam/ExamSubmissionDetail'
 import ExamChallengeDetail from '@/pages/exam/ExamChallengeDetail'
+import ManageTeacher from '@/pages/admin/manageteacher/ManageTeacher'
+import ManageUser from '@/pages/admin/manageuser/ManageUser'
+import AdminHome from '@/pages/admin/adminhome/AdminHome'
+// removed unused import
 
 export const router = createBrowserRouter([
   {
@@ -51,6 +55,30 @@ export const router = createBrowserRouter([
     ),
   },
 
+  {
+    path: 'admin',
+    element: (
+      <ProtectedRoute>
+        <AdminHome />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: 'admin/users',
+    element: (
+      <ProtectedRoute>
+        <ManageUser />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: 'admin/teachers',
+    element: (
+      <ProtectedRoute>
+        <ManageTeacher />
+      </ProtectedRoute>
+    ),
+  },
   {
     path: '/',
     element: <MainLayout />,
@@ -95,6 +123,22 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
+      {
+        path: 'exam/:examId/results',
+        element: (
+          <ProtectedRoute>
+            <ExamResults />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'exam',
+        element: (
+          <ProtectedRoute>
+            <ExamList />
+          </ProtectedRoute>
+        ),
+      },
     ],
   },
   {
@@ -105,14 +149,7 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
-  {
-    path: 'exam',
-    element: (
-      <ProtectedRoute>
-        <ExamList />
-      </ProtectedRoute>
-    ),
-  },
+
   {
     path: 'exam/:examId',
     element: (
@@ -137,14 +174,7 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
-  {
-    path: 'exam/:examId/results',
-    element: (
-      <ProtectedRoute>
-        <ExamResults />
-      </ProtectedRoute>
-    ),
-  },
+
   {
     path: 'exam/:examId/results/manage',
     element: (

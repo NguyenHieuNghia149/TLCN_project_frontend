@@ -33,7 +33,7 @@
       transition: all 0.3s ease;
 
       &:hover {
-        background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
+        background: #20d761;
         border-color: transparent;
       }
     }
@@ -319,7 +319,7 @@
           left: 10px;
           width: 30px;
           height: 30px;
-          background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
+          background: #20d761;
           color: white;
           border-radius: 50%;
           display: flex;
@@ -354,12 +354,13 @@
   font-size: 1rem;
 
   &.btn-primary {
-    background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
+    background: #20d761;
     color: white;
 
     &:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+      box-shadow: 0 8px 20px rgba(32, 215, 97, 0.4);
+      background: #1ec355;
     }
 
     &:active {
