@@ -1,0 +1,401 @@
+// ExamDetail.scss - Dark theme for exam detail page
+.exam-detail-page {
+  min-height: 100vh;
+  background: var(--background-color, #0a0a0a);
+  color: var(--text-color, #ffffff);
+  padding: 2rem 0;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
+
+  .exam-detail-header {
+    background: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 2rem;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+
+    .btn-back {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 0.5rem;
+      cursor: pointer;
+      color: var(--text-color, #ffffff);
+      transition: all 0.3s ease;
+
+      &:hover {
+        background: #20d761;
+        border-color: transparent;
+      }
+    }
+
+    .header-info {
+      flex: 1;
+
+      h1 {
+        font-size: 2rem;
+        margin: 0 0 0.5rem 0;
+        color: var(--text-color, #ffffff);
+      }
+
+      .exam-period {
+        color: #94a3b8;
+        margin: 0;
+        font-size: 0.95rem;
+      }
+    }
+
+    .status-badge {
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 0.9rem;
+
+      &.active {
+        background: rgba(16, 185, 129, 0.1);
+        color: #6ee7b7;
+      }
+
+      &.closed {
+        background: rgba(239, 68, 68, 0.1);
+        color: #fca5a5;
+      }
+    }
+  }
+
+  .error-state {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.75rem;
+    color: #cbd5e1;
+  }
+
+  // Modal Styles
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+
+    .modal-content {
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 0.75rem;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+      max-width: 400px;
+      width: 90%;
+      overflow: hidden;
+
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+
+        h2 {
+          margin: 0;
+          font-size: 1.25rem;
+          color: var(--text-color, #ffffff);
+        }
+
+        .close-btn {
+          background: none;
+          border: none;
+          font-size: 1.5rem;
+          color: #94a3b8;
+          cursor: pointer;
+          transition: color 0.3s ease;
+
+          &:hover {
+            color: var(--text-color, #ffffff);
+          }
+        }
+      }
+
+      .modal-body {
+        padding: 1.5rem;
+
+        p {
+          margin: 0 0 1rem;
+          color: #cbd5e1;
+        }
+
+        .password-input-group {
+          margin-bottom: 1rem;
+
+          .password-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+
+            input {
+              width: 100%;
+              padding: 0.75rem 2.5rem 0.75rem 1rem;
+              border: 1px solid rgba(255, 255, 255, 0.1);
+              border-radius: 0.5rem;
+              font-size: 1rem;
+              transition: all 0.3s ease;
+              color: var(--text-color, #ffffff);
+              background: rgba(255, 255, 255, 0.02);
+
+              &:focus {
+                outline: none;
+                border-color: rgba(59, 130, 246, 0.5);
+                background: rgba(59, 130, 246, 0.05);
+              }
+
+              &.error {
+                border-color: rgba(239, 68, 68, 0.5);
+              }
+            }
+
+            .toggle-password {
+              position: absolute;
+              right: 0.75rem;
+              background: none;
+              border: none;
+              color: #94a3b8;
+              cursor: pointer;
+              padding: 0.25rem;
+              transition: color 0.3s ease;
+
+              &:hover {
+                color: var(--text-color, #ffffff);
+              }
+            }
+          }
+
+          .error-message {
+            display: block;
+            color: #fca5a5;
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+          }
+        }
+      }
+
+      .modal-footer {
+        padding: 1rem 1.5rem;
+        background: rgba(255, 255, 255, 0.01);
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+      }
+    }
+  }
+
+  .exam-detail-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+  }
+
+  .exam-info-card {
+    background: rgba(255, 255, 255, 0.02);
+    padding: 2rem;
+    border-radius: 0.75rem;
+    margin-bottom: 2rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+
+    .info-section {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 2rem;
+
+      .info-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+
+        svg {
+          width: 32px;
+          height: 32px;
+          color: #3b82f6;
+          flex-shrink: 0;
+          margin-top: 0.25rem;
+        }
+
+        label {
+          font-size: 0.85rem;
+          color: #94a3b8;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin: 0;
+        }
+
+        p {
+          font-size: 1.5rem;
+          font-weight: 600;
+          color: var(--text-color, #ffffff);
+          margin: 0.25rem 0 0;
+        }
+      }
+    }
+  }
+
+  .challenges-section {
+    background: rgba(255, 255, 255, 0.02);
+    padding: 2rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+
+    .section-header {
+      margin-bottom: 2rem;
+
+      h2 {
+        margin: 0;
+        font-size: 1.5rem;
+        color: var(--text-color, #ffffff);
+      }
+    }
+
+    .verification-required {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 300px;
+
+      .verification-content {
+        text-align: center;
+
+        svg {
+          width: 60px;
+          height: 60px;
+          color: #3b82f6;
+          margin-bottom: 1rem;
+        }
+
+        h3 {
+          font-size: 1.5rem;
+          margin-bottom: 0.5rem;
+          color: var(--text-color, #ffffff);
+        }
+
+        p {
+          color: #94a3b8;
+          margin-bottom: 2rem;
+        }
+
+        .btn-lg {
+          padding: 0.75rem 2rem;
+          font-size: 1rem;
+        }
+      }
+    }
+
+    .challenges-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+
+      .challenge-item-wrapper {
+        position: relative;
+
+        .challenge-number {
+          position: absolute;
+          top: -10px;
+          left: 10px;
+          width: 30px;
+          height: 30px;
+          background: #20d761;
+          color: white;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 600;
+          font-size: 0.9rem;
+          z-index: 10;
+        }
+      }
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 2rem;
+      color: #94a3b8;
+    }
+  }
+}
+
+// Button Styles
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+
+  &.btn-primary {
+    background: #20d761;
+    color: white;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(32, 215, 97, 0.4);
+      background: #1ec355;
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
+
+  &.btn-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-color, #ffffff);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+  }
+
+  &.btn-lg {
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .exam-detail-page {
+    .exam-detail-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .challenges-section {
+      .challenges-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import Editor from '@monaco-editor/react'
 
 interface MonacoEditorProps {
@@ -7,6 +7,7 @@ interface MonacoEditorProps {
   language?: string
   readOnly?: boolean
   height?: string | number
+  editorTheme?: string
 }
 
 const MonacoEditor: React.FC<MonacoEditorProps> = ({
@@ -15,12 +16,21 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
   language = 'cpp',
   readOnly = false,
   height = '100%',
+  editorTheme = 'custom-dark',
 }) => {
   const handleEditorChange = (value: string | undefined) => {
     if (value !== undefined) {
       onChange(value)
     }
   }
+
+  const monacoRef = useRef<typeof import('monaco-editor') | null>(null)
+
+  useEffect(() => {
+    if (monacoRef.current) {
+      monacoRef.current.editor.setTheme(editorTheme)
+    }
+  }, [editorTheme])
 
   return (
     <div className="h-full w-full">
@@ -29,7 +39,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
         language={language}
         value={value}
         onChange={handleEditorChange}
-        theme="vs-dark"
+        theme={editorTheme === 'custom-light' ? 'vs-light' : 'vs-dark'}
         options={{
           fontSize: 14,
           fontFamily: "'Fira Code', 'Monaco', 'Courier New', monospace",
@@ -63,6 +73,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
           },
         }}
         onMount={(editor, monaco) => {
+          monacoRef.current = monaco
           // Configure C++ language
           monaco.languages.setLanguageConfiguration('cpp', {
             comments: {
@@ -117,7 +128,33 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
             },
           })
 
-          monaco.editor.setTheme('custom-dark')
+          monaco.editor.defineTheme('custom-light', {
+            base: 'vs',
+            inherit: true,
+            rules: [
+              { token: 'comment', foreground: '008000', fontStyle: 'italic' },
+              { token: 'keyword', foreground: '0000FF', fontStyle: 'bold' },
+              { token: 'string', foreground: 'A31515' },
+              { token: 'number', foreground: '09885A' },
+              { token: 'operator', foreground: '000000' },
+              { token: 'delimiter', foreground: '000000' },
+              { token: 'type', foreground: '267f99' },
+              { token: 'function', foreground: '795E26' },
+            ],
+            colors: {
+              'editor.background': '#ffffff',
+              'editor.foreground': '#1f1f1f',
+              'editorLineNumber.foreground': '#858585',
+              'editorLineNumber.activeForeground': '#1f1f1f',
+              'editor.selectionBackground': '#aad6ff',
+              'editor.inactiveSelectionBackground': '#e5f0fb',
+              'editor.lineHighlightBackground': '#f0f0f0',
+              'editorCursor.foreground': '#000000',
+              'editorWhitespace.foreground': '#d3d3d3',
+            },
+          })
+
+          monaco.editor.setTheme(editorTheme)
         }}
       />
     </div>

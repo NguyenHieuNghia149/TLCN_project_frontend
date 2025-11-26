@@ -21,36 +21,61 @@ const TestCasePanel: React.FC<TestCasePanelProps> = ({
   const currentTestCase = testCases.find(tc => tc.id === selectedTestCase)
 
   return (
-    <div className="flex flex-1 flex-col overflow-auto bg-gray-900 px-4 py-3">
+    <div className="testcase-panel">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           {testCases.map(tc => (
             <button
               key={tc.id}
               onClick={() => onTestCaseSelect(tc.id)}
-              className={`rounded px-3 py-1 text-sm font-medium transition-colors ${
+              className={`rounded px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] ${
                 selectedTestCase === tc.id
-                  ? 'border-transparent bg-blue-600 text-white'
-                  : 'bg-gray-800 text-gray-300 hover:border-transparent hover:bg-gray-700'
+                  ? 'bg-[var(--accent)] text-white'
+                  : 'bg-transparent text-[var(--muted-text)] hover:bg-[rgba(0,0,0,0.04)]'
               }`}
+              aria-pressed={selectedTestCase === tc.id}
             >
               {tc.name}
             </button>
           ))}
-          <button className="text-lg text-gray-400 hover:text-gray-300">
+          <button
+            aria-label="Add test case"
+            title="Add test case"
+            className="text-lg text-[var(--muted-text)] hover:text-[var(--text-color)]"
+          >
             +
           </button>
         </div>
-        <button className="text-sm font-medium text-blue-400 hover:text-blue-300">
+        <button className="text-sm font-medium text-[var(--accent)] hover:opacity-90">
           Reset Test Cases
         </button>
       </div>
       {currentTestCase && (
         <div className="space-y-2">
           <div>
-            <span className="text-sm text-gray-400">nums =</span>
-            <div className="mt-1 rounded border border-gray-700 bg-gray-800 px-3 py-2 font-mono text-sm text-gray-100">
+            <span className="muted text-sm">Input</span>
+            <div
+              className="mt-1 rounded border px-3 py-2 font-mono text-sm"
+              style={{
+                borderColor: 'var(--surface-border)',
+                backgroundColor: 'var(--editor-bg)',
+                color: 'var(--text-color)',
+              }}
+            >
               {currentTestCase.input}
+            </div>
+          </div>
+          <div>
+            <span className="muted text-sm">Expected Output</span>
+            <div
+              className="mt-1 rounded border px-3 py-2 font-mono text-sm"
+              style={{
+                borderColor: 'var(--surface-border)',
+                backgroundColor: 'var(--editor-bg)',
+                color: 'var(--text-color)',
+              }}
+            >
+              {currentTestCase.expectedOutput}
             </div>
           </div>
         </div>

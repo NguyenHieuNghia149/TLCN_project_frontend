@@ -32,6 +32,23 @@ export default {
     },
   },
   plugins: [
+    {
+      handler: ({ addBase }) => {
+        addBase({
+          // Reset form input validation styles from @tailwindcss/forms
+          'input:valid, textarea:valid, select:valid': {
+            borderColor: 'inherit',
+            backgroundColor: 'inherit',
+            boxShadow: 'none',
+          },
+          'input:invalid, textarea:invalid, select:invalid': {
+            borderColor: 'inherit',
+            backgroundColor: 'inherit',
+            boxShadow: 'none',
+          },
+        })
+      },
+    },
     forms,
     typography,
     aspectRatio,

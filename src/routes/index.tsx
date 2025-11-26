@@ -1,7 +1,7 @@
 import React from 'react'
 import { createBrowserRouter } from 'react-router-dom'
 import MainLayout from '@/layouts/MainLayout/MainLayout'
-import Login from '@/pages/auth/Login/Login'
+import Login from '@/pages/auth/login/Login'
 import Register from '@/pages/auth/register/Register'
 import ForgotPassword from '@/pages/auth/forgotpassword/ForgotPassword'
 import Profile from '@/pages/profile/Profile'
@@ -10,10 +10,19 @@ import HomePage from '@/pages/home/Home'
 import LessonDetail from '@/pages/LessonDetail/LessonDetail'
 import { PublicRoute } from './PublicRoute'
 import { ProtectedRoute } from './ProtectedRoute'
+import { TeacherRoute } from './TeacherRoute'
 import ChallengePage from '@/pages/challenge/ChallengePage'
 import ProblemDetailPage from '@/pages/challengeDetail/ProblemDetailPage'
 import Ranking from '@/pages/ranking/Ranking'
 import BookmarksPage from '@/pages/bookmarks/BookmarksPage'
+import ExamList from '@/pages/exam/list/ExamList'
+import ExamDetail from '@/pages/exam/detail/ExamDetail'
+import StudentExam from '@/pages/exam/session/StudentExam'
+import ExamResults from '@/pages/exam/results/ExamResults'
+import ExamResultsAdmin from '@/pages/exam/results/ExamResultsAdmin'
+import ExamSubmissionDetail from '@/pages/exam/results/ExamSubmissionDetail'
+import ExamChallengeDetail from '@/pages/exam/challenge/ExamChallengeDetail'
+import NotFound from '@/pages/NotFound'
 import ManageTeacher from '@/pages/admin/manageteacher/ManageTeacher'
 import ManageUser from '@/pages/admin/manageuser/ManageUser'
 import AdminHome from '@/pages/admin/adminhome/AdminHome'
@@ -116,6 +125,22 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
+      {
+        path: 'exam/:examId/results',
+        element: (
+          <ProtectedRoute>
+            <ExamResults />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'exam',
+        element: (
+          <ProtectedRoute>
+            <ExamList />
+          </ProtectedRoute>
+        ),
+      },
     ],
   },
   {
@@ -124,6 +149,64 @@ export const router = createBrowserRouter([
       <ProtectedRoute>
         <ProblemDetailPage />
       </ProtectedRoute>
+    ),
+  },
+
+  {
+    path: 'exam/create',
+    element: (
+      <MainLayout>
+        <NotFound />
+      </MainLayout>
+    ),
+  },
+  {
+    path: 'exam/:examId',
+    element: (
+      <ProtectedRoute>
+        <ExamDetail />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: 'exam/:examId/challenge/:challengeId',
+    element: (
+      <ProtectedRoute>
+        <StudentExam />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: 'exam/:examId/challenge/:challengeId/preview',
+    element: (
+      <ProtectedRoute>
+        <ExamChallengeDetail />
+      </ProtectedRoute>
+    ),
+  },
+
+  {
+    path: 'exam/:examId/results/manage',
+    element: (
+      <TeacherRoute>
+        <ExamResultsAdmin />
+      </TeacherRoute>
+    ),
+  },
+  {
+    path: 'exam/:examId/submission/:submissionId',
+    element: (
+      <ProtectedRoute>
+        <ExamSubmissionDetail />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '*',
+    element: (
+      <MainLayout>
+        <NotFound />
+      </MainLayout>
     ),
   },
 ])

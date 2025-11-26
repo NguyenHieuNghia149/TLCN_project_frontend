@@ -21,11 +21,13 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background-color: #121418;
-  color: #ffffff;
+  background-color: var(--background-color, #121418);
+  color: var(--text-color, #ffffff);
   width: 100%;
   max-width: none;
-  /* Bỏ height: 100% để cho phép cuộn tự nhiên */
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
 }
 
 .main-layout-content {

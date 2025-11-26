@@ -110,6 +110,7 @@ class AxiosInstanceManager {
     this.instance.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
         const token = tokenManager.getAccessToken()
+        console.log('token', token)
         if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`
         }
@@ -151,8 +152,15 @@ class AxiosInstanceManager {
         const errorCode =
           (error.response as unknown as { data?: { code?: string } })?.data
             ?.code || (error as unknown as { code?: string }).code
+        // Don't attempt refresh if refresh token is expired or missing
+        // These errors mean the user must log in again
+        const isRefreshTokenError =
+          errorCode === 'NO_REFRESH_TOKEN' || errorCode === 'TOKEN_EXPIRED'
+
         const shouldAttemptRefresh =
-          statusIs401 && (errorCode === 'TOKEN_EXPIRED' || !errorCode)
+          statusIs401 &&
+          !isRefreshTokenError &&
+          (errorCode === 'TOKEN_EXPIRED' || !errorCode)
 
         if (
           shouldAttemptRefresh &&

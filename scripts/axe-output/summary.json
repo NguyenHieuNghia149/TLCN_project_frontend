@@ -1,0 +1,10 @@
+[
+  {
+    "url": "http://192.168.1.17:3000/",
+    "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://192.168.1.17:3000/\nCall log:\n\u001b[2m  - navigating to \"http://192.168.1.17:3000/\", waiting until \"networkidle\"\u001b[22m\n"
+  },
+  {
+    "url": "http://192.168.1.17:3000/exam",
+    "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://192.168.1.17:3000/exam\nCall log:\n\u001b[2m  - navigating to \"http://192.168.1.17:3000/exam\", waiting until \"networkidle\"\u001b[22m\n"
+  }
+]
