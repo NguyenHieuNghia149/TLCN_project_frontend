@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
   Database,
-  Puzzle,
   Code2,
   Server,
   Layers,
@@ -16,12 +15,20 @@ import {
   ChevronRight,
   Clock,
   Lock,
+  BookOpen,
 } from 'lucide-react'
 import './Home.scss'
 import 'tailwindcss/tailwind.css'
 import SkillCard from '@/components/common/SkillCard'
 import { TopicService } from '@/services/api/topic.service'
+import {
+  LearningProcessService,
+  TopicProgress,
+  LessonProgress,
+} from '@/services/api/learningprocess.service'
 import { useNavigate } from 'react-router-dom'
+import { useSelector } from 'react-redux'
+import { RootState } from '@/store/stores'
 
 // const ProgressCard: React.FC<ProgressCardProps> = ({
 //   title,
@@ -97,6 +104,7 @@ interface ContinuePracticeCardProps {
   total: number
   subtitle: string
   icon: React.ReactNode
+  onClick?: () => void
 }
 
 const ContinuePracticeCard: React.FC<ContinuePracticeCardProps> = ({
@@ -105,11 +113,15 @@ const ContinuePracticeCard: React.FC<ContinuePracticeCardProps> = ({
   total,
   subtitle,
   icon,
+  onClick,
 }) => {
   const percentage = Math.round((progress / total) * 100)
 
   return (
-    <div className="continue-practice-card group relative h-[208px] cursor-pointer rounded-xl p-6 pr-16 transition-all duration-300 hover:bg-gray-600">
+    <div
+      className="continue-practice-card group relative h-[208px] cursor-pointer rounded-xl p-6 pr-16 transition-all duration-300 hover:bg-gray-600"
+      onClick={onClick}
+    >
       <div className="continue-practice-card-content">
         <div className="mb-6 flex items-center gap-3">
           <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white">
@@ -154,12 +166,24 @@ interface TopicItem {
 const HomePage: React.FC = () => {
   const [topics, setTopics] = useState<TopicItem[]>([])
   const [isLoadingTopics, setIsLoadingTopics] = useState<boolean>(false)
+  const [recentTopicProgress, setRecentTopicProgress] =
+    useState<TopicProgress | null>(null)
+  const [recentLessonProgress, setRecentLessonProgress] =
+    useState<LessonProgress | null>(null)
+  const [isLoadingProgress, setIsLoadingProgress] = useState<boolean>(false)
   const navigate = useNavigate()
+  const isAuthenticated = useSelector(
+    (state: RootState) => state.auth.session.isAuthenticated
+  )
 
   useEffect(() => {
     let isMounted = true
     const svc = new TopicService()
+    const progressSvc = new LearningProcessService()
+
     setIsLoadingTopics(true)
+    setIsLoadingProgress(true)
+
     svc
       .getTopics()
       .then(data => {
@@ -173,6 +197,34 @@ const HomePage: React.FC = () => {
       .finally(() => {
         if (!isMounted) return
         setIsLoadingTopics(false)
+      })
+
+    // Fetch recent topic progress
+    progressSvc
+      .getRecentTopic()
+      .then(data => {
+        if (!isMounted) return
+        setRecentTopicProgress(data)
+      })
+      .catch(() => {
+        if (!isMounted) return
+        setRecentTopicProgress(null)
+      })
+
+    // Fetch recent lesson progress
+    progressSvc
+      .getRecentLesson()
+      .then(data => {
+        if (!isMounted) return
+        setRecentLessonProgress(data)
+      })
+      .catch(() => {
+        if (!isMounted) return
+        setRecentLessonProgress(null)
+      })
+      .finally(() => {
+        if (!isMounted) return
+        setIsLoadingProgress(false)
       })
 
     return () => {
@@ -206,27 +258,61 @@ const HomePage: React.FC = () => {
     <div className="home-page min-h-full text-white">
       <div className="mx-auto max-w-7xl p-6">
         {/* Continue Practicing Section - Updated Design */}
-        <div className="mb-12 mt-12">
-          <h2 className="mb-6 text-2xl font-semibold text-white">
-            Continue Practicing
-          </h2>
-          <div className="grid gap-6 md:grid-cols-2">
-            <ContinuePracticeCard
-              title="Databases"
-              progress={4}
-              total={52}
-              subtitle="challenges solved"
-              icon={<Database className="text-gray-800" size={20} />}
-            />
-            <ContinuePracticeCard
-              title="Problem Solving"
-              progress={39}
-              total={88}
-              subtitle="points to next star"
-              icon={<Puzzle className="text-gray-800" size={20} />}
-            />
+        {isAuthenticated && (
+          <div className="mb-12 mt-12">
+            <h2 className="mb-6 text-2xl font-semibold text-white">
+              Continue Practicing
+            </h2>
+            <div className="grid gap-6 md:grid-cols-2">
+              {isLoadingProgress ? (
+                <div className="col-span-2 text-gray-400 md:col-span-2">
+                  Loading progress...
+                </div>
+              ) : (
+                <>
+                  {recentTopicProgress ? (
+                    <ContinuePracticeCard
+                      title={recentTopicProgress.topicName}
+                      progress={recentTopicProgress.solvedProblems}
+                      total={recentTopicProgress.totalProblems}
+                      subtitle="challenges solved"
+                      icon={<Database className="text-gray-800" size={20} />}
+                      onClick={() =>
+                        navigate(
+                          `/dashboard/challenge/${recentTopicProgress.topicId}?category=${encodeURIComponent(
+                            recentTopicProgress.topicName
+                              .toLowerCase()
+                              .replace(/\s+/g, '-')
+                          )}`
+                        )
+                      }
+                    />
+                  ) : (
+                    <div className="text-gray-400">
+                      No practice data yet. Start solving challenges to track
+                      your progress!
+                    </div>
+                  )}
+
+                  {recentLessonProgress ? (
+                    <ContinuePracticeCard
+                      title={recentLessonProgress.topicName}
+                      progress={recentLessonProgress.completedLessons}
+                      total={recentLessonProgress.totalLessons}
+                      subtitle="lessons completed"
+                      icon={<BookOpen className="text-gray-800" size={20} />}
+                      onClick={() => navigate('/lessons')}
+                    />
+                  ) : (
+                    <div className="text-gray-400">
+                      No lesson data yet. Start learning to track your progress!
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Programming Courses Section */}
         <div className="mb-12 mt-12">
