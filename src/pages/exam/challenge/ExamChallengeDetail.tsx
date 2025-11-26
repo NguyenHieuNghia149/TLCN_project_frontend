@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Clock, List } from 'lucide-react'
+import { Clock, List, Sun, Moon } from 'lucide-react'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import Button from '@/components/common/Button/Button'
 import { Exam } from '@/types/exam.types'
@@ -18,6 +18,7 @@ import type { TestCase, OutputState } from '@/types/editor.types'
 import { io, Socket } from 'socket.io-client'
 import './ExamChallengeDetail.scss'
 import { buildMockExam } from '@/mocks/exam.mock'
+import { useTheme } from '@/contexts/useTheme'
 
 const DEFAULT_CODE = `
 #include <iostream>
@@ -55,6 +56,7 @@ const ExamChallengeDetail: React.FC = () => {
   const [problemPanelWidth, setProblemPanelWidth] = useState(60)
   const splitPaneRef = useRef<HTMLDivElement | null>(null)
   const isDraggingSplitRef = useRef(false)
+  const { theme, toggleTheme } = useTheme()
   const clampPanelWidth = useCallback((value: number) => {
     const MIN = 35
     const MAX = 75
@@ -657,15 +659,7 @@ const ExamChallengeDetail: React.FC = () => {
       >
         <div className="mx-auto flex max-w-full flex-col gap-3 px-4 py-3 md:px-6 md:py-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3">
-            <Button
-              onClick={() => navigate(`/exam/${examId}`)}
-              variant="secondary"
-              size="sm"
-              icon={<ArrowLeft size={16} />}
-              aria-label="Back to exam"
-            >
-              Back
-            </Button>
+            {/* s */}
             <div>
               <h1
                 className="text-lg font-semibold md:text-xl"
@@ -688,6 +682,24 @@ const ExamChallengeDetail: React.FC = () => {
                 Time remaining: --:--
               </span>
             </div>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="flex h-10 w-10 items-center justify-center rounded-lg border transition-all focus:outline-none focus-visible:ring-2"
+              style={{
+                backgroundColor: 'var(--exam-toolbar-bg)',
+                borderColor: 'var(--surface-border)',
+                color: 'var(--text-color)',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+              }}
+              aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            >
+              {theme === 'dark' ? (
+                <Sun size={18} style={{ color: 'var(--accent)' }} />
+              ) : (
+                <Moon size={18} style={{ color: 'var(--accent)' }} />
+              )}
+            </button>
             <Button
               onClick={() => setShowChallengeList(true)}
               variant="secondary"

@@ -7,17 +7,53 @@ interface DecodedToken {
   [key: string]: string | number | undefined
 }
 
+const ACCESS_TOKEN_STORAGE_KEY =
+  import.meta.env.VITE_ACCESS_TOKEN_STORAGE_KEY || 'auth_access_token'
+
 class TokenManager {
   private accessToken: string | null = null
   private tokenExpiryCheckInterval: NodeJS.Timeout | null = null
   private tokenRefreshCallback: (() => Promise<string>) | null = null
 
   constructor() {
-    this.startExpiryCheck()
+    this.hydrateFromSessionStorage()
+  }
+
+  private hydrateFromSessionStorage(): void {
+    if (typeof window === 'undefined') return
+    try {
+      const storedToken = window.sessionStorage.getItem(
+        ACCESS_TOKEN_STORAGE_KEY
+      )
+      if (storedToken) {
+        this.accessToken = storedToken
+        if (this.isTokenExpired()) {
+          this.clearAccessToken()
+        } else {
+          this.startExpiryCheck()
+        }
+      }
+    } catch {
+      // Ignore sessionStorage access issues
+    }
+  }
+
+  private persistToken(token: string | null): void {
+    if (typeof window === 'undefined') return
+    try {
+      if (token) {
+        window.sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token)
+      } else {
+        window.sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY)
+      }
+    } catch {
+      // Ignore storage errors
+    }
   }
 
   setAccessToken(token: string | null): void {
     this.accessToken = token
+    this.persistToken(token)
 
     if (token) {
       this.startExpiryCheck()
@@ -32,6 +68,7 @@ class TokenManager {
 
   clearAccessToken(): void {
     this.accessToken = null
+    this.persistToken(null)
     this.stopExpiryCheck()
   }
 

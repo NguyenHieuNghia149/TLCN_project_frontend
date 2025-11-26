@@ -103,7 +103,7 @@ const ExamList: React.FC = () => {
         transition: 'background-color 200ms ease, color 200ms ease',
       }}
     >
-      <div className="mx-auto max-w-6xl px-4 py-8 md:py-12">
+      <div className="mx-auto max-w-[1400px] px-4 py-8 md:py-12">
         <section
           className="rounded-lg border p-6"
           style={{

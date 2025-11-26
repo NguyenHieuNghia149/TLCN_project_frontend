@@ -147,19 +147,63 @@ export class AuthService {
 
   async refreshToken(): Promise<{ accessToken: string }> {
     try {
-      // Use a separate axios instance for refresh token to avoid logging 401 errors
+      // Create a silent axios instance for refresh token to avoid logging 401 errors
       // 401 is expected when user is not logged in (no refresh token cookie)
-      const response = await axios.post(
+      const silentAxios = axios.create({
+        validateStatus: () => true, // Don't throw on any status code
+      })
+
+      // Suppress console errors for this request
+      const originalConsoleError = console.error
+      console.error = (...args: unknown[]) => {
+        // Don't log axios errors for refresh token requests
+        if (
+          args[0] &&
+          typeof args[0] === 'string' &&
+          args[0].includes('refresh-token')
+        ) {
+          return
+        }
+        originalConsoleError.apply(console, args)
+      }
+
+      const response = await silentAxios.post(
         `${API_CONFIG.baseURL}/auth/refresh-token`,
         {},
         {
           withCredentials: true,
-          validateStatus: status => status < 500, // Don't throw on 4xx, only 5xx
         }
       )
 
-      // If 401, user is not logged in - this is expected, don't log
+      // Restore console.error
+      console.error = originalConsoleError
+
+      // Check for specific error codes from backend
       if (response.status === 401) {
+        const errorCode =
+          response.data?.code ||
+          (response.data?.data as { code?: string })?.code
+        const errorMessage = response.data?.message || 'Not authenticated'
+
+        // Only logout if refresh token is explicitly expired or revoked
+        // NO_REFRESH_TOKEN could mean cookie not sent (path mismatch) - don't logout
+        if (
+          errorCode === 'REFRESH_TOKEN_EXPIRED' ||
+          errorCode === 'TOKEN_EXPIRED' ||
+          errorMessage.includes('Refresh token expired') ||
+          errorMessage.includes('expired') ||
+          errorMessage.includes('revoked')
+        ) {
+          const tokenExpiredError = new Error(
+            'Refresh token expired or revoked'
+          )
+          ;(tokenExpiredError as unknown as { code: string }).code =
+            errorCode || 'REFRESH_TOKEN_EXPIRED'
+          throw tokenExpiredError
+        }
+
+        // Generic 401 or NO_REFRESH_TOKEN - don't logout, just return error
+        // This could be temporary (cookie not sent due to path mismatch)
         throw new Error('Not authenticated')
       }
 
@@ -177,19 +221,41 @@ export class AuthService {
 
       return { accessToken }
     } catch (error) {
+      // Re-throw refresh token expired/revoked errors as-is
+      if (
+        error instanceof Error &&
+        (error.message === 'Refresh token expired or revoked' ||
+          (error as { code?: string }).code === 'REFRESH_TOKEN_EXPIRED' ||
+          (error as { code?: string }).code === 'NO_REFRESH_TOKEN')
+      ) {
+        throw error
+      }
+
       // 401 is expected when user is not logged in (no refresh token cookie)
-      // Don't log this as an error, just throw silently
       if (error instanceof Error && error.message === 'Not authenticated') {
         throw error
       }
+
       if (typeof error === 'object' && error !== null && 'response' in error) {
         const axiosError = error as {
-          response: { status: number }
+          response: { status: number; data?: { code?: string } }
         }
         if (axiosError.response?.status === 401) {
+          const errorCode = axiosError.response?.data?.code
+          if (
+            errorCode === 'NO_REFRESH_TOKEN' ||
+            errorCode === 'REFRESH_TOKEN_EXPIRED'
+          ) {
+            const refreshTokenError = new Error(
+              'Refresh token expired or revoked'
+            )
+            ;(refreshTokenError as unknown as { code: string }).code = errorCode
+            throw refreshTokenError
+          }
           throw new Error('Not authenticated')
         }
       }
+
       // For other errors, still log and handle normally
       this.handleApiError(error, 'Token refresh failed')
     }

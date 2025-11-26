@@ -15,13 +15,14 @@ import ChallengePage from '@/pages/challenge/ChallengePage'
 import ProblemDetailPage from '@/pages/challengeDetail/ProblemDetailPage'
 import Ranking from '@/pages/ranking/Ranking'
 import BookmarksPage from '@/pages/bookmarks/BookmarksPage'
-import ExamList from '@/pages/exam/ExamList'
-import ExamDetail from '@/pages/exam/ExamDetail'
-import StudentExam from '@/pages/exam/StudentExam'
-import ExamResults from '@/pages/exam/ExamResults'
-import ExamResultsAdmin from '@/pages/exam/ExamResultsAdmin'
-import ExamSubmissionDetail from '@/pages/exam/ExamSubmissionDetail'
-import ExamChallengeDetail from '@/pages/exam/ExamChallengeDetail'
+import ExamList from '@/pages/exam/list/ExamList'
+import ExamDetail from '@/pages/exam/detail/ExamDetail'
+import StudentExam from '@/pages/exam/session/StudentExam'
+import ExamResults from '@/pages/exam/results/ExamResults'
+import ExamResultsAdmin from '@/pages/exam/results/ExamResultsAdmin'
+import ExamSubmissionDetail from '@/pages/exam/results/ExamSubmissionDetail'
+import ExamChallengeDetail from '@/pages/exam/challenge/ExamChallengeDetail'
+import NotFound from '@/pages/NotFound'
 import ManageTeacher from '@/pages/admin/manageteacher/ManageTeacher'
 import ManageUser from '@/pages/admin/manageuser/ManageUser'
 import AdminHome from '@/pages/admin/adminhome/AdminHome'
@@ -152,6 +153,14 @@ export const router = createBrowserRouter([
   },
 
   {
+    path: 'exam/create',
+    element: (
+      <MainLayout>
+        <NotFound />
+      </MainLayout>
+    ),
+  },
+  {
     path: 'exam/:examId',
     element: (
       <ProtectedRoute>
@@ -190,6 +199,14 @@ export const router = createBrowserRouter([
       <ProtectedRoute>
         <ExamSubmissionDetail />
       </ProtectedRoute>
+    ),
+  },
+  {
+    path: '*',
+    element: (
+      <MainLayout>
+        <NotFound />
+      </MainLayout>
     ),
   },
 ])

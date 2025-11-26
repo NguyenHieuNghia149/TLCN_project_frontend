@@ -56,6 +56,10 @@ const ExamDetail: React.FC = () => {
       setShowPasswordModal(false)
       setPassword('')
       setPasswordError('')
+      const firstChallenge = exam.challenges?.[0]
+      if (firstChallenge) {
+        navigate(`/exam/${exam.id}/challenge/${firstChallenge.id}/preview`)
+      }
     } else {
       setPasswordError('Incorrect password')
       setPassword('')

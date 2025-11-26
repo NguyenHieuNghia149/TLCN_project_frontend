@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
 import { authService, ApiError } from '../../services/auth/auth.service'
+import { STORAGE_KEYS } from '@/config/api.config'
 import type {
   LoginCredentials,
   RegisterData as ClientRegisterData,
@@ -75,8 +76,52 @@ const initialRegisterState: RegisterState = {
   pendingRegistration: null,
 }
 
+const persistSessionSnapshot = (
+  user: User | null,
+  isAuthenticated: boolean
+) => {
+  if (typeof window === 'undefined') return
+  try {
+    if (user && isAuthenticated) {
+      window.localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user))
+      window.localStorage.setItem(STORAGE_KEYS.IS_AUTHENTICATED, 'true')
+    } else {
+      window.localStorage.removeItem(STORAGE_KEYS.USER)
+      window.localStorage.removeItem(STORAGE_KEYS.IS_AUTHENTICATED)
+    }
+  } catch {
+    // Ignore storage errors to keep auth flow running
+  }
+}
+
+const hydrateSessionState = (): SessionState => {
+  if (typeof window === 'undefined') {
+    return { ...initialSessionState }
+  }
+
+  try {
+    const storedAuth =
+      window.localStorage.getItem(STORAGE_KEYS.IS_AUTHENTICATED) === 'true'
+    const storedUser = window.localStorage.getItem(STORAGE_KEYS.USER)
+
+    if (storedAuth && storedUser) {
+      const user = JSON.parse(storedUser) as User
+      return {
+        user,
+        isAuthenticated: true,
+        // Keep loading spinner while we validate refresh token server-side
+        isLoading: true,
+      }
+    }
+  } catch {
+    // Fall back to default if parsing fails
+  }
+
+  return { ...initialSessionState }
+}
+
 const initialState: AuthState = {
-  session: initialSessionState,
+  session: hydrateSessionState(),
   login: initialLoginState,
   register: initialRegisterState,
 }
@@ -85,7 +130,7 @@ const initialState: AuthState = {
 export const initializeSession = createAsyncThunk<
   User,
   void,
-  { rejectValue: string }
+  { rejectValue: { message: string; isRefreshTokenExpired: boolean } }
 >('auth/refreshToken', async (_, { rejectWithValue }) => {
   try {
     const { accessToken } = await authService.refreshToken()
@@ -93,9 +138,35 @@ export const initializeSession = createAsyncThunk<
       throw new Error('Missing access token')
     }
     const user = await authService.getCurrentUser()
+    persistSessionSnapshot(user, true)
     return user
-  } catch {
-    return rejectWithValue('Not authenticated')
+  } catch (error) {
+    // Check if refresh token is expired or revoked - this means true logout
+    // Only logout if explicitly expired/revoked, not for NO_REFRESH_TOKEN (could be cookie path issue)
+    const isRefreshTokenExpired =
+      error instanceof Error &&
+      (error.message === 'Refresh token expired or revoked' ||
+        (error as { code?: string }).code === 'REFRESH_TOKEN_EXPIRED' ||
+        (error as { code?: string }).code === 'TOKEN_EXPIRED')
+
+    if (isRefreshTokenExpired) {
+      // Refresh token expired/revoked - clear everything and logout
+      authService.clearAllAuthData()
+      persistSessionSnapshot(null, false)
+      return rejectWithValue({
+        message: 'Refresh token expired or revoked',
+        isRefreshTokenExpired: true,
+      })
+    }
+
+    // Other errors (network, cookie not sent, NO_REFRESH_TOKEN, etc.) - clear token in memory but keep localStorage
+    // This allows the reducer to re-hydrate from localStorage if available
+    // NO_REFRESH_TOKEN could mean cookie not sent due to path mismatch, so don't logout
+    authService.clearAllAuthData()
+    return rejectWithValue({
+      message: 'Not authenticated',
+      isRefreshTokenExpired: false,
+    })
   }
 })
 
@@ -106,6 +177,7 @@ export const loginUser = createAsyncThunk<
 >('auth/login', async (credentials, { rejectWithValue }) => {
   try {
     const { user } = await authService.login(credentials)
+    persistSessionSnapshot(user, true)
     return user
   } catch (error) {
     if (error instanceof ApiError) {
@@ -134,6 +206,7 @@ export const loginWithGoogle = createAsyncThunk<
 >('auth/loginWithGoogle', async (idToken, { rejectWithValue }) => {
   try {
     const { user } = await authService.loginWithGoogle(idToken)
+    persistSessionSnapshot(user, true)
     return user
   } catch (error) {
     if (error instanceof ApiError) {
@@ -146,7 +219,11 @@ export const loginWithGoogle = createAsyncThunk<
 })
 
 export const logoutUser = createAsyncThunk<void>('auth/logout', async () => {
-  await authService.logout()
+  try {
+    await authService.logout()
+  } finally {
+    persistSessionSnapshot(null, false)
+  }
 })
 
 export const sendOTP = createAsyncThunk<
@@ -245,7 +322,45 @@ const authSlice = createSlice({
         state.session.isAuthenticated = true
         state.session.isLoading = false
       })
-      .addCase(initializeSession.rejected, state => {
+      .addCase(initializeSession.rejected, (state, action) => {
+        const isRefreshTokenExpired =
+          action.payload?.isRefreshTokenExpired ?? false
+
+        // If refresh token is expired or revoked, clear everything - true logout
+        if (isRefreshTokenExpired) {
+          state.session = { ...initialSessionState, isLoading: false }
+          return
+        }
+
+        // For other errors (network, cookie not sent, etc.), try to re-hydrate from localStorage
+        // This allows user to stay "logged in" UI-wise while we retry refresh
+        // This is especially important when cookie path mismatch prevents cookie from being sent
+        try {
+          if (typeof window !== 'undefined') {
+            const storedAuth =
+              window.localStorage.getItem(STORAGE_KEYS.IS_AUTHENTICATED) ===
+              'true'
+            const storedUser = window.localStorage.getItem(STORAGE_KEYS.USER)
+
+            if (storedAuth && storedUser) {
+              // Re-hydrate from localStorage - refresh token may have failed temporarily
+              // Keep user info and let them stay "logged in" until they navigate
+              // to a protected route that requires fresh auth
+              // Note: API calls may fail until refresh token succeeds, but UI will show logged in state
+              const user = JSON.parse(storedUser) as User
+              state.session.user = user
+              state.session.isAuthenticated = true
+              state.session.isLoading = false
+              return
+            }
+          }
+        } catch (error) {
+          // Log error for debugging
+          console.warn('Failed to re-hydrate from localStorage:', error)
+          // Fall through to clear state if hydration fails
+        }
+
+        // No stored auth or hydration failed - clear everything
         state.session = { ...initialSessionState, isLoading: false }
       })
 

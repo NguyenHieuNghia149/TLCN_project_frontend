@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ChevronDown,
   RotateCcw,
@@ -7,10 +7,13 @@ import {
   Bug,
   Copy,
   Check,
+  Sun,
+  Moon,
 } from 'lucide-react'
 import MonacoEditorWrapper from './MonacoEditorWrapper'
 import ConsolePanel from './ConsolePanel'
 import type { TestCase, OutputState } from '@/types/editor.types'
+import { useTheme } from '@/contexts/useTheme'
 
 // Types moved to src/types/editor.types.ts
 
@@ -48,6 +51,14 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
   const [consoleExpanded, setConsoleExpanded] = useState(false)
   const [consoleHeight, setConsoleHeight] = useState<number>(280)
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const { theme: appTheme } = useTheme()
+  const [editorTheme, setEditorTheme] = useState<'dark' | 'light'>(
+    appTheme === 'dark' ? 'dark' : 'light'
+  )
+
+  useEffect(() => {
+    setEditorTheme(appTheme === 'dark' ? 'dark' : 'light')
+  }, [appTheme])
 
   const startResizeConsole = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
@@ -167,6 +178,39 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
               </div>
             )}
           </div>
+          <button
+            onClick={() =>
+              setEditorTheme(prev => (prev === 'dark' ? 'light' : 'dark'))
+            }
+            className="rounded px-3 py-2 transition-colors"
+            style={{
+              backgroundColor: 'var(--exam-panel-bg)',
+              color: 'var(--text-color)',
+              border: '1px solid var(--surface-border)',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.backgroundColor = 'var(--exam-panel-bg)'
+            }}
+            title="Toggle editor theme"
+            aria-label="Toggle editor theme"
+          >
+            <div className="flex items-center gap-2 text-sm font-medium">
+              {editorTheme === 'dark' ? (
+                <>
+                  <Sun size={16} style={{ color: 'var(--accent)' }} />
+                  <span>Light</span>
+                </>
+              ) : (
+                <>
+                  <Moon size={16} style={{ color: 'var(--accent)' }} />
+                  <span>Dark</span>
+                </>
+              )}
+            </div>
+          </button>
         </div>
 
         {/* Action Buttons */}
@@ -263,6 +307,9 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
               selectedLanguage.toLowerCase() === 'c++'
                 ? 'cpp'
                 : selectedLanguage.toLowerCase()
+            }
+            editorTheme={
+              editorTheme === 'dark' ? 'custom-dark' : 'custom-light'
             }
           />
         </div>
