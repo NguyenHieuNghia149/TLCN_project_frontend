@@ -2,6 +2,13 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 
+/* Override global height constraint */
+html,
+body {
+  height: auto !important;
+  min-height: 100vh;
+}
+
 /* Base Layout */
 @layer base {
   html {
@@ -22,11 +29,12 @@
   }
 }
 
-/* Layout Container */
+/* Base Layout */
 .lesson-detail-page {
-  min-height: 100vh;
   background: #121418;
   padding: 2rem;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Main Content */
@@ -34,6 +42,7 @@
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
+  flex: 1;
 }
 
 .lesson-header {
