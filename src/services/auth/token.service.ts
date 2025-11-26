@@ -92,8 +92,6 @@ class TokenManager {
   private isTokenExpired(): boolean {
     const expiry = this.getTokenExpiry()
     if (!expiry) return true
-
-    // Consider token expired 30 seconds before actual expiry
     return expiry - 30000 < Date.now()
   }
 

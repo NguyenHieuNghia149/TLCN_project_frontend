@@ -105,6 +105,7 @@ export class AuthService {
       const data = response.data?.data ?? {}
       const accessToken: string = data.tokens?.accessToken || data.accessToken
       const user: User = data.user
+      console.log('accessToken', accessToken)
       if (!accessToken || !user) {
         throw new Error('Invalid login response')
       }
@@ -147,25 +148,21 @@ export class AuthService {
 
   async refreshToken(): Promise<{ accessToken: string }> {
     try {
-      // Create a silent axios instance for refresh token to avoid logging 401 errors
-      // 401 is expected when user is not logged in (no refresh token cookie)
       const silentAxios = axios.create({
         validateStatus: () => true, // Don't throw on any status code
       })
 
-      // Suppress console errors for this request
       const originalConsoleError = console.error
-      console.error = (...args: unknown[]) => {
-        // Don't log axios errors for refresh token requests
-        if (
-          args[0] &&
-          typeof args[0] === 'string' &&
-          args[0].includes('refresh-token')
-        ) {
-          return
-        }
-        originalConsoleError.apply(console, args)
-      }
+      // console.error = (...args: unknown[]) => {
+      //   if (
+      //     args[0] &&
+      //     typeof args[0] === 'string' &&
+      //     args[0].includes('refresh-token')
+      //   ) {
+      //     return
+      //   }
+      //   originalConsoleError.apply(console, args)
+      // }
 
       const response = await silentAxios.post(
         `${API_CONFIG.baseURL}/auth/refresh-token`,

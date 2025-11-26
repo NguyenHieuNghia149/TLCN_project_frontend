@@ -56,6 +56,7 @@ const initialSessionState: SessionState = {
   user: null,
   isAuthenticated: false,
   isLoading: true,
+  // isLaoding: true,
 }
 
 const initialLoginState: LoginState = {
