@@ -258,61 +258,46 @@ const HomePage: React.FC = () => {
     <div className="home-page min-h-full text-white">
       <div className="mx-auto max-w-7xl p-6">
         {/* Continue Practicing Section - Updated Design */}
-        {isAuthenticated && (
-          <div className="mb-12 mt-12">
-            <h2 className="mb-6 text-2xl font-semibold text-white">
-              Continue Practicing
-            </h2>
-            <div className="grid gap-6 md:grid-cols-2">
-              {isLoadingProgress ? (
-                <div className="col-span-2 text-gray-400 md:col-span-2">
-                  Loading progress...
-                </div>
-              ) : (
-                <>
-                  {recentTopicProgress ? (
-                    <ContinuePracticeCard
-                      title={recentTopicProgress.topicName}
-                      progress={recentTopicProgress.solvedProblems}
-                      total={recentTopicProgress.totalProblems}
-                      subtitle="challenges solved"
-                      icon={<Database className="text-gray-800" size={20} />}
-                      onClick={() =>
-                        navigate(
-                          `/dashboard/challenge/${recentTopicProgress.topicId}?category=${encodeURIComponent(
-                            recentTopicProgress.topicName
-                              .toLowerCase()
-                              .replace(/\s+/g, '-')
-                          )}`
-                        )
-                      }
-                    />
-                  ) : (
-                    <div className="text-gray-400">
-                      No practice data yet. Start solving challenges to track
-                      your progress!
-                    </div>
-                  )}
+        {isAuthenticated &&
+          !isLoadingProgress &&
+          (recentTopicProgress || recentLessonProgress) && (
+            <div className="mb-12 mt-12">
+              <h2 className="mb-6 text-2xl font-semibold text-white">
+                Continue Practicing
+              </h2>
+              <div className="grid gap-6 md:grid-cols-2">
+                {recentTopicProgress && (
+                  <ContinuePracticeCard
+                    title={recentTopicProgress.topicName}
+                    progress={recentTopicProgress.solvedProblems}
+                    total={recentTopicProgress.totalProblems}
+                    subtitle="challenges solved"
+                    icon={<Database className="text-gray-800" size={20} />}
+                    onClick={() =>
+                      navigate(
+                        `/dashboard/challenge/${recentTopicProgress.topicId}?category=${encodeURIComponent(
+                          recentTopicProgress.topicName
+                            .toLowerCase()
+                            .replace(/\s+/g, '-')
+                        )}`
+                      )
+                    }
+                  />
+                )}
 
-                  {recentLessonProgress ? (
-                    <ContinuePracticeCard
-                      title={recentLessonProgress.topicName}
-                      progress={recentLessonProgress.completedLessons}
-                      total={recentLessonProgress.totalLessons}
-                      subtitle="lessons completed"
-                      icon={<BookOpen className="text-gray-800" size={20} />}
-                      onClick={() => navigate('/lessons')}
-                    />
-                  ) : (
-                    <div className="text-gray-400">
-                      No lesson data yet. Start learning to track your progress!
-                    </div>
-                  )}
-                </>
-              )}
+                {recentLessonProgress && (
+                  <ContinuePracticeCard
+                    title={recentLessonProgress.topicName}
+                    progress={recentLessonProgress.completedLessons}
+                    total={recentLessonProgress.totalLessons}
+                    subtitle="lessons completed"
+                    icon={<BookOpen className="text-gray-800" size={20} />}
+                    onClick={() => navigate('/lessons')}
+                  />
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* Programming Courses Section */}
         <div className="mb-12 mt-12">
