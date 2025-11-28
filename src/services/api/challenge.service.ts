@@ -1,35 +1,57 @@
 import { apiClient } from '@/config/axios.config'
-import type { PaginatedResponse, ChallengeItem } from '@/types/challenge.types'
+import type {
+  PaginatedResponse,
+  ChallengeItem,
+  Cursor,
+} from '@/types/challenge.types'
 
 export class ChallengeService {
+  /**
+   * Get challenges by topic ID with cursor-based pagination
+   * @param topicId - Topic ID
+   * @param limit - Number of items to load (1-50, default: 10)
+   * @param cursor - Cursor from previous response for pagination
+   * @param tags - Optional tags filter
+   * @returns Paginated response with items and nextCursor
+   */
   async getChallengesByTopicId(
     topicId: string,
+    limit: number = 10,
+    cursor: Cursor | null = null,
     tags?: string[]
-  ): Promise<ChallengeItem[]> {
-    const params: Record<string, string> = {}
+  ): Promise<PaginatedResponse<ChallengeItem>> {
+    const params: Record<string, string> = {
+      limit: limit.toString(),
+    }
+
+    // Add cursor if provided (encode as JSON string)
+    if (cursor) {
+      params.cursor = JSON.stringify(cursor)
+    }
+
+    // Add tags if provided
     if (tags && tags.length > 0) {
       params.tags = tags.join(',')
     }
+
     const response = await apiClient.get(
-      `/challenges/topics/${topicId}/problems`,
+      `/challenges/problems/topic/${topicId}`,
       { params }
     )
+
     const data = response.data?.data
 
-    // Handle paginated response structure: { items: [], nextCursor: null }
+    // Handle paginated response structure: { items: [], nextCursor: null | Cursor }
     if (data && typeof data === 'object' && 'items' in data) {
-      const paginatedData = data as PaginatedResponse<ChallengeItem>
-      return Array.isArray(paginatedData.items) ? paginatedData.items : []
+      return data as PaginatedResponse<ChallengeItem>
     }
 
-    // Handle direct array response
-    if (Array.isArray(data)) {
-      return data as ChallengeItem[]
-    }
-
-    // If data is not in expected format, log warning and return empty array
+    // Fallback: return empty response if format is unexpected
     console.warn('API response format not recognized:', data)
-    return []
+    return {
+      items: [],
+      nextCursor: null,
+    }
   }
 
   async getTagsByTopicId(topicId: string) {

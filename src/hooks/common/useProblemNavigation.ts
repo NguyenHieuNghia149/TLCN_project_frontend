@@ -33,6 +33,7 @@ export const useProblemNavigation = ({
   const [navigationLoading, setNavigationLoading] = useState(false)
 
   // Load challenges in the same topic to enable prev/next navigation
+  // Loads all challenges by making multiple paginated requests
   useEffect(() => {
     const loadTopicChallenges = async () => {
       if (!topicId) {
@@ -43,14 +44,31 @@ export const useProblemNavigation = ({
 
       try {
         setNavigationLoading(true)
-        const response = await challengeService.getChallengesByTopicId(topicId)
+        const allChallenges: Challenge[] = []
+        let cursor: { createdAt: string; id: string } | null = null
+        const limit = 50 // Use max limit to minimize requests
 
-        // Response is guaranteed to be an array from service layer
-        const mapped = response.map((item: { id: string; title: string }) => ({
-          id: item.id,
-          title: item.title,
-        }))
-        setTopicChallenges(mapped)
+        // Load all challenges using cursor-based pagination
+        do {
+          const response = await challengeService.getChallengesByTopicId(
+            topicId,
+            limit,
+            cursor
+          )
+
+          // Map items to Challenge format
+          const mapped = response.items.map(
+            (item: { id: string; title: string }) => ({
+              id: item.id,
+              title: item.title,
+            })
+          )
+
+          allChallenges.push(...mapped)
+          cursor = response.nextCursor
+        } while (cursor !== null)
+
+        setTopicChallenges(allChallenges)
       } catch (error) {
         console.error('Error loading topic challenges:', error)
         setTopicChallenges([])

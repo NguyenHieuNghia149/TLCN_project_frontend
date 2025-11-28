@@ -72,13 +72,24 @@ export interface ProblemDetailResponse {
   }
 }
 
-// For challenge listing service
+// For challenge listing service - cursor-based pagination
+export interface Cursor {
+  createdAt: string
+  id: string
+}
+
 export interface PaginatedResponse<T> {
   items: T[]
-  nextCursor: string | null
+  nextCursor: Cursor | null
 }
 
 export interface ChallengeItem {
   id: string
   title: string
+  description: string | null
+  difficult: string
+  createdAt: string
+  totalPoints: number
+  isSolved: boolean
+  isFavorite: boolean
 }

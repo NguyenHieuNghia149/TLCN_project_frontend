@@ -56,7 +56,7 @@ class SubmissionsService {
     limit: number
     offset: number
   }> {
-    const res = await apiClient.get(`/submissions/problem/${problemId}`, {
+    const res = await apiClient.get(`/submissions/problem/${problemId}/me`, {
       params,
     })
     const json = res.data as {
