@@ -2,12 +2,14 @@ import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { FiArrowLeft, FiCheckCircle } from 'react-icons/fi'
 import { useNavigate } from 'react-router-dom'
+import DOMPurify from 'dompurify'
 import VideoPlayer from '../../components/ui/VideoPlayer'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import { useLessonDetail } from '../../hooks/api/useLessonDetail'
 import CommentsSection from '../../components/lesson/CommentsSection'
 import { LearnedLessonService } from '../../services/api/learned-lesson.service'
 import './LessonDetail.css'
+import './TechAcademyContent.css'
 
 const LessonDetail: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>()
@@ -16,10 +18,17 @@ const LessonDetail: React.FC = () => {
 
   // Lesson completion tracking
   const [showCompletionMessage, setShowCompletionMessage] = useState(false)
-  const contentRef = useRef<HTMLDivElement>(null)
   const mainContentRef = useRef<HTMLDivElement>(null)
   const hasMarkedAsCompletedRef = useRef(false)
   const learnedLessonServiceRef = useRef(new LearnedLessonService())
+
+  // Lazy loading states
+  const [contentLoaded, setContentLoaded] = useState(false)
+  const [commentsLoaded, setCommentsLoaded] = useState(false)
+  const contentObserverRef = useRef<IntersectionObserver | null>(null)
+  const commentsObserverRef = useRef<IntersectionObserver | null>(null)
+  const contentSectionRef = useRef<HTMLDivElement>(null)
+  const commentsSectionRef = useRef<HTMLDivElement>(null)
 
   // Mark lesson as completed
   const markLessonCompleted = useCallback(
@@ -60,6 +69,76 @@ const LessonDetail: React.FC = () => {
     },
     [lessonId]
   )
+
+  // Lazy loading for content section
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!contentSectionRef.current) return
+
+      const options = {
+        root: null,
+        rootMargin: '100px',
+        threshold: 0.1,
+      }
+
+      const contentObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            console.log('📖 Content section is visible, loading...')
+            setContentLoaded(true)
+            if (contentObserver) {
+              contentObserver.unobserve(entry.target)
+            }
+          }
+        })
+      }, options)
+
+      contentObserver.observe(contentSectionRef.current)
+      contentObserverRef.current = contentObserver
+    }, 0)
+
+    return () => {
+      clearTimeout(timer)
+      if (contentObserverRef.current) {
+        contentObserverRef.current.disconnect()
+      }
+    }
+  }, [lesson])
+
+  // Lazy loading for comments section
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!commentsSectionRef.current) return
+
+      const options = {
+        root: null,
+        rootMargin: '200px',
+        threshold: 0.1,
+      }
+
+      const commentsObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            console.log('💬 Comments section is visible, loading...')
+            setCommentsLoaded(true)
+            if (commentsObserver) {
+              commentsObserver.unobserve(entry.target)
+            }
+          }
+        })
+      }, options)
+
+      commentsObserver.observe(commentsSectionRef.current)
+      commentsObserverRef.current = commentsObserver
+    }, 0)
+
+    return () => {
+      clearTimeout(timer)
+      if (commentsObserverRef.current) {
+        commentsObserverRef.current.disconnect()
+      }
+    }
+  }, [lesson])
 
   // Scroll detection: Mark as completed when user reaches bottom
   useEffect(() => {
@@ -218,15 +297,100 @@ const LessonDetail: React.FC = () => {
 
         {/* Lesson Content */}
         {lesson.content && (
-          <div
-            ref={contentRef}
-            className="lesson-content"
-            dangerouslySetInnerHTML={{ __html: lesson.content }}
-          />
+          <div ref={contentSectionRef} className="entry-content single-page">
+            {contentLoaded ? (
+              <div
+                dangerouslySetInnerHTML={{
+                  __html: DOMPurify.sanitize(lesson.content, {
+                    ALLOWED_TAGS: [
+                      'h1',
+                      'h2',
+                      'h3',
+                      'h4',
+                      'h5',
+                      'h6',
+                      'p',
+                      'br',
+                      'hr',
+                      'strong',
+                      'b',
+                      'em',
+                      'i',
+                      'u',
+                      'a',
+                      'img',
+                      'figure',
+                      'figcaption',
+                      'code',
+                      'pre',
+                      'ul',
+                      'ol',
+                      'li',
+                      'blockquote',
+                      'table',
+                      'thead',
+                      'tbody',
+                      'tr',
+                      'th',
+                      'td',
+                      'div',
+                      'span',
+                      'section',
+                      'article',
+                      'button',
+                      'svg',
+                      'path',
+                      'nav',
+                      'ul',
+                      'li',
+                      'form',
+                      'input',
+                      'label',
+                    ],
+                    ALLOWED_ATTR: [
+                      'href',
+                      'src',
+                      'alt',
+                      'title',
+                      'class',
+                      'id',
+                      'style',
+                      'width',
+                      'height',
+                      'data-payload',
+                      'data-src',
+                      'data-star',
+                      'padding-right',
+                      'target',
+                      'rel',
+                      'aria-label',
+                      'srcset',
+                      'sizes',
+                      'data-srcset',
+                      'decoding',
+                      'loading',
+                    ],
+                  }),
+                }}
+              />
+            ) : (
+              <div className="flex items-center justify-center py-12">
+                <LoadingSpinner />
+              </div>
+            )}
+          </div>
         )}
 
         {/* Comments */}
-        <CommentsSection lessonId={lesson.id} />
+        <div ref={commentsSectionRef}>
+          {commentsLoaded ? (
+            <CommentsSection lessonId={lesson.id} />
+          ) : (
+            <div className="flex items-center justify-center py-12">
+              <LoadingSpinner />
+            </div>
+          )}
+        </div>
       </main>
     </div>
   )

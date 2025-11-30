@@ -1,0 +1,444 @@
+/* TechAcademyContent.css */
+:root {
+  --primary-color: #3b82f6; /* Blue - Primary color from Tailwind */
+  --primary-dark: #2563eb; /* Dark Blue - Hover state */
+  --text-primary: #ffffff; /* White - Main text (dark theme) */
+  --text-secondary: #cbd5e1; /* Light gray - Secondary text */
+  --text-light: #ffffff; /* White - Headings */
+  --code-bg: #1f202a; /* Dark card bg - Code block background */
+  --code-text: #f8fafc; /* Light bg - Code text */
+  --bg-light: #1f202a; /* Dark card bg - Light backgrounds */
+  --border-light: #4a4b53; /* Gray - Borders */
+  --accent-green: #20d761; /* Green - Success/accent color */
+}
+
+/* Entry Content Container */
+.entry-content {
+  color: var(--text-primary);
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+  line-height: 1.8;
+}
+
+.entry-content.single-page {
+  max-width: 100%;
+  padding: 0;
+}
+
+/* Headings */
+.entry-content h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 1.5rem 0 1rem;
+  color: var(--text-light);
+  line-height: 1.3;
+}
+
+.entry-content h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 1.5rem 0 0.8rem;
+  color: var(--text-light);
+  line-height: 1.3;
+  border-bottom: 3px solid var(--primary-color);
+  padding-bottom: 0.5rem;
+}
+
+.entry-content h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 1.2rem 0 0.6rem;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.entry-content h4 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 1rem 0 0.5rem;
+  color: var(--text-light);
+}
+
+.entry-content h5 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0.8rem 0 0.4rem;
+  color: var(--text-secondary);
+}
+
+/* Paragraphs */
+.entry-content p {
+  margin: 1rem 0;
+  text-align: justify;
+  font-size: 1rem;
+}
+
+/* Lists */
+.entry-content ul {
+  list-style: disc;
+  margin-left: 2rem;
+  margin-bottom: 1rem;
+}
+
+.entry-content ul li {
+  margin-bottom: 0.5rem;
+}
+
+.entry-content ol {
+  list-style: decimal;
+  margin-left: 2rem;
+  margin-bottom: 1rem;
+}
+
+.entry-content ol li {
+  margin-bottom: 0.5rem;
+}
+
+.entry-content li {
+  line-height: 1.8;
+}
+
+/* Links */
+.entry-content a {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+.entry-content a:hover {
+  color: var(--primary-dark);
+  text-decoration: underline;
+}
+
+/* Code inline */
+.entry-content code {
+  background-color: var(--bg-light);
+  color: var(--primary-color);
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9rem;
+}
+
+/* Code blocks */
+.entry-content pre {
+  background-color: var(--code-bg);
+  color: var(--code-text);
+  padding: 1.5rem;
+  border-radius: 5px;
+  overflow-x: auto;
+  margin: 1.5rem 0;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.entry-content pre code {
+  background: none;
+  color: inherit;
+  padding: 0;
+  border-radius: 0;
+}
+
+/* Enlighter Code Blocks (TechAcademy styling) */
+.enlighter {
+  background-color: var(--code-bg) !important;
+  color: var(--code-text) !important;
+  padding: 1.5rem !important;
+  border-radius: 5px !important;
+  margin: 1.5rem 0 !important;
+  overflow-x: auto !important;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace !important;
+  font-size: 0.95rem !important;
+  line-height: 1.6 !important;
+}
+
+.enlighter-default {
+  background-color: var(--code-bg) !important;
+}
+
+.enlighter div {
+  color: var(--code-text) !important;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace !important;
+}
+
+/* Code highlighting colors */
+.enlighter-c0 {
+  color: #75715e !important;
+} /* Comment */
+.enlighter-k1 {
+  color: #66d9ef !important;
+} /* Keyword */
+.enlighter-s0 {
+  color: #e6db74 !important;
+} /* String */
+.enlighter-m0 {
+  color: #a6e22e !important;
+} /* Method */
+.enlighter-m3 {
+  color: #a6e22e !important;
+} /* Method */
+.enlighter-n1 {
+  color: #ae81ff !important;
+} /* Number */
+.enlighter-g0 {
+  color: #f8f8f2 !important;
+} /* Generic */
+.enlighter-g1 {
+  color: #f8f8f2 !important;
+} /* Generic */
+.enlighter-text {
+  color: #f8f8f2 !important;
+}
+
+.enlighter-toolbar-top,
+.enlighter-toolbar-bottom {
+  display: none !important;
+}
+
+/* Hide duplicate code displays */
+.enlighter-raw,
+.EnlighterJSRAW,
+pre.EnlighterJSRAW {
+  display: none !important;
+}
+
+/* Images */
+.entry-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 5px;
+  margin: 1.5rem 0;
+  display: block;
+}
+
+/* Blockquotes */
+.entry-content blockquote {
+  border-left: 4px solid var(--primary-color);
+  padding-left: 1.5rem;
+  margin: 1.5rem 0;
+  color: var(--text-secondary);
+  font-style: italic;
+  background-color: var(--bg-light);
+  padding: 1rem 1.5rem;
+  border-radius: 3px;
+}
+
+/* Tables */
+.entry-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.entry-content table th {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+}
+
+.entry-content table td {
+  border: 1px solid var(--border-light);
+  padding: 0.75rem;
+}
+
+.entry-content table tr:nth-child(even) {
+  background-color: var(--bg-light);
+}
+
+.entry-content table tr:hover {
+  background-color: rgba(32, 215, 97, 0.05);
+}
+
+/* Figure captions */
+.entry-content figure {
+  margin: 1.5rem 0;
+  text-align: center;
+}
+
+.entry-content figcaption {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+.wp-caption {
+  text-align: center;
+  margin: 1.5rem 0;
+}
+
+.wp-caption-text {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+}
+
+/* Star ratings */
+.kk-star-ratings {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background-color: var(--bg-light);
+  border-radius: 5px;
+}
+
+.kksr-stars {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.kksr-legend {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+/* Table of Contents */
+#ez-toc-container {
+  background-color: var(--bg-light);
+  border-left: 4px solid var(--primary-color);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+  color: var(--text-primary);
+}
+
+.ez-toc-title-container {
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ez-toc-title {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.ez-toc-list {
+  list-style: none;
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.ez-toc-list li {
+  margin-bottom: 0.5rem;
+  padding-left: 0.5rem;
+}
+
+.ez-toc-link {
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.ez-toc-link:hover {
+  color: var(--primary-dark);
+  text-decoration: underline;
+  padding-left: 0.5rem;
+}
+
+.ez-toc-list-level-3 {
+  padding-left: 1.5rem;
+}
+
+/* Related posts */
+.meta-related {
+  background-color: var(--bg-light);
+  padding: 1.5rem;
+  border-radius: 5px;
+  margin: 1.5rem 0;
+}
+
+.rpbt_shortcode ul {
+  list-style: disc;
+  padding-left: 2rem;
+  margin: 0;
+}
+
+.rpbt_shortcode li {
+  margin-bottom: 0.5rem;
+  line-height: 1.8;
+}
+
+/* Buttons */
+.C_document {
+  background: linear-gradient(
+    135deg,
+    var(--primary-color) 0%,
+    var(--primary-dark) 100%
+  );
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 5px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.C_document:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(32, 215, 97, 0.4);
+}
+
+/* Horizontal rule */
+.entry-content hr {
+  border: none;
+  border-top: 2px solid var(--border-light);
+  margin: 2rem 0;
+}
+
+/* Strong and emphasis */
+.entry-content strong {
+  font-weight: 700;
+  color: white;
+}
+
+.entry-content em {
+  font-style: italic;
+  color: #666;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .entry-content h1 {
+    font-size: 1.8rem;
+  }
+
+  .entry-content h2 {
+    font-size: 1.5rem;
+  }
+
+  .entry-content h3 {
+    font-size: 1.2rem;
+  }
+
+  .enlighter {
+    font-size: 0.85rem !important;
+    padding: 1rem !important;
+  }
+
+  .entry-content table {
+    font-size: 0.9rem;
+  }
+
+  .entry-content table th,
+  .entry-content table td {
+    padding: 0.5rem;
+  }
+}
