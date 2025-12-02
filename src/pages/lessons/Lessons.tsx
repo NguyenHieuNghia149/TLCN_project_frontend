@@ -117,7 +117,10 @@ const Index = () => {
   }, [groupedLessons, showFavorites, favoritesMap])
 
   // Convert lessons to course format for CategorySection
-  const convertLessonsToCourses = (lessonsData: typeof lessons) => {
+  const convertLessonsToCourses = (
+    lessonsData: typeof lessons,
+    topicId?: string
+  ) => {
     return lessonsData.map((lesson, index) => ({
       id: lesson.id,
       title: lesson.title,
@@ -140,6 +143,7 @@ const Index = () => {
         'rgba(16, 185, 129, 0.1)',
         'rgba(168, 85, 247, 0.1)',
       ][index % 6],
+      topicId,
       isFavorite:
         favoritesMap[lesson.id] !== undefined
           ? favoritesMap[lesson.id]
@@ -217,14 +221,19 @@ const Index = () => {
               </div>
             ) : (
               Object.entries(filteredLessons).map(
-                ([topicName, topicLessons]) => (
-                  <CategorySection
-                    key={topicName}
-                    title={topicName}
-                    subtitle={`Learn about ${topicName.toLowerCase()} with structured lessons.`}
-                    courses={convertLessonsToCourses(topicLessons)}
-                  />
-                )
+                ([topicName, topicLessons]) => {
+                  // Get topicId from first lesson
+                  const topicId = topicLessons[0]?.topicId
+                  return (
+                    <CategorySection
+                      key={topicName}
+                      title={topicName}
+                      subtitle={`Learn about ${topicName.toLowerCase()} with structured lessons.`}
+                      courses={convertLessonsToCourses(topicLessons, topicId)}
+                      topicId={topicId}
+                    />
+                  )
+                }
               )
             )}
           </TabsContent>

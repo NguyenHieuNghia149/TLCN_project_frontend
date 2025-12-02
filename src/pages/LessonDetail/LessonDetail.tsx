@@ -23,8 +23,8 @@ const LessonDetail: React.FC = () => {
   const learnedLessonServiceRef = useRef(new LearnedLessonService())
 
   // Lazy loading states
-  const [contentLoaded, setContentLoaded] = useState(false)
-  const [commentsLoaded, setCommentsLoaded] = useState(false)
+  const [contentLoaded, setContentLoaded] = useState(true)
+  const [commentsLoaded, setCommentsLoaded] = useState(true)
   const contentObserverRef = useRef<IntersectionObserver | null>(null)
   const commentsObserverRef = useRef<IntersectionObserver | null>(null)
   const contentSectionRef = useRef<HTMLDivElement>(null)
@@ -378,6 +378,25 @@ const LessonDetail: React.FC = () => {
                 <LoadingSpinner />
               </div>
             )}
+          </div>
+        )}
+
+        {/* Challenge Button */}
+        {lesson.topicId && (
+          <div className="lesson-challenge-section">
+            <button
+              onClick={() => {
+                const categoryParam = lesson.topicName
+                  ? `?category=${encodeURIComponent(lesson.topicName.toLowerCase().replace(/\s+/g, '-'))}`
+                  : ''
+                navigate(
+                  `/dashboard/challenge/${lesson.topicId}${categoryParam}`
+                )
+              }}
+              className="lesson-challenge-button"
+            >
+              Practice This Topic's Challenges
+            </button>
           </div>
         )}
 
