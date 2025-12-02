@@ -109,26 +109,24 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     !embedUrl.includes('player')
   ) {
     return (
-      <div className="video-container">
-        <div className="flex h-full items-center justify-center bg-gray-800 text-white">
-          <div className="text-center">
-            <p className="mb-2 text-lg font-semibold">
-              Unsupported Video Platform
-            </p>
-            <p className="text-sm text-gray-400">
-              This video platform is not supported yet.
-            </p>
-            <p className="mt-2 text-xs text-gray-500">
-              Supported: YouTube, Vimeo, Dailymotion, Twitch
-            </p>
-          </div>
+      <div className="flex h-full items-center justify-center bg-gray-800 text-white">
+        <div className="text-center">
+          <p className="mb-2 text-lg font-semibold">
+            Unsupported Video Platform
+          </p>
+          <p className="text-sm text-gray-400">
+            This video platform is not supported yet.
+          </p>
+          <p className="mt-2 text-xs text-gray-500">
+            Supported: YouTube, Vimeo, Dailymotion, Twitch
+          </p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="video-container">
+    <>
       <iframe
         src={embedUrl}
         title={title}
@@ -137,7 +135,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         allowFullScreen
         className="h-full w-full"
       ></iframe>
-    </div>
+    </>
   )
 }
 

@@ -10,6 +10,7 @@ interface Course {
   difficulty: 'Easy' | 'Medium' | 'Hard'
   image: string
   gradient: string
+  topicId?: string
   isFavorite?: boolean
   onToggleFavorite?: () => void
 }
@@ -18,12 +19,14 @@ interface CategorySectionProps {
   title: string
   subtitle: string
   courses: Course[]
+  topicId?: string
 }
 
 const CategorySection: React.FC<CategorySectionProps> = ({
   title,
   subtitle,
   courses,
+  topicId,
 }) => {
   const navigate = useNavigate()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -32,6 +35,12 @@ const CategorySection: React.FC<CategorySectionProps> = ({
 
   const handleStartLesson = (courseId: string) => {
     navigate(`/lessons/${courseId}`)
+  }
+
+  const handleSeeMore = () => {
+    if (topicId) {
+      navigate(`/lessons/topic/${topicId}`)
+    }
   }
 
   const checkScrollButtons = () => {
@@ -83,8 +92,21 @@ const CategorySection: React.FC<CategorySectionProps> = ({
   return (
     <div className="category-section">
       <div className="category-header">
-        <h2 className="category-title">{title}</h2>
-        <p className="category-subtitle">{subtitle}</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="category-title">{title}</h2>
+            <p className="category-subtitle">{subtitle}</p>
+          </div>
+          {topicId && (
+            <button
+              className="see-more-link"
+              onClick={() => handleSeeMore()}
+              title={`See all lessons in ${title}`}
+            >
+              View All →
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="courses-slider-container">

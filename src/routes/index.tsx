@@ -8,6 +8,7 @@ import Profile from '@/pages/profile/Profile'
 import Lessons from '@/pages/lessons/Lessons'
 import HomePage from '@/pages/home/Home'
 import LessonDetail from '@/pages/LessonDetail/LessonDetail'
+import TopicLessonsPage from '@/pages/lessons/TopicLessonsPage'
 import { PublicRoute } from './PublicRoute'
 import { ProtectedRoute } from './ProtectedRoute'
 import { TeacherRoute } from './TeacherRoute'
@@ -117,6 +118,10 @@ export const router = createBrowserRouter([
       {
         path: 'lessons',
         element: <Lessons />,
+      },
+      {
+        path: 'lessons/topic/:topicId',
+        element: <TopicLessonsPage />,
       },
       {
         path: 'lessons/:lessonId',
