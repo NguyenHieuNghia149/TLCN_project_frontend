@@ -8,6 +8,7 @@ export interface RankingUser {
   acceptedProblems: number
   totalSubmissions: number
   successRate: number
+  rankingPoint?: number // Points earned from submissions
   createdAt: string
 }
 
@@ -20,6 +21,7 @@ export interface RankingResponse {
 export interface RankingFilters {
   page?: number
   limit?: number
+  search?: string
   sortBy?: 'acceptedProblems' | 'successRate' | 'totalSubmissions'
   sortOrder?: 'asc' | 'desc'
 }

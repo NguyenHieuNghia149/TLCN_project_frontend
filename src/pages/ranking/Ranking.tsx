@@ -1,42 +1,35 @@
 import React, { useState } from 'react'
 import { FiTrendingUp, FiTrendingDown, FiMinus } from 'react-icons/fi'
 import { MdEmojiEvents } from 'react-icons/md'
-import { useRanking } from '../../hooks/api/useRanking'
+import { useLeaderboard } from '../../hooks/api/useLeaderboard'
+import { useAuth } from '../../hooks/api/useAuth'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import './ranking.css'
 
 const Ranking: React.FC = () => {
-  const [sortBy, setSortBy] = useState<
-    'acceptedProblems' | 'successRate' | 'totalSubmissions'
-  >('acceptedProblems')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [page, setPage] = useState(1)
+  const [limit] = useState(20)
 
-  const { ranking, loading, error } = useRanking({
-    sortBy,
-    sortOrder,
-    limit: 100,
+  const { ranking, loading, error, pagination } = useLeaderboard({
+    page,
+    limit,
   })
 
-  const handleSort = (newSortBy: typeof sortBy) => {
-    if (sortBy === newSortBy) {
-      setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
-    } else {
-      setSortBy(newSortBy)
-      setSortOrder('desc')
-    }
-  }
+  const { user: currentUser } = useAuth()
 
   const getRankIcon = (rank: number) => {
-    if (rank === 1) return <MdEmojiEvents className="rank-icon gold" />
-    if (rank === 2) return <MdEmojiEvents className="rank-icon silver" />
-    if (rank === 3) return <MdEmojiEvents className="rank-icon bronze" />
+    const rankNum = typeof rank === 'string' ? parseInt(rank, 10) : rank
+    if (rankNum === 1) return <MdEmojiEvents className="rank-icon gold" />
+    if (rankNum === 2) return <MdEmojiEvents className="rank-icon silver" />
+    if (rankNum === 3) return <MdEmojiEvents className="rank-icon bronze" />
     return <span className="rank-number">{rank}</span>
   }
 
   const getRankBadgeClass = (rank: number) => {
-    if (rank === 1) return 'rank-badge gold'
-    if (rank === 2) return 'rank-badge silver'
-    if (rank === 3) return 'rank-badge bronze'
+    const rankNum = typeof rank === 'string' ? parseInt(rank, 10) : rank
+    if (rankNum === 1) return 'rank-badge gold'
+    if (rankNum === 2) return 'rank-badge silver'
+    if (rankNum === 3) return 'rank-badge bronze'
     return 'rank-badge'
   }
 
@@ -92,7 +85,7 @@ const Ranking: React.FC = () => {
               <MdEmojiEvents className="text-yellow-500" />
             </div>
             <div className="stat-info">
-              <div className="stat-value">{ranking.length}</div>
+              <div className="stat-value">{pagination.total || 0}</div>
               <div className="stat-label">Total Participants</div>
             </div>
           </div>
@@ -102,9 +95,9 @@ const Ranking: React.FC = () => {
             </div>
             <div className="stat-info">
               <div className="stat-value">
-                {ranking.length > 0 ? ranking[0].acceptedProblems : 0}
+                {ranking.length > 0 ? ranking[0].rankingPoint || 0 : 0}
               </div>
-              <div className="stat-label">Top Solved Problems</div>
+              <div className="stat-label">Top Points</div>
             </div>
           </div>
           <div className="stat-card">
@@ -113,11 +106,9 @@ const Ranking: React.FC = () => {
             </div>
             <div className="stat-info">
               <div className="stat-value">
-                {ranking.length > 0
-                  ? `${ranking[0].successRate.toFixed(1)}%`
-                  : '0%'}
+                {ranking.length > 0 ? ranking[0].totalSubmissions : 0}
               </div>
-              <div className="stat-label">Best Success Rate</div>
+              <div className="stat-label">Top Submissions</div>
             </div>
           </div>
         </div>
@@ -126,40 +117,10 @@ const Ranking: React.FC = () => {
           <div className="ranking-table-header">
             <div className="header-cell rank-cell">Rank</div>
             <div className="header-cell user-cell">User</div>
-            <div
-              className={`header-cell sortable-cell ${sortBy === 'acceptedProblems' ? 'active' : ''}`}
-              onClick={() => handleSort('acceptedProblems')}
-            >
-              Solved
-              <span className="sort-icon">
-                {sortBy === 'acceptedProblems' && sortOrder === 'desc'
-                  ? '↓'
-                  : '↑'}
-              </span>
-            </div>
-            <div
-              className={`header-cell sortable-cell ${sortBy === 'totalSubmissions' ? 'active' : ''}`}
-              onClick={() => handleSort('totalSubmissions')}
-            >
-              Submissions
-              <span className="sort-icon">
-                {sortBy === 'totalSubmissions' && sortOrder === 'desc'
-                  ? '↓'
-                  : '↑'}
-              </span>
-            </div>
-            <div
-              className={`header-cell sortable-cell ${sortBy === 'successRate' ? 'active' : ''}`}
-              onClick={() => handleSort('successRate')}
-            >
-              Success Rate
-              <span className="sort-icon">
-                {sortBy === 'successRate' && sortOrder === 'desc' ? '↓' : '↑'}
-              </span>
-            </div>
+            <div className="header-cell stat-header">Points</div>
+            <div className="header-cell stat-header">Submissions</div>
             <div className="header-cell trend-cell">Trend</div>
-          </div>
-
+          </div>{' '}
           <div className="ranking-table-body">
             {ranking.length === 0 ? (
               <div className="empty-state">
@@ -169,7 +130,7 @@ const Ranking: React.FC = () => {
               ranking.map((user, index) => (
                 <div
                   key={user.id}
-                  className={`ranking-row ${index < 3 ? 'top-three' : ''}`}
+                  className={`ranking-row ${index < 3 ? 'top-three' : ''} ${currentUser?.id === user.id ? 'current-user' : ''}`}
                 >
                   <div
                     className={`cell rank-cell ${getRankBadgeClass(user.rank)}`}
@@ -199,21 +160,8 @@ const Ranking: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="cell stat-cell">{user.acceptedProblems}</div>
+                  <div className="cell stat-cell">{user.rankingPoint || 0}</div>
                   <div className="cell stat-cell">{user.totalSubmissions}</div>
-                  <div className="cell stat-cell">
-                    <div className="success-rate">
-                      <span className="rate-value">
-                        {user.successRate.toFixed(1)}%
-                      </span>
-                      <div className="rate-bar">
-                        <div
-                          className="rate-fill"
-                          style={{ width: `${user.successRate}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
                   <div className="cell trend-cell">
                     {getTrendIcon(user.rank)}
                   </div>
@@ -221,6 +169,28 @@ const Ranking: React.FC = () => {
               ))
             )}
           </div>
+        </div>
+
+        <div className="ranking-pagination">
+          <button
+            onClick={() => setPage(Math.max(1, page - 1))}
+            disabled={page === 1}
+            className="pagination-btn"
+          >
+            Previous
+          </button>
+
+          <span className="pagination-info">
+            Page {pagination.page} of {pagination.totalPages || 1}
+          </span>
+
+          <button
+            onClick={() => setPage(page + 1)}
+            disabled={!pagination.hasNextPage}
+            className="pagination-btn"
+          >
+            Next
+          </button>
         </div>
       </div>
     </div>

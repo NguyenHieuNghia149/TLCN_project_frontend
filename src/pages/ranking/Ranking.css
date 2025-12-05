@@ -47,6 +47,70 @@
   margin-bottom: 3rem;
 }
 
+/* Search and Controls */
+.ranking-controls {
+  margin-bottom: 2rem;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  background: rgba(31, 41, 55, 0.6);
+  border: 1px solid rgba(55, 65, 81, 0.3);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.search-input::placeholder {
+  color: #9ca3af;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #fbbf24;
+  background: rgba(31, 41, 55, 0.8);
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.2);
+}
+
+/* Pagination */
+.ranking-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+  margin-top: 2rem;
+  padding: 2rem 0;
+}
+
+.pagination-btn {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #9ca3af;
+}
+
 .stat-card {
   background: rgba(17, 24, 39, 0.6);
   border: 1px solid rgba(55, 65, 81, 0.3);
@@ -96,11 +160,12 @@
 
 .ranking-table-header {
   display: grid;
-  grid-template-columns: 80px 2fr 120px 120px 180px 80px;
+  grid-template-columns: 80px 2fr 120px 120px 80px;
   gap: 1rem;
   padding: 1.5rem;
   background: rgba(31, 41, 55, 0.5);
   border-bottom: 1px solid rgba(55, 65, 81, 0.3);
+  align-items: center;
 }
 
 .header-cell {
@@ -109,6 +174,25 @@
   font-size: 0.875rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.header-cell.rank-cell {
+  justify-content: center;
+}
+
+.header-cell.user-cell {
+  justify-content: flex-start;
+}
+
+.header-cell.stat-header {
+  justify-content: center;
+}
+
+.header-cell.trend-cell {
+  justify-content: center;
 }
 
 .sortable-cell {
@@ -140,7 +224,7 @@
 
 .ranking-row {
   display: grid;
-  grid-template-columns: 80px 2fr 120px 120px 180px 80px;
+  grid-template-columns: 80px 2fr 120px 120px 80px;
   gap: 1rem;
   padding: 1.5rem;
   border-bottom: 1px solid rgba(55, 65, 81, 0.2);
@@ -150,6 +234,27 @@
 
 .ranking-row:hover {
   background: rgba(31, 41, 55, 0.3);
+}
+
+.ranking-row.current-user {
+  background: linear-gradient(
+    90deg,
+    rgba(99, 102, 241, 0.15) 0%,
+    rgba(99, 102, 241, 0.08) 50%,
+    transparent 100%
+  );
+  border-left: 4px solid #6366f1;
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.2) inset;
+}
+
+.ranking-row.current-user:hover {
+  background: linear-gradient(
+    90deg,
+    rgba(99, 102, 241, 0.2) 0%,
+    rgba(99, 102, 241, 0.1) 50%,
+    transparent 100%
+  );
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.3) inset;
 }
 
 .ranking-row.top-three {
@@ -171,6 +276,7 @@
 .cell {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
 }
 
 .rank-cell {
@@ -190,18 +296,28 @@
 }
 
 .rank-badge.gold {
-  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #f97316 100%);
+  box-shadow:
+    0 0 20px rgba(251, 191, 36, 0.6),
+    0 4px 12px rgba(251, 191, 36, 0.3);
+  position: relative;
+  animation: goldPulse 2s ease-in-out infinite;
 }
 
 .rank-badge.silver {
-  background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
-  box-shadow: 0 4px 12px rgba(148, 163, 184, 0.3);
+  background: linear-gradient(135deg, #e5e7eb 0%, #9ca3b8 50%, #64748b 100%);
+  box-shadow:
+    0 0 20px rgba(148, 163, 184, 0.6),
+    0 4px 12px rgba(148, 163, 184, 0.3);
+  animation: silverPulse 2s ease-in-out infinite;
 }
 
 .rank-badge.bronze {
-  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
-  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.3);
+  background: linear-gradient(135deg, #fed7aa 0%, #d97706 50%, #b45309 100%);
+  box-shadow:
+    0 0 20px rgba(217, 119, 6, 0.6),
+    0 4px 12px rgba(217, 119, 6, 0.3);
+  animation: bronzePulse 2s ease-in-out infinite;
 }
 
 .rank-icon {
@@ -211,12 +327,14 @@
 
 .rank-number {
   font-size: 1.25rem;
-  font-weight: 700;
+  font-weight: 900;
   color: #ffffff;
+  letter-spacing: -0.02em;
 }
 
 .user-cell {
   justify-content: flex-start;
+  font-size: 0.875rem;
 }
 
 .user-info {
@@ -329,6 +447,48 @@
   color: #6b7280;
 }
 
+@keyframes goldPulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 20px rgba(251, 191, 36, 0.6),
+      0 4px 12px rgba(251, 191, 36, 0.3);
+  }
+  50% {
+    box-shadow:
+      0 0 30px rgba(251, 191, 36, 0.8),
+      0 4px 16px rgba(251, 191, 36, 0.5);
+  }
+}
+
+@keyframes silverPulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 20px rgba(148, 163, 184, 0.6),
+      0 4px 12px rgba(148, 163, 184, 0.3);
+  }
+  50% {
+    box-shadow:
+      0 0 30px rgba(148, 163, 184, 0.8),
+      0 4px 16px rgba(148, 163, 184, 0.5);
+  }
+}
+
+@keyframes bronzePulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 20px rgba(217, 119, 6, 0.6),
+      0 4px 12px rgba(217, 119, 6, 0.3);
+  }
+  50% {
+    box-shadow:
+      0 0 30px rgba(217, 119, 6, 0.8),
+      0 4px 16px rgba(217, 119, 6, 0.5);
+  }
+}
+
 .empty-state {
   text-align: center;
   padding: 4rem 2rem;
@@ -339,7 +499,7 @@
 @media (max-width: 1200px) {
   .ranking-table-header,
   .ranking-row {
-    grid-template-columns: 60px 2fr 100px 100px 160px 60px;
+    grid-template-columns: 60px 2fr 100px 100px 60px;
     gap: 0.75rem;
     padding: 1rem;
   }
@@ -373,7 +533,7 @@
 
   .ranking-table-header,
   .ranking-row {
-    grid-template-columns: 50px 200px 80px 80px 140px 50px;
+    grid-template-columns: 50px 200px 80px 80px 50px;
     gap: 0.5rem;
     padding: 0.75rem;
   }
@@ -430,7 +590,7 @@
 
   .ranking-table-header,
   .ranking-row {
-    grid-template-columns: 45px 180px 70px 70px 120px 40px;
+    grid-template-columns: 45px 180px 70px 70px 40px;
     gap: 0.5rem;
     padding: 0.5rem;
   }
