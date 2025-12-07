@@ -6,7 +6,7 @@ import Button from '@/components/common/Button/Button'
 import { ExamSubmission, Exam } from '@/types/exam.types'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import { useAuth } from '@/hooks/api/useAuth'
-import { buildMockExam, buildMockSubmissions } from '@/mocks/exam.mock'
+import { examService } from '@/services/api/exam.service'
 
 const PAGE_SIZE = 10
 
@@ -18,21 +18,25 @@ const ExamResults: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [page, setPage] = useState(1)
+  const [, setError] = useState<string | null>(null)
   const { user } = useAuth()
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true)
-        const mockExam = buildMockExam({
-          id: examId || 'exam-001',
-        })
-        const mockSubmissions = buildMockSubmissions(mockExam.id)
+        setError(null)
+        if (examId) {
+          const apiExam = await examService.getExamById(examId)
+          setExam(apiExam)
 
-        setExam(mockExam)
-        setSubmissions(mockSubmissions)
-      } catch (error) {
-        console.error('Failed to fetch exam results:', error)
+          const lb = await examService.getLeaderboard(examId, 200, 0)
+          const items = lb?.data || lb || []
+          setSubmissions(items)
+        }
+      } catch (err) {
+        console.error('Failed to fetch exam results:', err)
+        setError('Failed to load exam results')
       } finally {
         setLoading(false)
       }

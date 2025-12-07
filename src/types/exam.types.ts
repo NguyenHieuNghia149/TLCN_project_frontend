@@ -118,6 +118,9 @@ export interface ExamState {
   currentExam: Exam | null
   submissions: ExamSubmission[]
   currentSubmission: ExamSubmission | null
+  // current participation/session info (optional during migration)
+  currentParticipationId?: string | null
+  currentParticipationStartAt?: number | string | null
   isLoading: boolean
   error: string | null
   statistics: ExamStatistics | null

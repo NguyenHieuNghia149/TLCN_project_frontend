@@ -40,6 +40,7 @@ export interface RunOrSubmitPayload {
   sourceCode: string
   language: SupportedLanguage
   problemId: string
+  participationId?: string
 }
 
 export interface RunResponseWrapper {

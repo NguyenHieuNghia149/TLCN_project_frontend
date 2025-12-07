@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { useSelector } from 'react-redux'
+import type { RootState } from '@/store/stores'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ChevronLeft,
@@ -15,7 +17,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner'
 import ChallengePicker from '@/components/exam/ChallengePicker'
 import ProblemDetailPage from '@/pages/challengeDetail/ProblemDetailPage'
 import './StudentExam.scss'
-import { buildMockExam } from '@/mocks/exam.mock'
+import { examService } from '@/services/api/exam.service'
 
 const ExamProblemDetail = ProblemDetailPage as React.ComponentType<{
   problemIdOverride: string
@@ -35,30 +37,47 @@ const StudentExam: React.FC = () => {
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const [showPicker, setShowPicker] = useState(false)
 
+  const reduxParticipationId = useSelector(
+    (s: RootState) => s.exam?.currentParticipationId
+  )
+
   const handleSubmitExam = useCallback(() => {
-    navigate(`/exam/${examId}/results`)
-  }, [navigate, examId])
+    ;(async () => {
+      try {
+        const participationId = reduxParticipationId
+        if (examId && participationId) {
+          await examService.submitExam(examId, participationId)
+        } else {
+          console.warn('No participationId in Redux; skipping server submit')
+        }
+      } catch (e) {
+        console.warn('Failed to submit exam to API', e)
+      } finally {
+        navigate(`/exam/${examId}/results`)
+      }
+    })()
+  }, [navigate, examId, reduxParticipationId])
 
   // Fetch exam data
   useEffect(() => {
     const fetchExam = async () => {
       try {
         setLoading(true)
-        const mockExam: Exam = buildMockExam({
-          id: examId || 'exam-001',
-        })
-        setExam(mockExam)
-        setTimeRemaining(mockExam.duration * 60) // Convert to seconds
+        if (examId) {
+          const apiExam = await examService.getExamById(examId)
+          setExam(apiExam)
+          setTimeRemaining((apiExam.duration || 0) * 60)
 
-        // Set initial challenge index
-        if (challengeId && mockExam.challenges) {
-          const index = mockExam.challenges.findIndex(c => c.id === challengeId)
-          if (index !== -1) {
-            setCurrentChallengeIndex(index)
+          if (challengeId && apiExam.challenges) {
+            const index = apiExam.challenges.findIndex(
+              c => c.id === challengeId
+            )
+            if (index !== -1) setCurrentChallengeIndex(index)
           }
         }
       } catch (error) {
         console.error('Failed to fetch exam:', error)
+        setExam(null)
       } finally {
         setLoading(false)
       }

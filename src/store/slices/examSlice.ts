@@ -11,6 +11,9 @@ const initialState: ExamState = {
   currentExam: null,
   submissions: [],
   currentSubmission: null,
+  // participation/session info for current exam
+  currentParticipationId: null,
+  currentParticipationStartAt: null,
   isLoading: false,
   error: null,
   statistics: null,
@@ -65,6 +68,24 @@ const examSlice = createSlice({
       state.isLoading = false
     },
 
+    // Participation/session actions
+    setParticipation: (
+      state,
+      action: PayloadAction<{
+        participationId: string | null
+        startAt?: number | string | null
+      }>
+    ) => {
+      state.currentParticipationId = action.payload.participationId
+      state.currentParticipationStartAt = action.payload.startAt ?? null
+      state.isLoading = false
+    },
+
+    clearParticipation: state => {
+      state.currentParticipationId = null
+      state.currentParticipationStartAt = null
+    },
+
     // Submissions actions
     setSubmissions: (state, action: PayloadAction<ExamSubmission[]>) => {
       state.submissions = action.payload
@@ -111,6 +132,8 @@ export const {
   updateExam,
   deleteExam,
   setCurrentExam,
+  setParticipation,
+  clearParticipation,
   setSubmissions,
   addSubmission,
   setCurrentSubmission,

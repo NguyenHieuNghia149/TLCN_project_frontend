@@ -1,9 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Code, Check, X } from 'lucide-react'
 import { ExamSubmission } from '@/types/exam.types'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import Button from '@/components/common/Button/Button'
+import { apiClient } from '@/config/axios.config'
 
 const ExamSubmissionDetail: React.FC = () => {
   const { examId, submissionId } = useParams<{
@@ -15,55 +16,26 @@ const ExamSubmissionDetail: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'overview' | 'details'>('overview')
 
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchSubmission = async () => {
+      if (!submissionId) return
       try {
         setLoading(true)
-        const mockSubmission: ExamSubmission = {
-          id: submissionId || '1',
-          userId: 'student1',
-          examId: examId || '1',
-          user: {
-            id: 'student1',
-            firstname: 'John',
-            lastname: 'Doe',
-            email: 'john@example.com',
-            role: 'student',
-            avatar: '',
-            createdAt: new Date().toISOString(),
-            lastLoginAt: new Date().toISOString(),
-          },
-          solutions: [
-            {
-              challengeId: '1',
-              code: 'function twoSum(nums, target) {\n  // Solution code here\n}',
-              language: 'javascript',
-              score: 80,
-              results: [
-                {
-                  testCaseId: '1',
-                  passed: true,
-                  actualOutput: '[0, 1]',
-                  expectedOutput: '[0, 1]',
-                },
-                {
-                  testCaseId: '2',
-                  passed: true,
-                  actualOutput: '[1, 2]',
-                  expectedOutput: '[1, 2]',
-                },
-              ],
-              submittedAt: new Date().toISOString(),
-            },
-          ],
-          totalScore: 80,
-          startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          submittedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-          duration: 60,
+        const res = await apiClient.get(
+          `/exams/${examId}/submission/${submissionId}`
+        )
+        const json = res.data as {
+          success?: boolean
+          data?: ExamSubmission
+          message?: string
         }
-        setSubmission(mockSubmission)
+        if (!json?.success || !json?.data) {
+          throw new Error(json?.message || 'Failed to fetch submission')
+        }
+        setSubmission(json.data)
       } catch (error) {
         console.error('Failed to fetch submission:', error)
+        setSubmission(null)
       } finally {
         setLoading(false)
       }

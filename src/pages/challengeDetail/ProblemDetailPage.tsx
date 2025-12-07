@@ -7,9 +7,12 @@ import { ProblemDetailResponse } from '../../types/challenge.types'
 import ProblemHeader from '../../components/problem/ProblemHeader'
 import { useProblemNavigation } from '../../hooks/common/useProblemNavigation'
 import { submissionsService } from '@/services/api/submissions.service'
+import { useSelector } from 'react-redux'
+import type { RootState } from '@/store/stores'
 import type {
   SupportedLanguage,
   SandboxTestcaseResult,
+  RunOrSubmitPayload,
 } from '@/types/submission.types'
 import type { TestCase, OutputState } from '@/types/editor.types'
 import { io, Socket } from 'socket.io-client'
@@ -26,8 +29,13 @@ int main() {
 }
 `
 
-export default function ProblemDetailPage() {
-  const { id } = useParams<{ id: string }>()
+export default function ProblemDetailPage({
+  problemIdOverride,
+}: {
+  problemIdOverride?: string
+}) {
+  const params = useParams<{ id?: string }>()
+  const id = problemIdOverride ?? params.id
   const [activeTab, setActiveTab] = useState<
     'question' | 'solution' | 'submissions' | 'discussion'
   >('question')
@@ -110,6 +118,12 @@ export default function ProblemDetailPage() {
     return 'javascript'
   }
 
+  // Read participation id from Redux at top-level (do not call hooks inside handlers)
+  const reduxParticipationId = useSelector(
+    (s: RootState) => s.exam?.currentParticipationId
+  )
+  const participationIdToUse = reduxParticipationId || undefined
+
   const handleRun = async () => {
     if (!problemData?.problem.id) return
     setOutput({ status: 'running', message: 'Running tests...' })
@@ -118,6 +132,9 @@ export default function ProblemDetailPage() {
         sourceCode: code,
         language: languageToApi(selectedLanguage),
         problemId: problemData.problem.id,
+        ...(participationIdToUse
+          ? { participationId: participationIdToUse }
+          : {}),
       }
       const data = await submissionsService.runCode(payload)
 
@@ -312,11 +329,12 @@ export default function ProblemDetailPage() {
     if (!problemData?.problem.id) return
     setOutput({ status: 'running', message: 'Submitting...' })
     try {
-      const payload = {
+      const payload: RunOrSubmitPayload = {
         sourceCode: code,
         language: languageToApi(selectedLanguage),
         problemId: problemData.problem.id,
       }
+      if (participationIdToUse) payload.participationId = participationIdToUse
       const create = await submissionsService.submitCode(payload)
       const submissionId = create.submissionId
 
