@@ -8,6 +8,7 @@ export interface SandboxTestcaseResult {
   ok: boolean
   stderr: string
   executionTime: number
+  isPublic?: boolean
 }
 
 export interface RunResponseData {
@@ -39,6 +40,7 @@ export interface RunOrSubmitPayload {
   sourceCode: string
   language: SupportedLanguage
   problemId: string
+  participationId?: string
 }
 
 export interface RunResponseWrapper {

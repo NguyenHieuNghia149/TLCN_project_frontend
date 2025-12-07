@@ -7,9 +7,12 @@ import { ProblemDetailResponse } from '../../types/challenge.types'
 import ProblemHeader from '../../components/problem/ProblemHeader'
 import { useProblemNavigation } from '../../hooks/common/useProblemNavigation'
 import { submissionsService } from '@/services/api/submissions.service'
+import { useSelector } from 'react-redux'
+import type { RootState } from '@/store/stores'
 import type {
   SupportedLanguage,
   SandboxTestcaseResult,
+  RunOrSubmitPayload,
 } from '@/types/submission.types'
 import type { TestCase, OutputState } from '@/types/editor.types'
 import { io, Socket } from 'socket.io-client'
@@ -26,8 +29,13 @@ int main() {
 }
 `
 
-export default function ProblemDetailPage() {
-  const { id } = useParams<{ id: string }>()
+export default function ProblemDetailPage({
+  problemIdOverride,
+}: {
+  problemIdOverride?: string
+}) {
+  const params = useParams<{ id?: string }>()
+  const id = problemIdOverride ?? params.id
   const [activeTab, setActiveTab] = useState<
     'question' | 'solution' | 'submissions' | 'discussion'
   >('question')
@@ -110,6 +118,12 @@ export default function ProblemDetailPage() {
     return 'javascript'
   }
 
+  // Read participation id from Redux at top-level (do not call hooks inside handlers)
+  const reduxParticipationId = useSelector(
+    (s: RootState) => s.exam?.currentParticipationId
+  )
+  const participationIdToUse = reduxParticipationId || undefined
+
   const handleRun = async () => {
     if (!problemData?.problem.id) return
     setOutput({ status: 'running', message: 'Running tests...' })
@@ -118,18 +132,32 @@ export default function ProblemDetailPage() {
         sourceCode: code,
         language: languageToApi(selectedLanguage),
         problemId: problemData.problem.id,
+        ...(participationIdToUse
+          ? { participationId: participationIdToUse }
+          : {}),
       }
       const data = await submissionsService.runCode(payload)
-      const summary = data.data.summary
+
+      // Filter to only show public test cases
+      const allResults = coerceResults(data.data.results) || []
+      const publicResults = allResults.filter(r => r.isPublic !== false)
+
+      // Recalculate summary based on public test cases only
+      const publicPassed = publicResults.filter(r => r.ok).length
+      const publicTotal = publicResults.length
+
       setOutput({
-        status: summary.passed === summary.total ? 'accepted' : 'rejected',
+        status:
+          publicPassed === publicTotal && publicTotal > 0
+            ? 'accepted'
+            : 'rejected',
         message:
-          summary.passed === summary.total
+          publicPassed === publicTotal && publicTotal > 0
             ? 'All test cases passed!'
-            : `Passed ${summary.passed}/${summary.total} test cases`,
-        passedTests: summary.passed,
-        totalTests: summary.total,
-        results: data.data.results,
+            : `Passed ${publicPassed}/${publicTotal} test cases`,
+        passedTests: publicPassed,
+        totalTests: publicTotal,
+        results: publicResults,
         processingTime: data.data.processingTime,
       })
     } catch (err) {
@@ -270,26 +298,30 @@ export default function ProblemDetailPage() {
 
   const coerceResults = (
     results?: Array<{
-      index: number
+      index?: number
+      testcaseId?: string
       input: string
       expected?: string
       expectedOutput?: string
       actual?: string
       actualOutput?: string
-      ok: boolean
+      ok?: boolean
+      isPassed?: boolean
       stderr?: string
       executionTime?: number
+      isPublic?: boolean
     }>
   ): SandboxTestcaseResult[] | undefined => {
     if (!Array.isArray(results)) return undefined
-    return results.map(r => ({
-      index: r.index,
+    return results.map((r, idx) => ({
+      index: r.index ?? idx, // Use provided index or fallback to array index
       input: r.input,
       expectedOutput: r.expectedOutput ?? r.expected ?? '',
       actualOutput: r.actualOutput ?? r.actual ?? '',
-      ok: r.ok,
+      ok: r.ok ?? r.isPassed ?? false,
       stderr: r.stderr || '',
       executionTime: r.executionTime ?? 0,
+      isPublic: r.isPublic ?? true, // Default to true if not provided
     }))
   }
 
@@ -297,11 +329,12 @@ export default function ProblemDetailPage() {
     if (!problemData?.problem.id) return
     setOutput({ status: 'running', message: 'Submitting...' })
     try {
-      const payload = {
+      const payload: RunOrSubmitPayload = {
         sourceCode: code,
         language: languageToApi(selectedLanguage),
         problemId: problemData.problem.id,
       }
+      if (participationIdToUse) payload.participationId = participationIdToUse
       const create = await submissionsService.submitCode(payload)
       const submissionId = create.submissionId
 
@@ -398,32 +431,44 @@ export default function ProblemDetailPage() {
             'failed',
           ]
           if (terminal.includes(normalized)) {
-            const passed = detail.result?.passed ?? 0
-            const total = detail.result?.total ?? problemData.testcases.length
+            // Filter to only show public test cases
+            const allResults = coerceResults(detail.result?.results) || []
+            const publicResults = allResults.filter(r => r.isPublic !== false)
+
+            // Recalculate summary based on public test cases only
+            const publicPassed = publicResults.filter(r => r.ok).length
+            const publicTotal = publicResults.length
+
             setOutput({
               status: normalized === 'accepted' ? 'accepted' : 'rejected',
               message:
                 normalized === 'accepted'
                   ? 'You have successfully completed this problem!'
-                  : `Status: ${normalized}. Passed ${passed}/${total}`,
-              passedTests: passed,
-              totalTests: total,
-              results: coerceResults(detail.result?.results),
+                  : `Status: ${normalized}. Passed ${publicPassed}/${publicTotal}`,
+              passedTests: publicPassed,
+              totalTests: publicTotal,
+              results: publicResults,
             })
             clearPoll()
             return true
           } else {
-            const partialPassed = detail.result?.passed
-            const partialTotal = detail.result?.total
+            // Filter to only show public test cases
+            const allResults = coerceResults(detail.result?.results) || []
+            const publicResults = allResults.filter(r => r.isPublic !== false)
+
+            // Recalculate summary based on public test cases only
+            const publicPassed = publicResults.filter(r => r.ok).length
+            const publicTotal = publicResults.length
+
             setOutput({
               status: 'running',
               message:
-                partialPassed !== undefined && partialTotal !== undefined
-                  ? `Running... ${partialPassed}/${partialTotal} passed`
+                publicPassed !== undefined && publicTotal !== undefined
+                  ? `Running... ${publicPassed}/${publicTotal} passed`
                   : 'Running...',
-              passedTests: partialPassed,
-              totalTests: partialTotal,
-              results: coerceResults(detail.result?.results),
+              passedTests: publicPassed,
+              totalTests: publicTotal,
+              results: publicResults,
             })
             return false
           }

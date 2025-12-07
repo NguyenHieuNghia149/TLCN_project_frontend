@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useDispatch, useSelector } from 'react-redux'
+import type { RootState } from '@/store/stores'
 import { ArrowLeft, Lock, Eye, EyeOff, Clock, X } from 'lucide-react'
 import Input from '@/components/common/Input/Input'
 import { Exam } from '@/types/exam.types'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import Button from '@/components/common/Button/Button'
 import { useAuth } from '@/hooks/api/useAuth'
-import { buildMockExam } from '@/mocks/exam.mock'
+import { examService } from '@/services/api/exam.service'
+import { setParticipation } from '@/store/slices/examSlice'
 import { canManageExam } from '@/utils/roleUtils'
 import './ExamDetail.scss'
 
@@ -21,15 +24,119 @@ const ExamDetail: React.FC = () => {
   const [passwordError, setPasswordError] = useState('')
   const [isVerified, setIsVerified] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [resumeAvailable, setResumeAvailable] = useState(false)
+  const [resumeChallengeId, setResumeChallengeId] = useState<string | null>(
+    null
+  )
+
+  const dispatch = useDispatch()
+  const reduxParticipationId = useSelector(
+    (s: RootState) => s.exam?.currentParticipationId
+  )
+  const reduxStartAt = useSelector(
+    (s: RootState) => s.exam?.currentParticipationStartAt
+  )
 
   useEffect(() => {
     const fetchExam = async () => {
       try {
         setLoading(true)
-        const mockExam: Exam = buildMockExam({
-          id: examId || 'exam-001',
-        })
-        setExam(mockExam)
+        if (examId) {
+          try {
+            const apiExam = await examService.getExamById(examId)
+
+            setExam(apiExam)
+            // Attempt to recover an active participation when Redux doesn't have it.
+            try {
+              const participationId = reduxParticipationId
+              const startAtRaw = reduxStartAt
+
+              // If Redux already contains participation info, prefer it (no client storage).
+              if (participationId && startAtRaw) {
+                // calculate remaining
+                const asNumber = Number(startAtRaw)
+                let startAtMs: number | null = null
+                if (!Number.isNaN(asNumber) && isFinite(asNumber)) {
+                  startAtMs = asNumber
+                } else {
+                  const parsed = Date.parse(String(startAtRaw))
+                  if (!Number.isNaN(parsed)) startAtMs = parsed
+                }
+                if (startAtMs) {
+                  const totalSeconds = (apiExam.duration || 0) * 60
+                  const elapsed = Math.floor((Date.now() - startAtMs) / 1000)
+                  const remaining = Math.max(0, totalSeconds - elapsed)
+                  if (remaining > 0) {
+                    setResumeAvailable(true)
+                    setResumeChallengeId(apiExam.challenges?.[0]?.id ?? null)
+                  }
+                }
+              } else {
+                // No Redux participation — ask the server for "my" participation for this exam
+                try {
+                  const myPartRes = await examService.getMyParticipation(
+                    apiExam.id
+                  )
+                  const part = myPartRes?.data || myPartRes
+                  const partId = part?.id || part?.participationId
+                  const serverStart =
+                    part?.startedAt ||
+                    part?.startAt ||
+                    part?.startTimestamp ||
+                    part?.startedAtMs
+
+                  if (partId) {
+                    // Dispatch into Redux (do not persist to any client storage)
+                    const startAtValue = serverStart ?? Date.now()
+                    try {
+                      dispatch(
+                        setParticipation({
+                          participationId: partId,
+                          startAt: startAtValue,
+                        })
+                      )
+                    } catch (e) {
+                      console.warn(
+                        'Failed to dispatch recovered participation to redux',
+                        e
+                      )
+                    }
+
+                    // compute remaining time and mark resume available if still active
+                    let startAtMs: number | null = null
+                    const asNumber = Number(startAtValue)
+                    if (!Number.isNaN(asNumber) && isFinite(asNumber)) {
+                      startAtMs = asNumber
+                    } else {
+                      const parsed = Date.parse(String(startAtValue))
+                      if (!Number.isNaN(parsed)) startAtMs = parsed
+                    }
+                    if (startAtMs) {
+                      const totalSeconds = (apiExam.duration || 0) * 60
+                      const elapsed = Math.floor(
+                        (Date.now() - startAtMs) / 1000
+                      )
+                      const remaining = Math.max(0, totalSeconds - elapsed)
+                      if (remaining > 0) {
+                        setResumeAvailable(true)
+                        setResumeChallengeId(
+                          apiExam.challenges?.[0]?.id ?? null
+                        )
+                      }
+                    }
+                  }
+                } catch {
+                  // ignore server recovery failure — user will need to join manually
+                }
+              }
+            } catch {
+              // ignore resume checks
+            }
+          } catch (apiErr) {
+            console.error('Failed to load exam from API', apiErr)
+            setExam(null)
+          }
+        }
       } catch (error) {
         console.error('Failed to fetch exam:', error)
       } finally {
@@ -38,7 +145,7 @@ const ExamDetail: React.FC = () => {
     }
 
     fetchExam()
-  }, [examId])
+  }, [examId, reduxParticipationId, reduxStartAt, dispatch])
 
   const formatDate = (dateString: string) =>
     new Date(dateString).toLocaleDateString('en-US', {
@@ -48,21 +155,85 @@ const ExamDetail: React.FC = () => {
       minute: '2-digit',
     })
 
-  const handlePasswordSubmit = () => {
+  const handlePasswordSubmit = async () => {
     if (!exam) return
 
-    if (password === exam.password) {
+    // 1. Kiểm tra password ở phía Client trước (nếu có)
+    if (exam.password && password !== exam.password) {
+      setPasswordError('Incorrect password')
+      setPassword('') // Reset password field
+      return
+    }
+
+    try {
+      // 2. Gọi API Join Exam
+      // Cần await ở đây để đảm bảo join thành công mới đi tiếp
+      const res = await examService.joinExam(exam.id, password)
+
+      // 3b. Lưu thời điểm bắt đầu phiên thi để tính thời gian còn lại khi reload
+      // Prefer server-provided start time if available, else use local Date.now()
+      const startAtRaw =
+        res?.data?.startAt || res?.data?.startTimestamp || res?.data?.startedAt
+      let startAtValue: number | string = Date.now()
+      if (startAtRaw) {
+        // If server returns ISO string, store as-is (we'll parse later), if number store as number
+        startAtValue = startAtRaw
+      }
+
+      // 3. Lưu participationId (quan trọng để backend xác nhận session)
+      const participationId =
+        res?.data?.id ||
+        res?.data?.participationId ||
+        res?.participationId ||
+        res?.id
+      if (participationId) {
+        // store in redux first
+        try {
+          dispatch(setParticipation({ participationId, startAt: startAtValue }))
+        } catch (e) {
+          console.warn('Failed to dispatch participation to redux', e)
+        }
+        // NOTE: do NOT persist participationId to localStorage for security.
+        // Keep it only in Redux (in-memory) to avoid leaking session identifiers.
+      }
+
+      // Do NOT persist `currentExamStartAt` to localStorage for security/privacy.
+
       setIsVerified(true)
       setShowPasswordModal(false)
       setPassword('')
       setPasswordError('')
-      const firstChallenge = exam.challenges?.[0]
-      if (firstChallenge) {
-        navigate(`/exam/${exam.id}/challenge/${firstChallenge.id}/preview`)
+
+      let challenges = exam.challenges || []
+      if (challenges.length === 0) {
+        try {
+          const freshExam = await examService.getExamById(exam.id)
+          challenges = freshExam?.challenges || []
+          setExam(freshExam)
+        } catch (err) {
+          console.warn('Could not refetch exam details:', err)
+        }
       }
-    } else {
-      setPasswordError('Incorrect password')
-      setPassword('')
+
+      const firstChallenge = challenges?.[0]
+      if (firstChallenge) {
+        const examId = exam.id
+        const challengeId = firstChallenge.id
+        navigate(`/exam/${examId}/challenge/${challengeId}`)
+      } else {
+        alert('This exam has no challenges configured.')
+      }
+    } catch (err) {
+      console.error('Join exam failed:', err)
+      const maybeResp = err as { response?: { status?: number } }
+      if (
+        maybeResp?.response?.status === 403 ||
+        maybeResp?.response?.status === 401
+      ) {
+        setPasswordError('Incorrect password or access denied')
+      } else {
+        setPasswordError('Failed to join exam. Please try again.')
+      }
     }
   }
 
@@ -127,6 +298,15 @@ const ExamDetail: React.FC = () => {
               Instructor stats
             </Button>
           )}
+          {/* {resumeAvailable && resumeChallengeId && (
+            <Button
+              onClick={() => navigate(`/exam/${exam.id}/challenge/${resumeChallengeId}`)}
+              variant="primary"
+              size="sm"
+            >
+              Resume exam
+            </Button>
+          )} */}
         </div>
 
         <section className="card p-6">
@@ -183,11 +363,11 @@ const ExamDetail: React.FC = () => {
                 Challenges overview
               </h2>
             </div>
-            {isActive && !isVerified && (
+            {/* {isActive && !isVerified && (
               <Button onClick={handleStartExam} variant="primary">
                 Unlock exam
               </Button>
-            )}
+            )} */}
           </div>
 
           {isActive && !isVerified ? (
@@ -205,9 +385,32 @@ const ExamDetail: React.FC = () => {
               <p className="muted mt-2 text-sm">
                 This session is locked to prevent unauthorized access.
               </p>
-              <Button onClick={handleStartExam} variant="secondary">
-                Verify access
-              </Button>
+              {resumeAvailable && resumeChallengeId ? (
+                <div className="flex flex-col items-center gap-3">
+                  <p
+                    className="muted mt-2 text-center text-sm"
+                    title="Your session is still active on the server; click Resume to continue"
+                  >
+                    You were disconnected — resume exam to continue your
+                    session.
+                  </p>
+                  <Button
+                    onClick={() =>
+                      navigate(
+                        `/exam/${exam.id}/challenge/${resumeChallengeId}`
+                      )
+                    }
+                    variant="primary"
+                    title="Resume your active exam session"
+                  >
+                    Resume exam
+                  </Button>
+                </div>
+              ) : (
+                <Button onClick={handleStartExam} variant="secondary">
+                  Verify access
+                </Button>
+              )}
             </div>
           ) : (
             <div

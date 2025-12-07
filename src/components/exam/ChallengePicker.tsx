@@ -23,7 +23,8 @@ const ChallengePicker: React.FC<ChallengePickerProps> = ({
   const examTotalPoints =
     totalPoints ||
     challenges.reduce((sum, ch) => sum + (ch.totalPoints || 0), 0)
-  const getDifficultyColor = (difficulty: string) => {
+  const getDifficultyColor = (difficulty?: string) => {
+    if (!difficulty) return 'easy'
     switch (difficulty.toLowerCase()) {
       case 'easy':
         return 'easy'

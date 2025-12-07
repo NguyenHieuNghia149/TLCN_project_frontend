@@ -14,7 +14,7 @@ import { useAuth } from '@/hooks/api/useAuth'
 import { Exam } from '@/types/exam.types'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import Button from '@/components/common/Button/Button'
-import { buildMockExamList } from '@/mocks/exam.mock'
+import { examService } from '@/services/api/exam.service'
 import { isTeacherOrAdmin } from '@/utils/roleUtils'
 import './ExamList.scss'
 
@@ -24,52 +24,53 @@ const ExamList: React.FC = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
   const [exams, setExams] = useState<Exam[]>([])
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState<'all' | 'my' | 'participated'>(
     'all'
   )
   const [page, setPage] = useState(1)
+  const [, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchExams = async () => {
       setLoading(true)
+      setError(null)
       try {
-        const mockExams: Exam[] = buildMockExamList(12)
-        setExams(mockExams)
-      } catch (error) {
-        console.error('Failed to fetch exams:', error)
+        const json = await examService.getExams(
+          PAGE_SIZE,
+          (page - 1) * PAGE_SIZE,
+          searchTerm || undefined,
+          filterType || undefined
+        )
+        const items: Exam[] = json?.data || []
+        setExams(items)
+        setTotal(Number(json?.total || 0))
+      } catch (apiErr) {
+        console.error('Failed to load exams from API', apiErr)
+        setError('Failed to load exams')
+        setExams([])
+        setTotal(0)
       } finally {
         setLoading(false)
       }
     }
 
     fetchExams()
-  }, [])
+  }, [page, searchTerm, filterType])
 
   const canManageExam = isTeacherOrAdmin(user)
 
-  const filteredExams = useMemo(() => {
-    return exams.filter(exam => {
-      const matchesSearch = exam.title
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase())
-
-      if (filterType === 'my') {
-        return matchesSearch && exam.createdBy === user?.id
-      }
-
-      return matchesSearch
-    })
-  }, [exams, searchTerm, filterType, user?.id])
+  // Server-side search & filter: exams already reflect searchTerm/filterType
+  const filteredExams = useMemo(() => exams, [exams])
 
   // Pagination
-  const totalPages = Math.ceil(filteredExams.length / PAGE_SIZE)
-  const paginatedExams = useMemo(() => {
-    const startIndex = (page - 1) * PAGE_SIZE
-    const endIndex = startIndex + PAGE_SIZE
-    return filteredExams.slice(startIndex, endIndex)
-  }, [filteredExams, page])
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  // We apply filters/search on the current page items returned from server
+  const displayedExams = useMemo(() => {
+    return filteredExams
+  }, [filteredExams])
 
   // Reset to page 1 when search term or filter changes
   useEffect(() => {
@@ -82,7 +83,9 @@ const ExamList: React.FC = () => {
   }, [page])
 
   const stats = {
-    total: exams.length,
+    // total comes from server pagination
+    total: total,
+    // upcoming/active are calculated from current page items; not global counts
     upcoming: exams.filter(
       exam => Date.now() < new Date(exam.startDate).getTime()
     ).length,
@@ -182,13 +185,13 @@ const ExamList: React.FC = () => {
                   active={filterType === 'all'}
                   onClick={() => setFilterType('all')}
                 />
-                {canManageExam && (
+                {/* {canManageExam && (
                   <FilterChip
                     label="My exams"
                     active={filterType === 'my'}
                     onClick={() => setFilterType('my')}
                   />
-                )}
+                )} */}
                 <FilterChip
                   label="Participated"
                   active={filterType === 'participated'}
@@ -224,7 +227,7 @@ const ExamList: React.FC = () => {
           ) : (
             <>
               <div className="grid gap-6 md:grid-cols-2">
-                {paginatedExams.map(exam => (
+                {displayedExams.map(exam => (
                   <ExamCard
                     key={exam.id}
                     exam={exam}
@@ -248,8 +251,7 @@ const ExamList: React.FC = () => {
                     style={{ color: 'var(--muted-text)' }}
                   >
                     Showing {(page - 1) * PAGE_SIZE + 1} to{' '}
-                    {Math.min(page * PAGE_SIZE, filteredExams.length)} of{' '}
-                    {filteredExams.length} exams
+                    {Math.min(page * PAGE_SIZE, total)} of {total} exams
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
@@ -458,7 +460,7 @@ const ExamCard: React.FC<ExamCardProps> = ({
               {formatDate(exam.startDate)} → {formatDate(exam.endDate)}
             </span>
           </div>
-          <div className="flex items-center justify-between">
+          {/* <div className="flex items-center justify-between">
             <p
               className="text-xs uppercase tracking-wider"
               style={{ color: 'var(--muted-text)' }}
@@ -471,7 +473,7 @@ const ExamCard: React.FC<ExamCardProps> = ({
             >
               {exam.challenges?.length || 0}
             </p>
-          </div>
+          </div> */}
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">

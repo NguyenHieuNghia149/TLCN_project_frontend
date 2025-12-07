@@ -1,4 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import type { RootState } from '@/store/stores'
+import { setParticipation } from '@/store/slices/examSlice'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Clock, List, Sun, Moon } from 'lucide-react'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
@@ -7,7 +10,6 @@ import { Exam } from '@/types/exam.types'
 import ExamProblemSection from '@/components/problem/ExamProblemSection'
 import CodeEditorSection from '@/components/editor/CodeEditorSection'
 import ChallengePicker from '@/components/exam/ChallengePicker'
-import { challengeService } from '@/services/api/challenge.service'
 import { ProblemDetailResponse } from '@/types/challenge.types'
 import { submissionsService } from '@/services/api/submissions.service'
 import type {
@@ -17,7 +19,8 @@ import type {
 import type { TestCase, OutputState } from '@/types/editor.types'
 import { io, Socket } from 'socket.io-client'
 import './ExamChallengeDetail.scss'
-import { buildMockExam } from '@/mocks/exam.mock'
+// mocks removed: use real API only
+import { examService } from '@/services/api/exam.service'
 import { useTheme } from '@/contexts/useTheme'
 
 const DEFAULT_CODE = `
@@ -35,6 +38,7 @@ const ExamChallengeDetail: React.FC = () => {
     examId: string
     challengeId: string
   }>()
+  console.log('ExamChallengeDetail params:', { examId, challengeId })
   const navigate = useNavigate()
   const [exam, setExam] = useState<Exam | null>(null)
   const [problemData, setProblemData] = useState<
@@ -42,6 +46,9 @@ const ExamChallengeDetail: React.FC = () => {
   >(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
+  const [showTimeWarning, setShowTimeWarning] = useState(false)
+  const [isJoined, setIsJoined] = useState(false)
   const [activeTab, setActiveTab] = useState<'question' | 'submissions'>(
     'question'
   )
@@ -54,6 +61,13 @@ const ExamChallengeDetail: React.FC = () => {
   const [selectedTestCase, setSelectedTestCase] = useState<string>('1')
   const [showChallengeList, setShowChallengeList] = useState(false)
   const [problemPanelWidth, setProblemPanelWidth] = useState(60)
+  const dispatch = useDispatch()
+  const reduxParticipationId = useSelector(
+    (s: RootState) => s.exam?.currentParticipationId
+  )
+  const reduxStartAt = useSelector(
+    (s: RootState) => s.exam?.currentParticipationStartAt
+  )
   const splitPaneRef = useRef<HTMLDivElement | null>(null)
   const isDraggingSplitRef = useRef(false)
   const { theme, toggleTheme } = useTheme()
@@ -124,159 +138,78 @@ const ExamChallengeDetail: React.FC = () => {
   const resetSplit = () => setProblemPanelWidth(60)
 
   const pollTimerRef = useRef<number | null>(null)
+  const countdownRef = useRef<number | null>(null)
   const socketRef = useRef<Socket | null>(null)
   const socketTimeoutRef = useRef<number | null>(null)
   const isCompletedRef = useRef<boolean>(false)
 
+  // Helper: format seconds to HH:MM:SS
+  const formatSeconds = (s: number) => {
+    const h = Math.floor(s / 3600)
+    const m = Math.floor((s % 3600) / 60)
+    const sec = Math.floor(s % 60)
+    const hh = h > 0 ? String(h).padStart(2, '0') + ':' : ''
+    return `${hh}${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+  }
+
   useEffect(() => {
     const fetchData = async () => {
-      if (!challengeId) return
+      console.log('Fetching challenge data for:', { examId, challengeId })
+      if (!challengeId || !examId) return
 
       try {
         setLoading(true)
         setError(null)
 
-        // Fetch exam data (mock for now - in real app, fetch from API)
-        const mockExam: Exam = buildMockExam({
-          id: examId || 'exam-001',
-        })
-        setExam(mockExam)
-
-        // Helper function to create mock problem data
-        const createMockProblemData = () => {
-          // Create mock problem data based on challengeId
-          const currentChallenge =
-            mockExam.challenges.find(
-              (c: { id: string }) => c.id === challengeId
-            ) || mockExam.challenges[0]
-          const mockProblemData: ProblemDetailResponse['data'] = {
-            problem: {
-              id: challengeId || '1',
-              title: currentChallenge?.title || 'Two Sum',
-              description:
-                currentChallenge?.description ||
-                'Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.\n\nYou may assume that each input would have exactly one solution, and you may not use the same element twice.\n\nYou can return the answer in any order.',
-              difficulty:
-                (currentChallenge?.difficulty as 'easy' | 'medium' | 'hard') ||
-                'easy',
-              constraint:
-                '2 ≤ nums.length ≤ 10⁴\n-10⁹ ≤ nums[i] ≤ 10⁹\n-10⁹ ≤ target ≤ 10⁹\nOnly one valid answer exists.',
-              tags: [currentChallenge?.topic || 'Array'],
-              lessonId: '',
-              topicId: '',
-              totalPoints: currentChallenge?.totalPoints || 30,
-              isSolved: false,
-              isFavorite: false,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-            testcases: [
-              {
-                id: '1',
-                input: 'nums = [2,7,11,15], target = 9',
-                output: '[0,1]',
-                isPublic: true,
-                point: 10,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-              },
-              {
-                id: '2',
-                input: 'nums = [3,2,4], target = 6',
-                output: '[1,2]',
-                isPublic: true,
-                point: 10,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-              },
-              {
-                id: '3',
-                input: 'nums = [3,3], target = 6',
-                output: '[0,1]',
-                isPublic: false,
-                point: 10,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-              },
-            ],
-            solution: {
-              id: '1',
-              title: 'Solution',
-              description: 'Solutions will be available after exam completion.',
-              videoUrl: '',
-              imageUrl: '',
-              isVisible: false,
-              solutionApproaches: [],
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-          }
-          setProblemData(mockProblemData)
-          setCode(DEFAULT_CODE)
+        // Fetch exam basic info (to populate challenge list)
+        try {
+          const apiExam = await examService.getExamById(examId)
+          setExam(apiExam)
+        } catch (apiErr) {
+          console.error('Failed to fetch exam from API', apiErr)
+          setError('Failed to load exam')
+          return
         }
 
-        // Try to fetch challenge data from API
+        // Fetch challenge details from exam endpoint (lazy load per challenge)
         try {
-          const response = await challengeService.getChallengeById(challengeId)
-          if (response && response.success && response.data) {
-            setProblemData(response.data)
-            setCode(DEFAULT_CODE)
+          const response = await examService.getExamChallenge(
+            examId,
+            challengeId
+          )
+          console.log('Challenge response:', response)
+          if (response && response.data) {
+            const rawData = response.data
+            const formattedData = {
+              problem: {
+                id: rawData.id,
+                title: rawData.title,
+                description: rawData.description || rawData.content, // Đề phòng backend dùng tên field khác
+                difficulty: rawData.difficulty, // Chú ý: backend dùng 'difficult' hay 'difficulty'? Check lại model
+                topic: rawData.topic,
+                totalPoints: rawData.totalPoints,
+                constraint: rawData.constraint,
+                tags: rawData.tags || [],
+                orderIndex: rawData.orderIndex,
+                // Map thêm các trường khác của problem nếu cần
+              },
+              testcases: rawData.testcases || [],
+              solution: rawData.solution,
+            }
+            setProblemData(formattedData as ProblemDetailResponse['data']) // Cast as any hoặc sửa lại Type Definition cho đúng
+            setCode(rawData.initialCode || DEFAULT_CODE) // Nếu backend có trả về code mẫu
+            // Do NOT persist current challenge id to localStorage for privacy/security.
+            // Keep current challenge in Redux only to avoid leaking session identifiers.
           } else {
-            // Fallback to mock data if API response is invalid
-            console.warn('API response invalid, using mock data')
-            createMockProblemData()
+            console.error('Invalid challenge response')
+            setError('Failed to load challenge')
+            return
           }
         } catch (apiError) {
-          // Fallback to mock data if API fails
-          console.warn('API call failed, using mock data:', apiError)
-          createMockProblemData()
+          console.error('Failed to fetch challenge from API', apiError)
+          setError('Failed to load challenge')
+          return
         }
-      } catch (err) {
-        console.error('Error in fetchData:', err)
-        // Try to create mock data as last resort
-        // Note: exam might not be set yet, so we'll create minimal mock
-        const minimalMock: ProblemDetailResponse['data'] = {
-          problem: {
-            id: challengeId || '1',
-            title: 'Two Sum',
-            description:
-              'Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.',
-            difficulty: 'easy',
-            constraint: '2 ≤ nums.length ≤ 10⁴',
-            tags: ['Array'],
-            lessonId: '',
-            topicId: '',
-            totalPoints: 30,
-            isSolved: false,
-            isFavorite: false,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          testcases: [
-            {
-              id: '1',
-              input: 'nums = [2,7,11,15], target = 9',
-              output: '[0,1]',
-              isPublic: true,
-              point: 10,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-          ],
-          solution: {
-            id: '1',
-            title: 'Solution',
-            description: 'Solutions will be available after exam completion.',
-            videoUrl: '',
-            imageUrl: '',
-            isVisible: false,
-            solutionApproaches: [],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        }
-        setProblemData(minimalMock)
-        setCode(DEFAULT_CODE)
       } finally {
         setLoading(false)
       }
@@ -374,10 +307,14 @@ const ExamChallengeDetail: React.FC = () => {
     if (!problemData?.problem.id) return
     setOutput({ status: 'running', message: 'Running tests...' })
     try {
+      const participationIdToUse = reduxParticipationId || undefined
       const payload = {
         sourceCode: code,
         language: languageToApi(selectedLanguage),
         problemId: problemData.problem.id,
+        ...(participationIdToUse
+          ? { participationId: participationIdToUse }
+          : {}),
       }
       const data = await submissionsService.runCode(payload)
       const summary = data.data.summary
@@ -407,10 +344,14 @@ const ExamChallengeDetail: React.FC = () => {
     if (!problemData?.problem.id) return
     setOutput({ status: 'running', message: 'Submitting...' })
     try {
+      const participationIdToUse = reduxParticipationId || undefined
       const payload = {
         sourceCode: code,
         language: languageToApi(selectedLanguage),
         problemId: problemData.problem.id,
+        ...(participationIdToUse
+          ? { participationId: participationIdToUse }
+          : {}),
       }
       const create = await submissionsService.submitCode(payload)
       const submissionId = create.submissionId
@@ -578,15 +519,202 @@ const ExamChallengeDetail: React.FC = () => {
     setCode(DEFAULT_CODE)
   }
 
-  const handleSubmitExam = () => {
+  const handleSubmitExam = useCallback(async () => {
     if (
-      window.confirm(
+      !window.confirm(
         'Are you sure you want to submit the exam? This action cannot be undone.'
       )
     ) {
+      return
+    }
+
+    try {
+      const participationId = reduxParticipationId
+      if (examId && participationId) {
+        await examService.submitExam(examId, participationId)
+      }
+    } catch (e) {
+      console.warn('Failed to submit exam to API', e)
+    } finally {
       navigate(`/exam/${examId}/results`)
     }
-  }
+  }, [navigate, examId, reduxParticipationId])
+
+  // Initialize and manage countdown separately so hooks don't depend on `handleSubmitExam` definition order
+  useEffect(() => {
+    if (!exam) return
+
+    let cancelled = false
+
+    const init = async () => {
+      const participationId = reduxParticipationId
+      const startAtRaw = reduxStartAt
+      const totalSeconds = (exam.duration || 0) * 60
+
+      // Check if user joined. If Redux lacks participation, try server-backed resume.
+      if (!participationId) {
+        try {
+          if (examId) {
+            const myPartRes = await examService.getMyParticipation(examId)
+            const part = myPartRes?.data || myPartRes
+            const partId = part?.id || part?.participationId
+            const serverStart =
+              part?.startedAt ||
+              part?.startAt ||
+              part?.startTimestamp ||
+              part?.startedAtMs
+            if (partId) {
+              const startAtValue = serverStart ?? Date.now()
+              try {
+                dispatch(
+                  setParticipation({
+                    participationId: partId,
+                    startAt: startAtValue,
+                  })
+                )
+              } catch (e) {
+                console.warn(
+                  'Failed to dispatch recovered participation to redux',
+                  e
+                )
+              }
+              // proceed as joined
+            } else {
+              setIsJoined(false)
+              return
+            }
+          } else {
+            setIsJoined(false)
+            return
+          }
+        } catch {
+          // server recovery failed -> not joined
+          setIsJoined(false)
+          return
+        }
+      }
+
+      setIsJoined(true)
+
+      let startAtMs: number | null = null
+      if (startAtRaw) {
+        const asNumber = Number(startAtRaw)
+        if (!Number.isNaN(asNumber) && isFinite(asNumber)) {
+          startAtMs = asNumber
+        } else {
+          const parsed =
+            typeof startAtRaw === 'string'
+              ? Date.parse(startAtRaw)
+              : Number(startAtRaw)
+          if (!Number.isNaN(parsed)) startAtMs = parsed
+        }
+      } else {
+        // Try to recover session info from server if startAt missing
+        try {
+          if (examId && participationId) {
+            const partRes = await examService.getParticipation(
+              examId,
+              participationId
+            )
+            const partData = partRes?.data || partRes
+            const serverStart =
+              partData?.startedAt ||
+              partData?.startAt ||
+              partData?.startTimestamp ||
+              partData?.startedAtMs
+            if (serverStart) {
+              // persist recovered start into Redux and localStorage
+              try {
+                // ensure we pass null when undefined to match slice typing
+                dispatch(
+                  setParticipation({
+                    participationId: participationId ?? null,
+                    startAt: serverStart,
+                  })
+                )
+              } catch (err) {
+                console.warn(
+                  'Failed to dispatch recovered startAt to redux',
+                  err
+                )
+              }
+              // Do NOT persist recovered startAt to localStorage for privacy/security.
+              const asNumber = Number(serverStart)
+              if (!Number.isNaN(asNumber) && isFinite(asNumber)) {
+                startAtMs = asNumber
+              } else {
+                const parsed = Date.parse(serverStart)
+                if (!Number.isNaN(parsed)) startAtMs = parsed
+              }
+            }
+            // recover current challenge id if server provides
+            const serverCurrentChallenge =
+              partData?.currentChallengeId || partData?.currentChallenge
+            if (serverCurrentChallenge) {
+              // Do NOT persist recovered currentChallengeId to localStorage for privacy/security.
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to recover participation from server', e)
+        }
+      }
+
+      const elapsed = startAtMs
+        ? Math.floor((Date.now() - startAtMs) / 1000)
+        : 0
+      let remaining = Math.max(0, totalSeconds - elapsed)
+      if (cancelled) return
+      setTimeRemaining(remaining)
+
+      // Check for 5 minute warning
+      if (remaining === 5 * 60) {
+        setShowTimeWarning(true)
+        setTimeout(() => setShowTimeWarning(false), 5000)
+      }
+
+      // If time already up -> auto submit
+      if (remaining <= 0) {
+        handleSubmitExam()
+        return
+      }
+
+      // start interval
+      if (cancelled) return
+      countdownRef.current = window.setInterval(() => {
+        remaining -= 1
+        setTimeRemaining(remaining)
+        // Check for 5 minute warning
+        if (remaining === 5 * 60) {
+          setShowTimeWarning(true)
+          setTimeout(() => setShowTimeWarning(false), 5000)
+        }
+        if (remaining <= 0) {
+          if (countdownRef.current) {
+            window.clearInterval(countdownRef.current)
+            countdownRef.current = null
+          }
+          handleSubmitExam()
+        }
+      }, 1000)
+    }
+
+    init()
+
+    return () => {
+      cancelled = true
+      if (countdownRef.current) {
+        window.clearInterval(countdownRef.current)
+        countdownRef.current = null
+      }
+    }
+  }, [
+    exam,
+    examId,
+    handleSubmitExam,
+    dispatch,
+    reduxParticipationId,
+    reduxStartAt,
+  ])
 
   // Convert API test cases to the format expected by CodeEditorSection
   const testCases: TestCase[] =
@@ -610,6 +738,32 @@ const ExamChallengeDetail: React.FC = () => {
         <div className="text-center">
           <LoadingSpinner />
           <p className="mt-4">Loading challenge...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Guard: redirect if not joined
+  if (!isJoined) {
+    return (
+      <div
+        className="flex h-screen items-center justify-center"
+        style={{
+          backgroundColor: 'var(--background-color)',
+          color: 'var(--text-color)',
+        }}
+      >
+        <div className="text-center">
+          <p className="mb-4" style={{ color: '#f59e0b' }}>
+            You must join the exam first before accessing challenges.
+          </p>
+          <Button
+            onClick={() => navigate(`/exam/${examId}`)}
+            variant="secondary"
+            size="md"
+          >
+            Back to Exam
+          </Button>
         </div>
       </div>
     )
@@ -648,6 +802,25 @@ const ExamChallengeDetail: React.FC = () => {
         color: 'var(--text-color)',
       }}
     >
+      {/* 5-minute warning banner */}
+      {showTimeWarning && (
+        <div
+          className="border-b"
+          style={{
+            backgroundColor: 'rgba(251, 191, 36, 0.1)',
+            borderColor: 'rgba(251, 191, 36, 0.3)',
+          }}
+        >
+          <div
+            className="mx-auto flex max-w-full items-center gap-3 px-4 py-3 text-sm font-semibold"
+            style={{ color: '#f59e0b' }}
+          >
+            <Clock size={18} />
+            You have only 5 minutes remaining!
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header
         className="sticky top-0 z-30 border-b"
@@ -679,7 +852,12 @@ const ExamChallengeDetail: React.FC = () => {
             >
               <Clock size={16} style={{ color: 'var(--accent)' }} />
               <span className="text-sm" style={{ color: 'var(--muted-text)' }}>
-                Time remaining: --:--
+                Time remaining:{' '}
+                {timeRemaining !== null
+                  ? formatSeconds(timeRemaining)
+                  : exam
+                    ? formatSeconds((exam.duration || 0) * 60)
+                    : '00:00'}
               </span>
             </div>
             <button
@@ -784,9 +962,7 @@ const ExamChallengeDetail: React.FC = () => {
             onSelectChallenge={index => {
               const selectedChallenge = exam.challenges[index]
               if (selectedChallenge) {
-                navigate(
-                  `/exam/${examId}/challenge/${selectedChallenge.id}/preview`
-                )
+                navigate(`/exam/${examId}/challenge/${selectedChallenge.id}`)
                 setShowChallengeList(false)
               }
             }}

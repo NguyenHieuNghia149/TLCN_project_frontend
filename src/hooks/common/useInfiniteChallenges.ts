@@ -1,105 +1,123 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import type { Challenge, PaginatedResponse } from '@/types/challenge.types'
+import { useState, useEffect, useCallback } from 'react'
+import type { Challenge, Cursor } from '@/types/challenge.types'
 import { challengeService } from '@/services/api/challenge.service'
 
-// 🔁 Giả lập API call (fetch dữ liệu) dựa trên mockChallenges chia trang
-type BackendChallenge = {
-  id: string
-  title: string
-  description?: string
-  difficult?: string
-  difficulty?: string
-  topic?: string
-  createdAt?: string
-  isSolved?: boolean
-  isFavorite?: boolean
-  totalPoints?: number
-}
-
-async function fetchChallengesFromService(
-  topicId?: string,
-  tags?: string[]
-): Promise<Challenge[]> {
-  if (!topicId) return []
-  const data = await challengeService.getChallengesByTopicId(topicId, tags)
-  // data can be array or {items: [], nextCursor}
-  const items = Array.isArray(data)
-    ? (data as BackendChallenge[])
-    : (data as PaginatedResponse<Challenge>)?.items || []
-  return items.map((it: BackendChallenge) => {
-    const difficulty = (it.difficult || it.difficulty || 'easy')
-      .toString()
-      .toLowerCase()
-    const createdAt = it.createdAt || new Date().toISOString()
-    return {
-      id: it.id,
-      title: it.title,
-      description: it.description || '',
-      difficulty: difficulty as Challenge['difficulty'],
-      topic: it.topic || '',
-      createdAt,
-      totalPoints:
-        typeof it.totalPoints === 'number' ? it.totalPoints : undefined,
-      isSolved: Boolean(it.isSolved),
-      isFavorite: Boolean(it.isFavorite),
-    } as Challenge
-  })
-}
-
-// ⚙️ Custom Hook: useInfiniteChallenges
+/**
+ * Custom Hook: useInfiniteChallenges
+ * Implements cursor-based pagination for lazy loading challenges
+ */
 export const useInfiniteChallenges = (
-  limit = 6,
+  limit = 10,
   topicId?: string,
   tags?: string[]
 ) => {
   const [challenges, setChallenges] = useState<Challenge[]>([])
-  const [page, setPage] = useState<number>(1)
+  const [nextCursor, setNextCursor] = useState<Cursor | null>(null)
   const [hasMore, setHasMore] = useState<boolean>(true)
   const [loading, setLoading] = useState<boolean>(false)
-  const allChallengesRef = useRef<Challenge[]>([])
 
+  /**
+   * Load more challenges using cursor-based pagination
+   */
   const fetchMoreChallenges = useCallback(async () => {
-    if (loading || !hasMore) return
+    if (loading || !hasMore || !topicId) return
 
     setLoading(true)
     try {
-      const start = (page - 1) * limit
-      const end = start + limit
-      const nextSlice = allChallengesRef.current.slice(start, end)
-      setChallenges(prev => [...prev, ...nextSlice])
-      setHasMore(end < allChallengesRef.current.length)
-      setPage(prev => prev + 1)
+      const response = await challengeService.getChallengesByTopicId(
+        topicId,
+        limit,
+        nextCursor,
+        tags
+      )
+
+      // Map ChallengeItem to Challenge format
+      const mappedChallenges: Challenge[] = response.items.map(item => {
+        const difficulty = (item.difficult || 'easy')
+          .toString()
+          .toLowerCase() as Challenge['difficulty']
+
+        return {
+          id: item.id,
+          title: item.title,
+          description: item.description || '',
+          difficulty: difficulty,
+          topic: '', // Will be set from context if needed
+          createdAt: item.createdAt,
+          totalPoints: item.totalPoints,
+          isSolved: Boolean(item.isSolved),
+          isFavorite: Boolean(item.isFavorite),
+        }
+      })
+
+      // Append new items to existing challenges
+      setChallenges(prev => [...prev, ...mappedChallenges])
+
+      // Update cursor and hasMore state
+      setNextCursor(response.nextCursor)
+      setHasMore(response.nextCursor !== null)
     } catch (error) {
       console.error('Error fetching challenges:', error)
+      setHasMore(false) // Stop trying if there's an error
     } finally {
       setLoading(false)
     }
-  }, [page, limit, hasMore, loading])
+  }, [topicId, limit, nextCursor, tags, loading, hasMore])
 
+  /**
+   * Reset and load initial data when topicId or tags change
+   */
   useEffect(() => {
-    // reset when topicId changes
+    // Reset state when topicId or tags change
     setChallenges([])
-    setPage(1)
+    setNextCursor(null)
     setHasMore(true)
-    allChallengesRef.current = []
-    // kick first load
-    ;(async () => {
-      if (loading) return
-      setLoading(true)
-      try {
-        const all = await fetchChallengesFromService(topicId, tags)
-        allChallengesRef.current = all
-        const firstPage = all.slice(0, limit)
-        setChallenges(firstPage)
-        setHasMore(limit < all.length)
-        setPage(2)
-      } catch (error) {
-        console.error('Error fetching challenges:', error)
-      } finally {
-        setLoading(false)
+    setLoading(false)
+
+    // Load initial data
+    if (topicId) {
+      const loadInitial = async () => {
+        setLoading(true)
+        try {
+          const response = await challengeService.getChallengesByTopicId(
+            topicId,
+            limit,
+            null, // No cursor for initial load
+            tags
+          )
+
+          // Map ChallengeItem to Challenge format
+          const mappedChallenges: Challenge[] = response.items.map(item => {
+            const difficulty = (item.difficult || 'easy')
+              .toString()
+              .toLowerCase() as Challenge['difficulty']
+
+            return {
+              id: item.id,
+              title: item.title,
+              description: item.description || '',
+              difficulty: difficulty,
+              topic: '', // Will be set from context if needed
+              createdAt: item.createdAt,
+              totalPoints: item.totalPoints,
+              isSolved: Boolean(item.isSolved),
+              isFavorite: Boolean(item.isFavorite),
+            }
+          })
+
+          setChallenges(mappedChallenges)
+          setNextCursor(response.nextCursor)
+          setHasMore(response.nextCursor !== null)
+        } catch (error) {
+          console.error('Error fetching initial challenges:', error)
+          setHasMore(false)
+        } finally {
+          setLoading(false)
+        }
       }
-    })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+      loadInitial()
+    }
   }, [topicId, tags, limit])
 
   return { challenges, fetchMoreChallenges, hasMore, loading }

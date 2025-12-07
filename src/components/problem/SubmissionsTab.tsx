@@ -1,86 +1,53 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { useSelector } from 'react-redux'
+import type { RootState } from '@/store/stores'
 import { Eye, AlertTriangle, Copy } from 'lucide-react'
 import MonacoEditorWrapper from '@/components/editor/MonacoEditorWrapper'
 import { submissionsService } from '@/services/api/submissions.service'
 import type { SubmissionDetail } from '@/types/submission.types'
 
-interface SubmissionsTabProps {
+export interface SubmissionsTabProps {
   problemId: string
+  participationId?: string | null
 }
 
-type UiStatus = 'accepted' | 'wrong' | 'runtime' | 'timeout' | 'compilation'
-
-const getStatusColor = (status: UiStatus) => {
-  switch (status) {
-    case 'accepted':
-      return 'text-green-400'
-    case 'wrong':
-      return 'text-red-400'
-    case 'runtime':
-      return 'text-orange-400'
-    case 'timeout':
-      return 'text-yellow-400'
-    case 'compilation':
-      return 'text-red-300'
-    default:
-      return 'text-gray-400'
-  }
+const toUiStatus = (s: string | undefined) => {
+  if (!s) return 'unknown'
+  if (s === 'ACCEPTED' || s === 'accepted') return 'accepted'
+  if (s === 'WRONG_ANSWER' || s === 'wrong') return 'wrong'
+  if (s === 'RUNTIME_ERROR' || s === 'runtime') return 'runtime'
+  if (s === 'TIME_LIMIT_EXCEEDED' || s === 'timeout') return 'timeout'
+  return 'unknown'
 }
 
-const getStatusBgColor = (status: UiStatus) => {
-  switch (status) {
-    case 'accepted':
-      return 'bg-green-900/20 hover:bg-green-900/30'
-    case 'wrong':
-      return 'bg-red-900/20 hover:bg-red-900/30'
-    case 'runtime':
-      return 'bg-orange-900/20 hover:bg-orange-900/30'
-    case 'timeout':
-      return 'bg-yellow-900/20 hover:bg-yellow-900/30'
-    case 'compilation':
-      return 'bg-red-900/20 hover:bg-red-900/30'
-    default:
-      return 'bg-gray-800 hover:bg-gray-700'
-  }
+const getStatusLabel = (s: string) => {
+  if (s === 'accepted') return 'Accepted'
+  if (s === 'wrong') return 'Wrong Answer'
+  if (s === 'runtime') return 'Runtime Error'
+  if (s === 'timeout') return 'Time Limit'
+  return 'Unknown'
 }
 
-const getStatusLabel = (status: UiStatus) => {
-  switch (status) {
-    case 'accepted':
-      return 'Accepted'
-    case 'wrong':
-      return 'Wrong Answer'
-    case 'runtime':
-      return 'Runtime Error'
-    case 'timeout':
-      return 'Time Limit Exceeded'
-    case 'compilation':
-      return 'Compilation Error'
-    default:
-      return 'Unknown'
-  }
+const getStatusColor = (s: string) => {
+  if (s === 'accepted') return 'text-green-400'
+  if (s === 'wrong') return 'text-red-400'
+  if (s === 'runtime') return 'text-orange-400'
+  if (s === 'timeout') return 'text-yellow-400'
+  return 'text-gray-300'
 }
 
-function toUiStatus(apiStatus: string): UiStatus {
-  switch (apiStatus) {
-    case 'accepted':
-      return 'accepted'
-    case 'wrong_answer':
-      return 'wrong'
-    case 'runtime_error':
-      return 'runtime'
-    case 'time_limit_exceeded':
-      return 'timeout'
-    case 'compilation_error':
-      return 'compilation'
-    default:
-      return 'runtime'
-  }
+const getStatusBgColor = (s: string) => {
+  if (s === 'accepted') return 'bg-gray-950'
+  return 'bg-transparent'
 }
 
-export const SubmissionsTab: React.FC<SubmissionsTabProps> = ({
+const SubmissionsTab: React.FC<SubmissionsTabProps> = ({
   problemId,
+  participationId,
 }) => {
+  const reduxParticipation = useSelector(
+    (s: RootState) => s.exam?.currentParticipationId
+  )
   const [submissions, setSubmissions] = useState<SubmissionDetail[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -97,14 +64,15 @@ export const SubmissionsTab: React.FC<SubmissionsTabProps> = ({
     ;(async () => {
       try {
         setLoading(true)
-        const { submissions } = await submissionsService.getProblemSubmissions(
-          problemId,
-          {
-            limit: 10,
-            offset: 0,
-          }
-        )
-        if (mounted) setSubmissions(submissions)
+        const participationIdToUse: string | undefined =
+          participationId || reduxParticipation || undefined
+
+        const res = await submissionsService.getProblemSubmissions(problemId, {
+          limit: 10,
+          offset: 0,
+          participationId: participationIdToUse,
+        })
+        if (mounted) setSubmissions(res.submissions)
       } catch (e) {
         if (mounted)
           setError(
@@ -117,9 +85,8 @@ export const SubmissionsTab: React.FC<SubmissionsTabProps> = ({
     return () => {
       mounted = false
     }
-  }, [problemId])
+  }, [problemId, reduxParticipation, participationId])
 
-  // Load single submission detail (to retrieve source code if backend provides it)
   useEffect(() => {
     let mounted = true
     if (!viewingSubmissionId) {
@@ -354,24 +321,16 @@ export const SubmissionsTab: React.FC<SubmissionsTabProps> = ({
                     <div style={{ height: 800 }}>
                       <MonacoEditorWrapper
                         value={
-                          (
-                            viewingDetail as unknown as {
-                              sourceCode?: string
-                              code?: string
-                            } | null
-                          )?.sourceCode ||
-                          (
-                            viewingDetail as unknown as {
-                              sourceCode?: string
-                              code?: string
-                            } | null
-                          )?.code ||
-                          '(source code not available)'
+                          (viewingDetail as unknown as { sourceCode?: string })
+                            ?.sourceCode || ''
                         }
                         onChange={() => {}}
-                        language={(sub?.language || 'cpp').toLowerCase()}
+                        language={(
+                          viewingDetail?.language || 'cpp'
+                        ).toLowerCase()}
                         readOnly={true}
-                        height="100%"
+                        height={800}
+                        editorTheme="vs-dark"
                       />
                     </div>
                   </div>

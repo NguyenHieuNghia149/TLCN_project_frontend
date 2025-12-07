@@ -4,7 +4,7 @@ export interface Challenge {
   description: string
   difficulty: 'easy' | 'medium' | 'hard'
   topic: string
-  createdAt: string
+  createdAt?: string
   updatedAt?: string
   totalPoints?: number
   isSolved?: boolean
@@ -54,13 +54,13 @@ export interface Problem {
   difficulty: 'easy' | 'medium' | 'hard'
   constraint: string
   tags: string[]
-  lessonId: string
-  topicId: string
+  lessonId?: string
+  topicId?: string
   totalPoints: number
-  isSolved: boolean
-  isFavorite: boolean
-  createdAt: string
-  updatedAt: string
+  isSolved?: boolean
+  isFavorite?: boolean
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface ProblemDetailResponse {
@@ -72,13 +72,24 @@ export interface ProblemDetailResponse {
   }
 }
 
-// For challenge listing service
+// For challenge listing service - cursor-based pagination
+export interface Cursor {
+  createdAt: string
+  id: string
+}
+
 export interface PaginatedResponse<T> {
   items: T[]
-  nextCursor: string | null
+  nextCursor: Cursor | null
 }
 
 export interface ChallengeItem {
   id: string
   title: string
+  description: string | null
+  difficult: string
+  createdAt: string
+  totalPoints: number
+  isSolved: boolean
+  isFavorite: boolean
 }

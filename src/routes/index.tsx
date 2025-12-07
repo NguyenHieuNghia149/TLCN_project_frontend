@@ -183,7 +183,7 @@ export const router = createBrowserRouter([
     ),
   },
   {
-    path: 'exam/:examId/challenge/:challengeId',
+    path: 'exam/:examId/challenge/:challengeId/preview',
     element: (
       <ProtectedRoute>
         <StudentExam />
@@ -191,7 +191,7 @@ export const router = createBrowserRouter([
     ),
   },
   {
-    path: 'exam/:examId/challenge/:challengeId/preview',
+    path: 'exam/:examId/challenge/:challengeId/',
     element: (
       <ProtectedRoute>
         <ExamChallengeDetail />
