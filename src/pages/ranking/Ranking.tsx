@@ -1,16 +1,17 @@
 import React, { useState } from 'react'
 import { FiTrendingUp, FiTrendingDown, FiMinus } from 'react-icons/fi'
 import { MdEmojiEvents } from 'react-icons/md'
-import { useLeaderboard } from '../../hooks/api/useLeaderboard'
+import { useRanking } from '../../hooks/api/useRanking'
 import { useAuth } from '../../hooks/api/useAuth'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
+import UserRankCard from '../../components/ranking/UserRankCard'
 import './ranking.css'
 
 const Ranking: React.FC = () => {
   const [page, setPage] = useState(1)
   const [limit] = useState(20)
 
-  const { ranking, loading, error, pagination } = useLeaderboard({
+  const { ranking, loading, error, pagination } = useRanking({
     page,
     limit,
   })
@@ -78,6 +79,9 @@ const Ranking: React.FC = () => {
             Compete with the best and climb the rankings
           </p>
         </div>
+
+        {/* User's Ranking Section */}
+        <UserRankCard />
 
         <div className="ranking-stats">
           <div className="stat-card">

@@ -1,0 +1,259 @@
+/* User Rank Card Styles */
+.user-rank-card {
+  background: rgba(17, 24, 39, 0.8);
+  border: 2px solid rgba(251, 191, 36, 0.3);
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 3rem;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.user-rank-card:hover {
+  border-color: rgba(251, 191, 36, 0.6);
+  box-shadow: 0 15px 40px rgba(251, 191, 36, 0.15);
+  transform: translateY(-2px);
+}
+
+.user-rank-header {
+  margin-bottom: 1.5rem;
+}
+
+.user-rank-header h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fbbf24;
+  margin: 0;
+}
+
+.user-rank-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  align-items: center;
+}
+
+.user-rank-main {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.user-rank-badge {
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(31, 41, 55, 0.8);
+  border: 2px solid rgba(251, 191, 36, 0.5);
+  border-radius: 16px;
+  flex-shrink: 0;
+}
+
+.rank-icon-lg {
+  font-size: 3.5rem;
+}
+
+.rank-icon-lg.gold {
+  color: #fbbf24;
+  filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.6));
+}
+
+.rank-icon-lg.silver {
+  color: #d1d5db;
+  filter: drop-shadow(0 0 10px rgba(209, 213, 219, 0.4));
+}
+
+.rank-icon-lg.bronze {
+  color: #d97706;
+  filter: drop-shadow(0 0 10px rgba(217, 119, 6, 0.4));
+}
+
+.rank-number-lg {
+  font-size: 3rem;
+  font-weight: 800;
+  color: #fbbf24;
+}
+
+.user-rank-details {
+  flex: 1;
+}
+
+.user-rank-name {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 0.5rem;
+}
+
+.user-rank-position {
+  font-size: 1.125rem;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.user-rank-position .rank-number {
+  color: #fbbf24;
+  font-weight: 700;
+  font-size: 1.5rem;
+}
+
+.user-rank-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 1rem;
+  background: rgba(31, 41, 55, 0.6);
+  border-radius: 12px;
+  border: 1px solid rgba(55, 65, 81, 0.3);
+  transition: all 0.2s ease;
+}
+
+.stat-item:hover {
+  border-color: rgba(251, 191, 36, 0.4);
+  background: rgba(31, 41, 55, 0.8);
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #fbbf24;
+}
+
+.stat-value.trend-display {
+  font-size: 2rem;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.trend-icon-lg {
+  font-size: 2rem;
+}
+
+.trend-icon-lg.up {
+  color: #10b981;
+  animation: trendPulse 2s ease-in-out infinite;
+}
+
+.trend-icon-lg.down {
+  color: #ef4444;
+  animation: trendPulse 2s ease-in-out infinite;
+}
+
+.trend-icon-lg.neutral {
+  color: #9ca3af;
+}
+
+@keyframes trendPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.user-rank-empty {
+  text-align: center;
+  padding: 2rem;
+  color: #9ca3af;
+  font-size: 1rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .user-rank-content {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .user-rank-badge {
+    width: 100px;
+    height: 100px;
+  }
+
+  .rank-icon-lg {
+    font-size: 3rem;
+  }
+
+  .rank-number-lg {
+    font-size: 2.5rem;
+  }
+
+  .user-rank-name {
+    font-size: 1.5rem;
+  }
+
+  .user-rank-stats {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+
+  .stat-item {
+    padding: 0.75rem;
+  }
+
+  .stat-value {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .user-rank-card {
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .user-rank-main {
+    gap: 1rem;
+  }
+
+  .user-rank-badge {
+    width: 80px;
+    height: 80px;
+  }
+
+  .rank-icon-lg {
+    font-size: 2.5rem;
+  }
+
+  .rank-number-lg {
+    font-size: 2rem;
+  }
+
+  .user-rank-name {
+    font-size: 1.25rem;
+  }
+
+  .user-rank-position {
+    font-size: 1rem;
+  }
+
+  .user-rank-stats {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .stat-value {
+    font-size: 1.25rem;
+  }
+}
