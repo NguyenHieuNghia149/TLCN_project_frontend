@@ -1,16 +1,24 @@
 import { useState, useEffect, useMemo } from 'react'
-import { rankingAPI } from '../../services/api/ranking.service'
+import { API_CONFIG } from '@/config/api.config'
 import { RankingFilters, RankingUser } from '@/types/ranking.types'
+import { useAuth } from './useAuth'
+
+export interface UserRankData extends RankingUser {
+  percentile: number
+}
 
 export const useRanking = (filters: RankingFilters = {}) => {
+  const { user: currentUser } = useAuth()
   const [ranking, setRanking] = useState<RankingUser[]>([])
+  const [userRank, setUserRank] = useState<UserRankData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [pagination] = useState({
+  const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
     total: 0,
     totalPages: 0,
+    hasNextPage: false,
   })
 
   const serializedFilters = useMemo(
@@ -24,137 +32,109 @@ export const useRanking = (filters: RankingFilters = {}) => {
         setLoading(true)
         setError(null)
 
-        // For now, we'll use mock data if the API doesn't exist
-        // In production, this would call the actual API
-        const mockRanking: RankingUser[] = [
-          {
-            id: '1',
-            rank: 1,
-            firstName: 'Alice',
-            lastName: 'Johnson',
-            email: 'alice@example.com',
-            avatar: null,
-            acceptedProblems: 45,
-            totalSubmissions: 120,
-            successRate: 87.5,
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: '2',
-            rank: 2,
-            firstName: 'Bob',
-            lastName: 'Smith',
-            email: 'bob@example.com',
-            avatar: null,
-            acceptedProblems: 38,
-            totalSubmissions: 95,
-            successRate: 80.0,
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: '3',
-            rank: 3,
-            firstName: 'Charlie',
-            lastName: 'Brown',
-            email: 'charlie@example.com',
-            avatar: null,
-            acceptedProblems: 32,
-            totalSubmissions: 88,
-            successRate: 75.5,
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: '4',
-            rank: 4,
-            firstName: 'Diana',
-            lastName: 'Martinez',
-            email: 'diana@example.com',
-            avatar: null,
-            acceptedProblems: 28,
-            totalSubmissions: 75,
-            successRate: 72.0,
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: '5',
-            rank: 5,
-            firstName: 'Eve',
-            lastName: 'Davis',
-            email: 'eve@example.com',
-            avatar: null,
-            acceptedProblems: 25,
-            totalSubmissions: 68,
-            successRate: 68.5,
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: '6',
-            rank: 6,
-            firstName: 'Frank',
-            lastName: 'Wilson',
-            email: 'frank@example.com',
-            avatar: null,
-            acceptedProblems: 22,
-            totalSubmissions: 62,
-            successRate: 65.0,
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: '7',
-            rank: 7,
-            firstName: 'Grace',
-            lastName: 'Miller',
-            email: 'grace@example.com',
-            avatar: null,
-            acceptedProblems: 18,
-            totalSubmissions: 55,
-            successRate: 62.5,
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: '8',
-            rank: 8,
-            firstName: 'Henry',
-            lastName: 'Anderson',
-            email: 'henry@example.com',
-            avatar: null,
-            acceptedProblems: 15,
-            totalSubmissions: 48,
-            successRate: 60.0,
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: '9',
-            rank: 9,
-            firstName: 'Ivy',
-            lastName: 'Taylor',
-            email: 'ivy@example.com',
-            avatar: null,
-            acceptedProblems: 12,
-            totalSubmissions: 42,
-            successRate: 57.5,
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: '10',
-            rank: 10,
-            firstName: 'Jack',
-            lastName: 'Thomas',
-            email: 'jack@example.com',
-            avatar: null,
-            acceptedProblems: 10,
-            totalSubmissions: 38,
-            successRate: 55.0,
-            createdAt: new Date().toISOString(),
-          },
-        ]
+        // Fetch user rank if logged in
+        if (currentUser?.id) {
+          try {
+            const url = `${API_CONFIG.baseURL}/leaderboard/user/${currentUser.id}`
+            const response = await fetch(url, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              credentials: 'include',
+            })
 
-        // Try to fetch from API, but fall back to mock data if it fails
-        try {
-          const response = await rankingAPI.getRanking(filters)
-          setRanking(response.data)
-        } catch {
-          setRanking(mockRanking)
+            if (response.ok) {
+              const data = await response.json()
+              if (data.success && data.data) {
+                const entry = data.data
+                const rankData: UserRankData = {
+                  id: entry.id,
+                  rank:
+                    typeof entry.rank === 'string'
+                      ? parseInt(entry.rank, 10)
+                      : entry.rank,
+                  firstName: entry.firstName || '',
+                  lastName: entry.lastName || '',
+                  email: entry.email,
+                  avatar: entry.avatar || null,
+                  acceptedProblems: entry.submissionCount,
+                  totalSubmissions: entry.submissionCount,
+                  successRate: 0,
+                  rankingPoint: entry.rankingPoint,
+                  createdAt: entry.createdAt || new Date().toISOString(),
+                  percentile: entry.percentile || 0,
+                }
+                setUserRank(rankData)
+              }
+            }
+          } catch {
+            // Silently fail if user rank fetch fails
+          }
+        }
+
+        // Fetch leaderboard ranking
+        const params = new URLSearchParams()
+        if (filters.page) params.append('page', filters.page.toString())
+        if (filters.limit)
+          params.append('limit', (filters.limit || 20).toString())
+        if (filters.search) params.append('search', filters.search)
+
+        const url = `${API_CONFIG.baseURL}/leaderboard?${params.toString()}`
+
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch ranking: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+
+        if (data.success && data.data) {
+          interface LeaderboardEntry {
+            id: string
+            rank: number | string
+            firstName: string
+            lastName: string
+            email: string
+            avatar: string | null
+            submissionCount: number
+            rankingPoint: number
+          }
+
+          const entries = data.data.entries.map(
+            (entry: LeaderboardEntry): RankingUser => ({
+              id: entry.id,
+              rank:
+                typeof entry.rank === 'string'
+                  ? parseInt(entry.rank, 10)
+                  : entry.rank,
+              firstName: entry.firstName || '',
+              lastName: entry.lastName || '',
+              email: entry.email,
+              avatar: entry.avatar || null,
+              acceptedProblems: entry.submissionCount,
+              totalSubmissions: entry.submissionCount,
+              successRate: 0,
+              rankingPoint: entry.rankingPoint,
+              createdAt: new Date().toISOString(),
+            })
+          )
+
+          setRanking(entries)
+          setPagination({
+            page: data.data.page,
+            limit: data.data.limit,
+            total: data.data.total,
+            totalPages: data.data.totalPages,
+            hasNextPage: data.data.hasNextPage,
+          })
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch ranking')
@@ -162,14 +142,80 @@ export const useRanking = (filters: RankingFilters = {}) => {
         setLoading(false)
       }
     }
+
     fetchRanking()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serializedFilters])
+  }, [
+    serializedFilters,
+    filters.page,
+    filters.limit,
+    filters.search,
+    currentUser?.id,
+  ])
 
   const refetch = async () => {
     try {
-      const response = await rankingAPI.getRanking(filters)
-      setRanking(response.data)
+      const params = new URLSearchParams()
+      if (filters.page) params.append('page', filters.page.toString())
+      if (filters.limit)
+        params.append('limit', (filters.limit || 20).toString())
+      if (filters.search) params.append('search', filters.search)
+
+      const url = `${API_CONFIG.baseURL}/leaderboard?${params.toString()}`
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ranking: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+
+      if (data.success && data.data) {
+        interface LeaderboardEntry {
+          id: string
+          rank: number | string
+          firstName: string
+          lastName: string
+          email: string
+          avatar: string | null
+          submissionCount: number
+          rankingPoint: number
+        }
+
+        const entries = data.data.entries.map(
+          (entry: LeaderboardEntry): RankingUser => ({
+            id: entry.id,
+            rank:
+              typeof entry.rank === 'string'
+                ? parseInt(entry.rank, 10)
+                : entry.rank,
+            firstName: entry.firstName || '',
+            lastName: entry.lastName || '',
+            email: entry.email,
+            avatar: entry.avatar || null,
+            acceptedProblems: entry.submissionCount,
+            totalSubmissions: entry.submissionCount,
+            successRate: 0,
+            rankingPoint: entry.rankingPoint,
+            createdAt: new Date().toISOString(),
+          })
+        )
+
+        setRanking(entries)
+        setPagination({
+          page: data.data.page,
+          limit: data.data.limit,
+          total: data.data.total,
+          totalPages: data.data.totalPages,
+          hasNextPage: data.data.hasNextPage,
+        })
+      }
     } catch {
       // Keep existing ranking on refetch error
     }
@@ -177,6 +223,7 @@ export const useRanking = (filters: RankingFilters = {}) => {
 
   return {
     ranking,
+    userRank,
     loading,
     error,
     pagination,
