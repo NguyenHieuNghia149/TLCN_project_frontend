@@ -9,6 +9,7 @@ export interface Challenge {
   totalPoints?: number
   isSolved?: boolean
   isFavorite?: boolean
+  obtainedPoints?: number
 }
 
 export interface TestCase {
