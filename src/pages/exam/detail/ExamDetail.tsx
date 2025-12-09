@@ -12,6 +12,7 @@ import { examService } from '@/services/api/exam.service'
 import { setParticipation } from '@/store/slices/examSlice'
 import { canManageExam } from '@/utils/roleUtils'
 import './ExamDetail.scss'
+import useExamTimer from '@/hooks/useExamTimer'
 
 const ExamDetail: React.FC = () => {
   const { examId } = useParams<{ examId: string }>()
@@ -24,10 +25,6 @@ const ExamDetail: React.FC = () => {
   const [passwordError, setPasswordError] = useState('')
   const [isVerified, setIsVerified] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [resumeAvailable, setResumeAvailable] = useState(false)
-  const [resumeChallengeId, setResumeChallengeId] = useState<string | null>(
-    null
-  )
 
   const dispatch = useDispatch()
   const reduxParticipationId = useSelector(
@@ -36,6 +33,31 @@ const ExamDetail: React.FC = () => {
   const reduxStartAt = useSelector(
     (s: RootState) => s.exam?.currentParticipationStartAt
   )
+  type ExamSliceState = {
+    currentParticipationExpiresAt?: number | string | null
+  }
+  const reduxExpiresAt = useSelector(
+    (s: RootState) =>
+      (s.exam as unknown as ExamSliceState)?.currentParticipationExpiresAt
+  )
+  const reduxCurrentChallengeId = useSelector(
+    (s: RootState) => s.exam?.currentParticipationChallengeId
+  )
+
+  const { remaining: remainingSeconds } = useExamTimer({
+    startAt: reduxStartAt,
+    expiresAt: reduxExpiresAt,
+    durationMinutes: exam?.duration ?? 0,
+    enabled: Boolean(reduxParticipationId || reduxStartAt || reduxExpiresAt),
+  })
+
+  const resumeAvailable = Boolean(reduxParticipationId && remainingSeconds > 0)
+
+  useEffect(() => {
+    console.log(
+      `[ExamDetail] Resume state - participationId=${reduxParticipationId}, remainingSeconds=${remainingSeconds}, resumeAvailable=${resumeAvailable}`
+    )
+  }, [reduxParticipationId, remainingSeconds, resumeAvailable])
 
   useEffect(() => {
     const fetchExam = async () => {
@@ -46,91 +68,97 @@ const ExamDetail: React.FC = () => {
             const apiExam = await examService.getExamById(examId)
 
             setExam(apiExam)
-            // Attempt to recover an active participation when Redux doesn't have it.
-            try {
-              const participationId = reduxParticipationId
-              const startAtRaw = reduxStartAt
 
-              // If Redux already contains participation info, prefer it (no client storage).
-              if (participationId && startAtRaw) {
-                // calculate remaining
-                const asNumber = Number(startAtRaw)
-                let startAtMs: number | null = null
-                if (!Number.isNaN(asNumber) && isFinite(asNumber)) {
-                  startAtMs = asNumber
-                } else {
-                  const parsed = Date.parse(String(startAtRaw))
-                  if (!Number.isNaN(parsed)) startAtMs = parsed
-                }
-                if (startAtMs) {
-                  const totalSeconds = (apiExam.duration || 0) * 60
-                  const elapsed = Math.floor((Date.now() - startAtMs) / 1000)
-                  const remaining = Math.max(0, totalSeconds - elapsed)
-                  if (remaining > 0) {
-                    setResumeAvailable(true)
-                    setResumeChallengeId(apiExam.challenges?.[0]?.id ?? null)
+            // Always attempt to recover active participation from server
+            // (Redux is in-memory only, so it's cleared on page reload/navigation)
+            try {
+              console.log(
+                `[ExamDetail] Attempting to recover participation for exam ${examId}...`
+              )
+              const myPartRes = await examService.getMyParticipation(apiExam.id)
+              console.log(
+                '[ExamDetail] getMyParticipation response:',
+                myPartRes
+              )
+
+              const part = myPartRes?.data || myPartRes
+              console.log('[ExamDetail] Parsed participation object:', part)
+
+              const partId = part?.id || part?.participationId
+              const serverStart =
+                part?.startedAt ||
+                part?.startAt ||
+                part?.startTimestamp ||
+                part?.startedAtMs
+              const serverExpires =
+                part?.expiresAt || part?.expires_at || part?.expires
+
+              console.log(
+                `[ExamDetail] Extracted: partId=${partId}, start=${serverStart}, expires=${serverExpires}`
+              )
+
+              if (partId) {
+                console.log(
+                  `[ExamDetail] Recovered participation ${partId} from server`
+                )
+                // Dispatch into Redux (do not persist to any client storage)
+                const startAtValue = serverStart ?? Date.now()
+                console.log(
+                  `[ExamDetail] Dispatching to Redux: participationId=${partId}, startAt=${startAtValue}, expiresAt=${serverExpires}`
+                )
+
+                try {
+                  // Attempt to fetch full participation details to determine current challenge for resume.
+                  let currentChallengeId: string | null = null
+                  try {
+                    const partDetailsRes = await examService.getParticipation(
+                      apiExam.id,
+                      partId
+                    )
+                    const details = partDetailsRes?.data || partDetailsRes
+                    currentChallengeId =
+                      details?.currentChallengeId ||
+                      details?.currentChallenge ||
+                      null
+                    console.log(
+                      '[ExamDetail] Recovered participation details:',
+                      details
+                    )
+                  } catch (detailErr) {
+                    console.warn(
+                      'Failed to fetch participation details for resume:',
+                      detailErr
+                    )
                   }
+                  dispatch(
+                    setParticipation({
+                      participationId: partId,
+                      startAt: startAtValue,
+                      expiresAt: serverExpires ?? null,
+                      currentChallengeId,
+                    })
+                  )
+                  // If we recovered a participation, user is already verified (they're continuing an exam)
+                  setIsVerified(true)
+                  console.log(
+                    `[ExamDetail] Participation recovered and verified. Show challenges or "Continue Exam" button.`
+                  )
+                } catch (e) {
+                  console.warn(
+                    'Failed to dispatch recovered participation to redux',
+                    e
+                  )
                 }
               } else {
-                // No Redux participation — ask the server for "my" participation for this exam
-                try {
-                  const myPartRes = await examService.getMyParticipation(
-                    apiExam.id
-                  )
-                  const part = myPartRes?.data || myPartRes
-                  const partId = part?.id || part?.participationId
-                  const serverStart =
-                    part?.startedAt ||
-                    part?.startAt ||
-                    part?.startTimestamp ||
-                    part?.startedAtMs
-
-                  if (partId) {
-                    // Dispatch into Redux (do not persist to any client storage)
-                    const startAtValue = serverStart ?? Date.now()
-                    try {
-                      dispatch(
-                        setParticipation({
-                          participationId: partId,
-                          startAt: startAtValue,
-                        })
-                      )
-                    } catch (e) {
-                      console.warn(
-                        'Failed to dispatch recovered participation to redux',
-                        e
-                      )
-                    }
-
-                    // compute remaining time and mark resume available if still active
-                    let startAtMs: number | null = null
-                    const asNumber = Number(startAtValue)
-                    if (!Number.isNaN(asNumber) && isFinite(asNumber)) {
-                      startAtMs = asNumber
-                    } else {
-                      const parsed = Date.parse(String(startAtValue))
-                      if (!Number.isNaN(parsed)) startAtMs = parsed
-                    }
-                    if (startAtMs) {
-                      const totalSeconds = (apiExam.duration || 0) * 60
-                      const elapsed = Math.floor(
-                        (Date.now() - startAtMs) / 1000
-                      )
-                      const remaining = Math.max(0, totalSeconds - elapsed)
-                      if (remaining > 0) {
-                        setResumeAvailable(true)
-                        setResumeChallengeId(
-                          apiExam.challenges?.[0]?.id ?? null
-                        )
-                      }
-                    }
-                  }
-                } catch {
-                  // ignore server recovery failure — user will need to join manually
-                }
+                console.log(
+                  `[ExamDetail] No active participation found on server - user must join`
+                )
+                setIsVerified(false)
               }
-            } catch {
-              // ignore resume checks
+            } catch (err) {
+              // ignore server recovery failure — user will need to join manually
+              console.warn('Failed to recover participation from server:', err)
+              setIsVerified(false)
             }
           } catch (apiErr) {
             console.error('Failed to load exam from API', apiErr)
@@ -145,7 +173,11 @@ const ExamDetail: React.FC = () => {
     }
 
     fetchExam()
-  }, [examId, reduxParticipationId, reduxStartAt, dispatch])
+    // Key: Include examId so recovery happens when we return to this exam
+    // Include reduxParticipationId so we don't re-fetch if already recovered
+    // dispatch from Redux is stable, safe to omit from dependencies
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [examId, reduxParticipationId])
 
   const formatDate = (dateString: string) =>
     new Date(dateString).toLocaleDateString('en-US', {
@@ -174,6 +206,8 @@ const ExamDetail: React.FC = () => {
       // Prefer server-provided start time if available, else use local Date.now()
       const startAtRaw =
         res?.data?.startAt || res?.data?.startTimestamp || res?.data?.startedAt
+      const expiresAtRaw =
+        res?.data?.expiresAt || res?.data?.expires_at || res?.expiresAt
       let startAtValue: number | string = Date.now()
       if (startAtRaw) {
         // If server returns ISO string, store as-is (we'll parse later), if number store as number
@@ -189,7 +223,13 @@ const ExamDetail: React.FC = () => {
       if (participationId) {
         // store in redux first
         try {
-          dispatch(setParticipation({ participationId, startAt: startAtValue }))
+          dispatch(
+            setParticipation({
+              participationId,
+              startAt: startAtValue,
+              expiresAt: expiresAtRaw ?? null,
+            })
+          )
         } catch (e) {
           console.warn('Failed to dispatch participation to redux', e)
         }
@@ -298,15 +338,6 @@ const ExamDetail: React.FC = () => {
               Instructor stats
             </Button>
           )}
-          {/* {resumeAvailable && resumeChallengeId && (
-            <Button
-              onClick={() => navigate(`/exam/${exam.id}/challenge/${resumeChallengeId}`)}
-              variant="primary"
-              size="sm"
-            >
-              Resume exam
-            </Button>
-          )} */}
         </div>
 
         <section className="card p-6">
@@ -363,186 +394,92 @@ const ExamDetail: React.FC = () => {
                 Challenges overview
               </h2>
             </div>
-            {/* {isActive && !isVerified && (
-              <Button onClick={handleStartExam} variant="primary">
-                Unlock exam
-              </Button>
-            )} */}
           </div>
 
-          {isActive && !isVerified ? (
+          {/* Top-level Continue button removed — we'll show a single Continue in the center */}
+          {!isVerified ? (
+            // If user has a resumed session available, show a Continue CTA instead of password verify
+            reduxParticipationId && remainingSeconds > 0 ? (
+              <div
+                className="mt-6 flex flex-col items-center justify-center rounded-md border-dashed p-6 text-center"
+                style={{ borderColor: 'var(--surface-border)' }}
+              >
+                <Lock size={36} style={{ color: '#10b981' }} />
+                <h3
+                  className="mt-4 text-lg font-semibold"
+                  style={{ color: 'var(--text-color)' }}
+                >
+                  Resume your session
+                </h3>
+                <p className="muted mt-2 text-sm">
+                  You have an active session. Continue where you left off.
+                </p>
+                <Button
+                  onClick={() => {
+                    const continueChallengeId =
+                      reduxCurrentChallengeId || exam?.challenges?.[0]?.id
+                    if (!continueChallengeId) return
+                    navigate(
+                      `/exam/${exam?.id}/challenge/${continueChallengeId}`
+                    )
+                  }}
+                  variant="primary"
+                  className="mt-4"
+                >
+                  Continue
+                </Button>
+              </div>
+            ) : (
+              <div
+                className="mt-6 flex flex-col items-center justify-center rounded-md border-dashed p-6 text-center"
+                style={{ borderColor: 'var(--surface-border)' }}
+              >
+                <Lock size={36} style={{ color: '#f59e0b' }} />
+                <h3
+                  className="mt-4 text-lg font-semibold"
+                  style={{ color: 'var(--text-color)' }}
+                >
+                  Enter password to preview challenges
+                </h3>
+                <p className="muted mt-2 text-sm">
+                  This session is locked to prevent unauthorized access.
+                </p>
+                <Button
+                  onClick={handleStartExam}
+                  variant="secondary"
+                  className="mt-4"
+                >
+                  Verify access
+                </Button>
+              </div>
+            )
+          ) : (
             <div
               className="mt-6 flex flex-col items-center justify-center rounded-md border-dashed p-6 text-center"
               style={{ borderColor: 'var(--surface-border)' }}
             >
-              <Lock size={36} style={{ color: '#f59e0b' }} />
               <h3
-                className="mt-4 text-lg font-semibold"
+                className="mt-2 text-lg font-semibold"
                 style={{ color: 'var(--text-color)' }}
               >
-                Enter password to preview challenges
+                You're verified for this exam
               </h3>
               <p className="muted mt-2 text-sm">
-                This session is locked to prevent unauthorized access.
+                Click continue to begin or resume your exam.
               </p>
-              {resumeAvailable && resumeChallengeId ? (
-                <div className="flex flex-col items-center gap-3">
-                  <p
-                    className="muted mt-2 text-center text-sm"
-                    title="Your session is still active on the server; click Resume to continue"
-                  >
-                    You were disconnected — resume exam to continue your
-                    session.
-                  </p>
-                  <Button
-                    onClick={() =>
-                      navigate(
-                        `/exam/${exam.id}/challenge/${resumeChallengeId}`
-                      )
-                    }
-                    variant="primary"
-                    title="Resume your active exam session"
-                  >
-                    Resume exam
-                  </Button>
-                </div>
-              ) : (
-                <Button onClick={handleStartExam} variant="secondary">
-                  Verify access
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div
-              className="mt-6 overflow-hidden rounded-md border"
-              style={{ borderColor: 'var(--surface-border)' }}
-            >
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead
-                    style={{
-                      backgroundColor: 'var(--exam-toolbar-bg)',
-                      borderBottom: '1px solid var(--surface-border)',
-                    }}
-                  >
-                    <tr>
-                      <th
-                        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider"
-                        style={{ color: 'var(--muted-text)' }}
-                      >
-                        #
-                      </th>
-                      <th
-                        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider"
-                        style={{ color: 'var(--muted-text)' }}
-                      >
-                        Challenge
-                      </th>
-                      <th
-                        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider"
-                        style={{ color: 'var(--muted-text)' }}
-                      >
-                        Topic
-                      </th>
-                      <th
-                        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider"
-                        style={{ color: 'var(--muted-text)' }}
-                      >
-                        Difficulty
-                      </th>
-                      <th
-                        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider"
-                        style={{ color: 'var(--muted-text)' }}
-                      >
-                        Status
-                      </th>
-                      <th
-                        className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider"
-                        style={{ color: 'var(--muted-text)' }}
-                      >
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {exam.challenges?.map((challenge, index) => (
-                      <tr
-                        key={challenge.id}
-                        className="border-b transition-colors hover:bg-opacity-50"
-                        style={{
-                          borderColor: 'var(--surface-border)',
-                          backgroundColor:
-                            index % 2 === 0
-                              ? 'var(--exam-panel-bg)'
-                              : 'var(--editor-bg)',
-                        }}
-                      >
-                        <td
-                          className="px-4 py-3 text-sm font-medium"
-                          style={{ color: 'var(--text-color)' }}
-                        >
-                          {index + 1}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div>
-                            <div
-                              className="text-sm font-semibold"
-                              style={{ color: 'var(--text-color)' }}
-                            >
-                              {challenge.title}
-                            </div>
-                            <div className="muted mt-1 line-clamp-1 text-xs">
-                              {challenge.description}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="muted px-4 py-3 text-sm">
-                          {challenge.topic}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold uppercase"
-                            style={{
-                              backgroundColor:
-                                challenge.difficulty === 'easy'
-                                  ? 'rgba(16, 185, 129, 0.1)'
-                                  : challenge.difficulty === 'medium'
-                                    ? 'rgba(251, 191, 36, 0.1)'
-                                    : 'rgba(239, 68, 68, 0.1)',
-                              color:
-                                challenge.difficulty === 'easy'
-                                  ? '#10b981'
-                                  : challenge.difficulty === 'medium'
-                                    ? '#f59e0b'
-                                    : '#ef4444',
-                              border: '1px solid var(--surface-border)',
-                            }}
-                          >
-                            {challenge.difficulty}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="muted text-xs">Not started</span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <Button
-                            onClick={() =>
-                              navigate(
-                                `/exam/${exam.id}/challenge/${challenge.id}/preview`
-                              )
-                            }
-                            variant="ghost"
-                            size="sm"
-                            className="text-xs"
-                          >
-                            View
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <Button
+                onClick={() => {
+                  // Continue to resume or start
+                  const continueChallengeId =
+                    reduxCurrentChallengeId || exam?.challenges?.[0]?.id
+                  if (!continueChallengeId) return
+                  navigate(`/exam/${exam?.id}/challenge/${continueChallengeId}`)
+                }}
+                variant="primary"
+                className="mt-4"
+              >
+                Continue
+              </Button>
             </div>
           )}
         </section>

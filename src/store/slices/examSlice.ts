@@ -14,6 +14,7 @@ const initialState: ExamState = {
   // participation/session info for current exam
   currentParticipationId: null,
   currentParticipationStartAt: null,
+  currentParticipationExpiresAt: null,
   isLoading: false,
   error: null,
   statistics: null,
@@ -74,16 +75,24 @@ const examSlice = createSlice({
       action: PayloadAction<{
         participationId: string | null
         startAt?: number | string | null
+        expiresAt?: number | string | null
+        // optional: the current challenge id for resume
+        currentChallengeId?: string | null
       }>
     ) => {
       state.currentParticipationId = action.payload.participationId
       state.currentParticipationStartAt = action.payload.startAt ?? null
+      state.currentParticipationExpiresAt = action.payload.expiresAt ?? null
+      state.currentParticipationChallengeId =
+        action.payload.currentChallengeId ?? null
       state.isLoading = false
     },
 
     clearParticipation: state => {
       state.currentParticipationId = null
       state.currentParticipationStartAt = null
+      state.currentParticipationExpiresAt = null
+      state.currentParticipationChallengeId = null
     },
 
     // Submissions actions

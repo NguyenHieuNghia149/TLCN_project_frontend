@@ -29,15 +29,18 @@ export interface ExamSubmission {
   userId: string
   examId: string
   user?: User // User details for display
-  solutions: ChallengeSolution[]
+  solutions?: ChallengeSolution[]
   totalScore: number
-  startedAt: string
+  startedAt?: string
   submittedAt: string
-  duration: number // actual time spent in minutes
+  duration?: number // actual time spent in minutes
+  perProblem?: Array<{ problemId: string; obtained: number; maxPoints: number }>
+  rank?: number
 }
 
 export interface ChallengeSolution {
   challengeId: string
+  challengeTitle?: string
   code: string
   language: string
   score: number
@@ -121,6 +124,9 @@ export interface ExamState {
   // current participation/session info (optional during migration)
   currentParticipationId?: string | null
   currentParticipationStartAt?: number | string | null
+  currentParticipationExpiresAt?: number | string | null
+  // optional: which challenge the user is currently on (for resume)
+  currentParticipationChallengeId?: string | null
   isLoading: boolean
   error: string | null
   statistics: ExamStatistics | null

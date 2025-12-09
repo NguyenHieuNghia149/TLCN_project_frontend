@@ -21,6 +21,7 @@ import { io, Socket } from 'socket.io-client'
 import './ExamChallengeDetail.scss'
 // mocks removed: use real API only
 import { examService } from '@/services/api/exam.service'
+import useAutosaveSession from '@/hooks/useAutosaveSession'
 import { useTheme } from '@/contexts/useTheme'
 
 const DEFAULT_CODE = `
@@ -38,7 +39,6 @@ const ExamChallengeDetail: React.FC = () => {
     examId: string
     challengeId: string
   }>()
-  console.log('ExamChallengeDetail params:', { examId, challengeId })
   const navigate = useNavigate()
   const [exam, setExam] = useState<Exam | null>(null)
   const [problemData, setProblemData] = useState<
@@ -49,6 +49,7 @@ const ExamChallengeDetail: React.FC = () => {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
   const [showTimeWarning, setShowTimeWarning] = useState(false)
   const [isJoined, setIsJoined] = useState(false)
+  const [autosaveEnabled, setAutosaveEnabled] = useState(false)
   const [activeTab, setActiveTab] = useState<'question' | 'submissions'>(
     'question'
   )
@@ -60,6 +61,9 @@ const ExamChallengeDetail: React.FC = () => {
   })
   const [selectedTestCase, setSelectedTestCase] = useState<string>('1')
   const [showChallengeList, setShowChallengeList] = useState(false)
+  const [yourScore, setYourScore] = useState<number | null>(null)
+  // const [yourPoints, setYourPoints] = useState<number | null>(null)
+
   const [problemPanelWidth, setProblemPanelWidth] = useState(60)
   const dispatch = useDispatch()
   const reduxParticipationId = useSelector(
@@ -68,6 +72,45 @@ const ExamChallengeDetail: React.FC = () => {
   const reduxStartAt = useSelector(
     (s: RootState) => s.exam?.currentParticipationStartAt
   )
+
+  const refreshSubmissionData = useCallback(async () => {
+    if (!examId || !reduxParticipationId) return
+    try {
+      const details = await examService.getSubmissionDetails(
+        examId,
+        reduxParticipationId
+      )
+      console.log('Fetched submission details:', details)
+      if (!details) return
+      if (details.perProblem) {
+        setExam(prev => {
+          if (!prev) return prev
+          const updated = { ...prev }
+          updated.challenges = updated.challenges.map(ch => {
+            const per = (
+              details.perProblem as Array<{
+                problemId: string
+                obtained: number
+                maxPoints: number
+              }>
+            )?.find(p => p.problemId === ch.id)
+            return {
+              ...ch,
+              isSolved: per ? per.obtained === per.maxPoints : ch.isSolved,
+            }
+          })
+          return updated
+        })
+      }
+      setYourScore(details.totalScore ?? null)
+      if (details.perProblem) {
+        // const pts = (details.perProblem as Array<{ obtained?: number }>)?.reduce((s, p) => s + (p.obtained || 0), 0)
+        // setYourPoints(pts)
+      }
+    } catch (err) {
+      console.warn('Failed to refresh submission details', err)
+    }
+  }, [examId, reduxParticipationId])
   const splitPaneRef = useRef<HTMLDivElement | null>(null)
   const isDraggingSplitRef = useRef(false)
   const { theme, toggleTheme } = useTheme()
@@ -139,9 +182,64 @@ const ExamChallengeDetail: React.FC = () => {
 
   const pollTimerRef = useRef<number | null>(null)
   const countdownRef = useRef<number | null>(null)
+  const prevChallengeIdRef = useRef<string | null>(null)
+  const codeRef = useRef<string>(code)
   const socketRef = useRef<Socket | null>(null)
   const socketTimeoutRef = useRef<number | null>(null)
   const isCompletedRef = useRef<boolean>(false)
+
+  // Prepare autosave payload getter and hook
+  const getPayload = useCallback(() => {
+    return { sourceCode: codeRef.current, language: selectedLanguage }
+    // codeRef is a ref so it's always current, but we need 'code' in dependencies
+    // to trigger the useAutosaveSession effect when code changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLanguage, code])
+
+  const { flush: flushAutosave, cancel: cancelAutosave } = useAutosaveSession(
+    reduxParticipationId,
+    challengeId,
+    getPayload,
+    { delay: 5000, enabled: autosaveEnabled }
+  )
+
+  // Trigger autosave on code change (integrated in useAutosaveSession effect)
+  useEffect(() => {
+    if (!autosaveEnabled) return
+    console.log(`[UI] Code changed, autosave queued for ${challengeId}`)
+  }, [code, autosaveEnabled, challengeId])
+
+  // Flush pending autosave on unmount
+  useEffect(() => {
+    return () => {
+      try {
+        // flush pending autosave before unmount
+        void flushAutosave()
+      } catch {
+        // ignore
+      }
+    }
+  }, [flushAutosave])
+
+  // Periodic full-session flush: ensure recent work is persisted
+  useEffect(() => {
+    if (!reduxParticipationId) return
+    const intervalId = window.setInterval(() => {
+      // best-effort flush of any pending debounced save
+      void flushAutosave()
+    }, 15000)
+
+    return () => {
+      window.clearInterval(intervalId)
+      try {
+        // cancel any pending debounced save
+        cancelAutosave()
+      } catch {
+        // ignore
+      }
+      void flushAutosave()
+    }
+  }, [reduxParticipationId, flushAutosave, cancelAutosave])
 
   // Helper: format seconds to HH:MM:SS
   const formatSeconds = (s: number) => {
@@ -154,8 +252,14 @@ const ExamChallengeDetail: React.FC = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      console.log('Fetching challenge data for:', { examId, challengeId })
       if (!challengeId || !examId) return
+      // If we already have loaded the same challenge, skip to prevent redundant fetches
+      if (problemData && problemData.problem?.id === challengeId) {
+        console.log(
+          `[Challenge Load] Already loaded challenge ${challengeId}, skipping fetch`
+        )
+        return
+      }
 
       try {
         setLoading(true)
@@ -177,7 +281,6 @@ const ExamChallengeDetail: React.FC = () => {
             examId,
             challengeId
           )
-          console.log('Challenge response:', response)
           if (response && response.data) {
             const rawData = response.data
             const formattedData = {
@@ -197,7 +300,15 @@ const ExamChallengeDetail: React.FC = () => {
               solution: rawData.solution,
             }
             setProblemData(formattedData as ProblemDetailResponse['data']) // Cast as any hoặc sửa lại Type Definition cho đúng
-            setCode(rawData.initialCode || DEFAULT_CODE) // Nếu backend có trả về code mẫu
+
+            // Always start with initial code first
+            const initialCode = rawData.initialCode || DEFAULT_CODE
+            setCode(initialCode)
+            console.log(
+              `[Challenge Load] Challenge ${challengeId} loaded with initial code`
+            )
+
+            // Do NOT recover saved code here — saved code is restored via a separate effect that depends on reduxParticipationId.
             // Do NOT persist current challenge id to localStorage for privacy/security.
             // Keep current challenge in Redux only to avoid leaking session identifiers.
           } else {
@@ -212,11 +323,161 @@ const ExamChallengeDetail: React.FC = () => {
         }
       } finally {
         setLoading(false)
+        try {
+          setAutosaveEnabled(true)
+        } catch {
+          // ignore
+        }
       }
     }
 
     fetchData()
   }, [examId, challengeId])
+
+  // When participation becomes available, attempt to refresh per-problem data and recover saved code for the current challenge
+  useEffect(() => {
+    const runOnParticipantReady = async () => {
+      if (!reduxParticipationId || !examId || !challengeId) return
+      try {
+        await refreshSubmissionData()
+      } catch (err) {
+        console.warn(
+          'Failed to refresh submission details on participation change',
+          err
+        )
+      }
+
+      try {
+        const partRes = await examService.getParticipation(
+          examId,
+          reduxParticipationId
+        )
+        const partData = partRes?.data || partRes
+        const answers = partData?.currentAnswers || partData?.answers || {}
+        const saved = answers?.[challengeId || '']
+        if (saved && saved.sourceCode) {
+          console.log(
+            `[Challenge Load] Found saved code for ${challengeId}, restoring from server`
+          )
+          setCode(saved.sourceCode)
+        } else {
+          console.log(
+            `[Challenge Load] No saved code for ${challengeId}, using initial code`
+          )
+        }
+      } catch (err) {
+        console.warn(
+          `[Challenge Load] Failed to recover saved code for ${challengeId}:`,
+          err
+        )
+      }
+    }
+
+    void runOnParticipantReady()
+  }, [reduxParticipationId, examId, challengeId, refreshSubmissionData])
+
+  // keep latest code in ref for use in unload/save handlers
+  useEffect(() => {
+    codeRef.current = code
+  }, [code])
+
+  // Save previous challenge's code when switching challenges
+  useEffect(() => {
+    const savePrevious = async () => {
+      const prev = prevChallengeIdRef.current
+      if (!prev) return
+      if (prev === challengeId) return // Same challenge, no need to save
+      const participationId = reduxParticipationId
+      if (!participationId) return
+
+      console.log(
+        `[Challenge Switch] Flushing autosave for previous challenge ${prev}`
+      )
+      try {
+        // Flush any pending debounced autosave for the previous challenge
+        await flushAutosave()
+      } catch (err) {
+        console.warn('Failed to flush previous challenge autosave', err)
+      }
+
+      console.log(
+        `[Challenge Switch] Saving previous challenge ${prev} with code length: ${codeRef.current.length}`
+      )
+      try {
+        await examService.syncSession(participationId, {
+          [prev]: {
+            sourceCode: codeRef.current,
+            language: selectedLanguage,
+            updatedAt: new Date().toISOString(),
+          },
+        })
+        console.log(
+          `[Challenge Switch] Successfully saved previous challenge ${prev}`
+        )
+      } catch (err) {
+        console.warn('Failed to sync previous challenge code', err)
+      }
+    }
+
+    savePrevious()
+    prevChallengeIdRef.current = challengeId ?? null
+  }, [challengeId, reduxParticipationId, selectedLanguage, flushAutosave])
+
+  // Persist current code when user closes or reloads the tab (best-effort)
+  useEffect(() => {
+    const onBeforeUnload = () => {
+      const participationId = reduxParticipationId
+      const current = prevChallengeIdRef.current || challengeId
+      if (!participationId || !current) return
+      try {
+        const payload = JSON.stringify({
+          sessionId: participationId,
+          answers: {
+            [current]: {
+              sourceCode: codeRef.current,
+              language: selectedLanguage,
+              updatedAt: new Date().toISOString(),
+            },
+          },
+          clientTimestamp: new Date().toISOString(),
+        })
+        if (typeof navigator !== 'undefined') {
+          type BeaconNav = {
+            sendBeacon?: (url: string, data?: BodyInit | null) => boolean
+          }
+          const nav = navigator as unknown as BeaconNav
+          if (nav.sendBeacon) {
+            const url = '/api/exams/session/sync'
+            const blob = new Blob([payload], { type: 'application/json' })
+            nav.sendBeacon(url, blob)
+          } else {
+            const xhr = new XMLHttpRequest()
+            try {
+              xhr.open('PUT', '/api/exams/session/sync', false)
+              xhr.setRequestHeader('Content-Type', 'application/json')
+              xhr.send(payload)
+            } catch {
+              // ignore
+            }
+          }
+        } else {
+          const xhr = new XMLHttpRequest()
+          try {
+            xhr.open('PUT', '/api/exams/session/sync', false)
+            xhr.setRequestHeader('Content-Type', 'application/json')
+            xhr.send(payload)
+          } catch {
+            // ignore
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [challengeId, reduxParticipationId, selectedLanguage])
 
   const clearPoll = () => {
     if (pollTimerRef.current) {
@@ -271,28 +532,61 @@ const ExamChallengeDetail: React.FC = () => {
   }
 
   const coerceResults = (
-    results?: Array<{
-      index: number
-      input: string
-      expected?: string
-      expectedOutput?: string
-      actual?: string
-      actualOutput?: string
-      ok: boolean
-      stderr?: string
-      executionTime?: number
-    }>
+    results?: unknown[],
+    testCasesArray: TestCase[] = []
   ): SandboxTestcaseResult[] | undefined => {
     if (!Array.isArray(results)) return undefined
-    return results.map(r => ({
-      index: r.index,
-      input: r.input,
-      expectedOutput: r.expectedOutput ?? r.expected ?? '',
-      actualOutput: r.actualOutput ?? r.actual ?? '',
-      ok: r.ok,
-      stderr: r.stderr || '',
-      executionTime: r.executionTime ?? 0,
-    }))
+    type RawResult = Record<string, unknown>
+    const arr = results as RawResult[]
+    return arr.map((r: RawResult, idx: number) => {
+      // Determine index: prefer explicit index, then testcaseId lookup, fallback to array index
+      let index =
+        typeof r['index'] === 'number' ? (r['index'] as number) : undefined
+      if (
+        index === undefined &&
+        typeof r['testcaseId'] === 'string' &&
+        Array.isArray(testCasesArray)
+      ) {
+        const found = testCasesArray.findIndex(
+          tc => tc.id === (r['testcaseId'] as string)
+        )
+        if (found >= 0) index = found
+      }
+      if (index === undefined) index = idx
+
+      const input = (r['input'] as string) ?? (r['stdin'] as string) ?? ''
+      const expectedOutput =
+        (r['expectedOutput'] as string) ??
+        (r['expected'] as string) ??
+        (r['output'] as string) ??
+        ''
+      const actualOutput =
+        (r['actualOutput'] as string) ??
+        (r['actual'] as string) ??
+        (r['stdout'] as string) ??
+        ''
+      const ok =
+        typeof r['ok'] === 'boolean'
+          ? (r['ok'] as boolean)
+          : typeof r['isPassed'] === 'boolean'
+            ? (r['isPassed'] as boolean)
+            : !!(r['passed'] as boolean)
+      const stderr = (r['stderr'] as string) || (r['error'] as string) || ''
+      const executionTime =
+        (r['executionTime'] as number) ?? (r['time'] as number) ?? 0
+      const isPublic = (r as { isPublic?: boolean }).isPublic ?? true
+
+      return {
+        index,
+        input,
+        expectedOutput,
+        actualOutput,
+        ok,
+        stderr,
+        executionTime,
+        isPublic,
+      }
+    })
   }
 
   const languageToApi = (lang: string): SupportedLanguage => {
@@ -317,18 +611,61 @@ const ExamChallengeDetail: React.FC = () => {
           : {}),
       }
       const data = await submissionsService.runCode(payload)
-      const summary = data.data.summary
-      setOutput({
-        status: summary.passed === summary.total ? 'accepted' : 'rejected',
+      console.log('payload sent for runCode:', payload)
+      console.log('Run code result:', data)
+      const rawData = data as unknown as Record<string, unknown>
+      let rawResults: unknown[] = []
+      // Prefer nested path data.results, fallback to results or result.results
+      if (rawData && typeof rawData === 'object') {
+        const nested = rawData['data'] as Record<string, unknown> | undefined
+        if (nested && Array.isArray(nested['results'] as unknown)) {
+          rawResults = nested['results'] as unknown[]
+        }
+        if (
+          !rawResults.length &&
+          Array.isArray(rawData['results'] as unknown)
+        ) {
+          rawResults = rawData['results'] as unknown[]
+        }
+        if (!rawResults.length && typeof rawData['result'] === 'object') {
+          const maybeResult = rawData['result'] as Record<string, unknown>
+          if (Array.isArray(maybeResult['results'] as unknown))
+            rawResults = maybeResult['results'] as unknown[]
+        }
+      }
+      console.log('[Run] Raw results from server:', rawResults)
+      const allResults = coerceResults(rawResults as unknown[], testCases) || []
+      console.log('[Run] All normalized results:', allResults)
+      // Normalize public filter to ensure only visible testcases are shown
+      const publicResults = allResults.filter(
+        r => r.isPublic !== false && testCases[r.index]?.isPublic !== false
+      )
+      // Prefer sandbox summary when available (more authoritative than counting results)
+      // rawDataRecord intentionally not used - kept for potential future parsing
+      // Always compute pass/total from publicResults (show only public testcases)
+      const passed = publicResults.filter(r => r.ok).length
+      const total = publicResults.length
+      const nextOutput: OutputState = {
+        status: (passed === total && total > 0
+          ? 'accepted'
+          : 'rejected') as OutputState['status'],
         message:
-          summary.passed === summary.total
+          passed === total && total > 0
             ? 'All test cases passed!'
-            : `Passed ${summary.passed}/${summary.total} test cases`,
-        passedTests: summary.passed,
-        totalTests: summary.total,
-        results: data.data.results,
+            : `Passed ${passed}/${total} test cases`,
+        passedTests: passed,
+        totalTests: total,
+        results: publicResults,
         processingTime: data.data.processingTime,
+      }
+      // Debug log the normalized output and counts to help diagnose UI disagreements
+      console.log('[Run] Normalized output:', nextOutput)
+      console.log('[Run] publicResults count/passed:', {
+        total: nextOutput.totalTests,
+        passed: nextOutput.passedTests,
+        publicResultsCount: publicResults.length,
       })
+      setOutput(nextOutput)
     } catch (err) {
       setOutput({
         status: 'rejected',
@@ -392,8 +729,13 @@ const ExamChallengeDetail: React.FC = () => {
             'compilation_error',
             'failed',
           ].includes(normalized)
-          const passed = update.result?.passed
-          const total = update.result?.total
+          const allResults =
+            coerceResults(update.result?.results, testCases) || []
+          const publicResults = allResults.filter(
+            r => r.isPublic !== false && testCases[r.index]?.isPublic !== false
+          )
+          const passedCount = publicResults.filter(r => r.ok).length
+          const totalCount = publicResults.length
           setOutput(prev => ({
             status: isTerminal
               ? normalized === 'accepted'
@@ -404,22 +746,35 @@ const ExamChallengeDetail: React.FC = () => {
               ? normalized === 'accepted'
                 ? 'You have successfully completed this problem!'
                 : `Status: ${normalized}${
-                    typeof passed === 'number' && typeof total === 'number'
-                      ? ` • ${passed}/${total}`
+                    typeof passedCount === 'number' &&
+                    typeof totalCount === 'number'
+                      ? ` • ${passedCount}/${totalCount}`
                       : ''
                   }`
-              : typeof passed === 'number' && typeof total === 'number'
-                ? `Running... ${passed}/${total} passed`
+              : typeof passedCount === 'number' &&
+                  typeof totalCount === 'number'
+                ? `Running... ${passedCount}/${totalCount} passed`
                 : 'Running...',
-            passedTests: passed,
-            totalTests: total,
-            results: coerceResults(update.result?.results) || prev.results,
+            passedTests: passedCount,
+            totalTests: totalCount,
+            results: publicResults.length ? publicResults : prev.results,
           }))
           if (isTerminal) {
             isCompletedRef.current = true
             s.off('submission_update', onUpdate)
             leaveSubmissionRoom(submissionId)
             clearPoll()
+            // Refresh user's current session scores to update ChallengePicker
+            ;(async () => {
+              try {
+                await refreshSubmissionData()
+              } catch (err) {
+                console.warn(
+                  'Failed to refresh submission details after socket update',
+                  err
+                )
+              }
+            })()
           }
         }
 
@@ -449,8 +804,14 @@ const ExamChallengeDetail: React.FC = () => {
             'failed',
           ]
           if (terminal.includes(normalized)) {
-            const passed = detail.result?.passed ?? 0
-            const total = detail.result?.total ?? problemData.testcases.length
+            const allResults =
+              coerceResults(detail.result?.results, testCases) || []
+            const publicResults = allResults.filter(
+              r =>
+                r.isPublic !== false && testCases[r.index]?.isPublic !== false
+            )
+            const passed = publicResults.filter(r => r.ok).length
+            const total = publicResults.length
             setOutput({
               status: normalized === 'accepted' ? 'accepted' : 'rejected',
               message:
@@ -459,13 +820,27 @@ const ExamChallengeDetail: React.FC = () => {
                   : `Status: ${normalized}. Passed ${passed}/${total}`,
               passedTests: passed,
               totalTests: total,
-              results: coerceResults(detail.result?.results),
+              results: publicResults,
             })
             clearPoll()
+            try {
+              await refreshSubmissionData()
+            } catch (err) {
+              console.warn(
+                'Failed to refresh submission details after polling',
+                err
+              )
+            }
             return true
           } else {
-            const partialPassed = detail.result?.passed
-            const partialTotal = detail.result?.total
+            const allResults =
+              coerceResults(detail.result?.results, testCases) || []
+            const publicResults = allResults.filter(
+              r =>
+                r.isPublic !== false && testCases[r.index]?.isPublic !== false
+            )
+            const partialPassed = publicResults.filter(r => r.ok).length
+            const partialTotal = publicResults.length
             setOutput({
               status: 'running',
               message:
@@ -474,7 +849,7 @@ const ExamChallengeDetail: React.FC = () => {
                   : 'Running...',
               passedTests: partialPassed,
               totalTests: partialTotal,
-              results: coerceResults(detail.result?.results),
+              results: publicResults,
             })
             return false
           }
@@ -531,18 +906,31 @@ const ExamChallengeDetail: React.FC = () => {
     try {
       const participationId = reduxParticipationId
       if (examId && participationId) {
-        await examService.submitExam(examId, participationId)
+        const result = await examService.submitExam(examId, participationId)
+        console.log('[Submit] Exam submitted successfully:', result)
+
+        // Flush any pending autosave before navigating
+        try {
+          await flushAutosave()
+        } catch (err) {
+          console.warn('[Submit] Failed to flush autosave:', err)
+        }
+
+        // Clear participation from Redux since exam is completed
+        dispatch({ type: 'exam/clearParticipation' })
       }
     } catch (e) {
-      console.warn('Failed to submit exam to API', e)
+      console.error('[Submit] Failed to submit exam to API', e)
+      alert('Failed to submit exam. Please try again.')
+      return
     } finally {
       navigate(`/exam/${examId}/results`)
     }
-  }, [navigate, examId, reduxParticipationId])
+  }, [navigate, examId, reduxParticipationId, dispatch, flushAutosave])
 
   // Initialize and manage countdown separately so hooks don't depend on `handleSubmitExam` definition order
   useEffect(() => {
-    if (!exam) return
+    if (!exam?.id) return
 
     let cancelled = false
 
@@ -551,8 +939,15 @@ const ExamChallengeDetail: React.FC = () => {
       const startAtRaw = reduxStartAt
       const totalSeconds = (exam.duration || 0) * 60
 
+      console.log(
+        `[SessionInit] Starting session recovery. ReduxParticipationId: ${participationId}, Exam: ${exam?.id}`
+      )
+
       // Check if user joined. If Redux lacks participation, try server-backed resume.
       if (!participationId) {
+        console.log(
+          `[SessionInit] No participation in Redux, attempting server recovery...`
+        )
         try {
           if (examId) {
             const myPartRes = await examService.getMyParticipation(examId)
@@ -564,6 +959,9 @@ const ExamChallengeDetail: React.FC = () => {
               part?.startTimestamp ||
               part?.startedAtMs
             if (partId) {
+              console.log(
+                `[SessionInit] ✓ Recovered participation ${partId} from server. StartedAt: ${serverStart}`
+              )
               const startAtValue = serverStart ?? Date.now()
               try {
                 dispatch(
@@ -572,6 +970,7 @@ const ExamChallengeDetail: React.FC = () => {
                     startAt: startAtValue,
                   })
                 )
+                console.log(`[SessionInit] ✓ Dispatched participation to Redux`)
               } catch (e) {
                 console.warn(
                   'Failed to dispatch recovered participation to redux',
@@ -580,6 +979,9 @@ const ExamChallengeDetail: React.FC = () => {
               }
               // proceed as joined
             } else {
+              console.log(
+                `[SessionInit] ✗ No IN_PROGRESS participation found on server`
+              )
               setIsJoined(false)
               return
             }
@@ -587,11 +989,16 @@ const ExamChallengeDetail: React.FC = () => {
             setIsJoined(false)
             return
           }
-        } catch {
+        } catch (err) {
           // server recovery failed -> not joined
+          console.error(`[SessionInit] ✗ Server recovery failed:`, err)
           setIsJoined(false)
           return
         }
+      } else {
+        console.log(
+          `[SessionInit] ✓ Participation already in Redux: ${participationId}`
+        )
       }
 
       setIsJoined(true)
@@ -623,7 +1030,7 @@ const ExamChallengeDetail: React.FC = () => {
               partData?.startTimestamp ||
               partData?.startedAtMs
             if (serverStart) {
-              // persist recovered start into Redux and localStorage
+              // Persist recovered start into Redux only (in-memory, NOT localStorage)
               try {
                 // ensure we pass null when undefined to match slice typing
                 dispatch(
@@ -652,6 +1059,23 @@ const ExamChallengeDetail: React.FC = () => {
               partData?.currentChallengeId || partData?.currentChallenge
             if (serverCurrentChallenge) {
               // Do NOT persist recovered currentChallengeId to localStorage for privacy/security.
+              try {
+                dispatch(
+                  setParticipation({
+                    participationId: participationId ?? null,
+                    startAt: serverStart ?? null,
+                    currentChallengeId: serverCurrentChallenge,
+                  })
+                )
+                console.log(
+                  `[SessionInit] ✓ Dispatched recovered currentChallenge ${serverCurrentChallenge} to Redux`
+                )
+              } catch (e) {
+                console.warn(
+                  'Failed to dispatch recovered currentChallenge to redux',
+                  e
+                )
+              }
             }
           }
         } catch (e) {
@@ -708,7 +1132,8 @@ const ExamChallengeDetail: React.FC = () => {
       }
     }
   }, [
-    exam,
+    exam?.id,
+    exam?.duration,
     examId,
     handleSubmitExam,
     dispatch,
@@ -859,6 +1284,11 @@ const ExamChallengeDetail: React.FC = () => {
                     ? formatSeconds((exam.duration || 0) * 60)
                     : '00:00'}
               </span>
+              {/* {lastSavedAt && (
+                <div className="text-xs" style={{ color: 'var(--muted-text)', marginLeft: 8 }}>
+                  Last saved: {formatTimeShort(lastSavedAt)}
+                </div>
+              )} */}
             </div>
             <button
               type="button"
@@ -966,10 +1396,12 @@ const ExamChallengeDetail: React.FC = () => {
                 setShowChallengeList(false)
               }
             }}
-            totalPoints={exam.challenges.reduce(
-              (sum, ch) => sum + (ch.totalPoints || 0),
-              0
-            )}
+            // totalPoints={exam.challenges.reduce(
+            //   (sum, ch) => sum + (ch.totalPoints || 0),
+            //   0
+            // )}
+            yourScore={yourScore}
+            // yourPoints={yourPoints}
             onSubmitExam={handleSubmitExam}
           />
         )}

@@ -9,6 +9,7 @@ interface ChallengePickerProps {
   onClose: () => void
   totalPoints?: number // Total points for the exam
   onSubmitExam?: () => void // Callback for submitting exam
+  yourScore?: number | null
 }
 
 const ChallengePicker: React.FC<ChallengePickerProps> = ({
@@ -16,13 +17,14 @@ const ChallengePicker: React.FC<ChallengePickerProps> = ({
   currentIndex,
   onSelectChallenge,
   onClose,
-  totalPoints,
   onSubmitExam,
+  yourScore,
 }) => {
   // Calculate total points from challenges if not provided
-  const examTotalPoints =
-    totalPoints ||
-    challenges.reduce((sum, ch) => sum + (ch.totalPoints || 0), 0)
+  // const examTotalPoints =
+  //   totalPoints ||
+  //   challenges.reduce((sum, ch) => sum + (ch.totalPoints || 0), 0)
+  // const yourPointsVal = yourPoints || 0
   const getDifficultyColor = (difficulty?: string) => {
     if (!difficulty) return 'easy'
     switch (difficulty.toLowerCase()) {
@@ -132,7 +134,7 @@ const ChallengePicker: React.FC<ChallengePickerProps> = ({
                   >
                     {/* Status Icon */}
                     <div className="flex-shrink-0">
-                      {index < currentIndex ? (
+                      {challenge.isSolved || index < currentIndex ? (
                         <CheckCircle
                           className="h-5 w-5"
                           style={{ color: '#10b981' }}
@@ -196,13 +198,15 @@ const ChallengePicker: React.FC<ChallengePickerProps> = ({
 
                     {/* Points */}
                     {challenge.totalPoints !== undefined && (
-                      <div className="w-20 flex-shrink-0 text-right">
-                        <span
+                      <div className="w-32 flex-shrink-0 text-right">
+                        {/* <span
                           className="text-sm font-semibold"
                           style={{ color: 'var(--accent)' }}
                         >
-                          {challenge.totalPoints} pts
-                        </span>
+                          {challenge.obtainedPoints !== undefined
+                            ? `${challenge.obtainedPoints}/${challenge.totalPoints} pts`
+                            : `${challenge.totalPoints} pts`}
+                        </span> */}
                       </div>
                     )}
                   </button>
@@ -218,7 +222,7 @@ const ChallengePicker: React.FC<ChallengePickerProps> = ({
               backgroundColor: 'var(--exam-toolbar-bg)',
             }}
           >
-            <div className="mb-3 grid grid-cols-4 gap-4">
+            <div className="mb-3 grid grid-cols-5 gap-4">
               <div className="text-center">
                 <p
                   className="text-[10px] uppercase tracking-wider"
@@ -261,6 +265,20 @@ const ChallengePicker: React.FC<ChallengePickerProps> = ({
                   {Math.max(challenges.length - currentIndex - 1, 0)}
                 </p>
               </div>
+              {/* <div className="text-center">
+                <p
+                  className="text-[10px] uppercase tracking-wider"
+                  style={{ color: 'var(--muted-text)' }}
+                >
+                  My Score
+                </p>
+                <p
+                  className="text-xl font-semibold md:text-2xl"
+                  style={{ color: 'var(--accent)' }}
+                >
+                  {yourScore !== null && yourScore !== undefined ? yourScore : '-'}
+                </p>
+              </div> */}
               <div className="text-center">
                 <p
                   className="text-[10px] uppercase tracking-wider"
@@ -272,7 +290,9 @@ const ChallengePicker: React.FC<ChallengePickerProps> = ({
                   className="text-xl font-semibold md:text-2xl"
                   style={{ color: 'var(--accent)' }}
                 >
-                  {examTotalPoints}
+                  {yourScore !== null && yourScore !== undefined
+                    ? yourScore
+                    : 0}
                 </p>
               </div>
             </div>

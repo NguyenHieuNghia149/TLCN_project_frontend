@@ -299,8 +299,7 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
                                   </div>
                                 </div>
                                 <div className="text-xs text-gray-500">
-                                  #{r.index} • {r.ok ? 'Passed' : 'Failed'} •
-                                  Time: {r.executionTime} ms
+                                  #{r.index} • • Time: {r.executionTime} ms
                                 </div>
                               </div>
                             )

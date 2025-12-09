@@ -67,5 +67,28 @@ class ExamService {
     const res = await apiClient.get(`/exams/${examId}/participation/me`)
     return res.data
   }
+
+  /**
+   * Sync current session/participation answers to server.
+   * Body: { sessionId, answers, clientTimestamp }
+   */
+  async syncSession(sessionId: string, answers: Record<string, unknown>) {
+    const res = await apiClient.put(`/exams/session/sync`, {
+      sessionId,
+      answers: answers || {},
+      clientTimestamp: new Date().toISOString(),
+    })
+    return res.data
+  }
+
+  /**
+   * Get detailed submission for a participation (with solutions and scores)
+   */
+  async getSubmissionDetails(examId: string, participationId: string) {
+    const res = await apiClient.get(
+      `/exams/${examId}/participation/${participationId}/submission`
+    )
+    return res.data?.data || res.data
+  }
 }
 export const examService = new ExamService()

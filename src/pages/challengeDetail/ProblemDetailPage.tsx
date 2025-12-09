@@ -7,6 +7,7 @@ import { ProblemDetailResponse } from '../../types/challenge.types'
 import ProblemHeader from '../../components/problem/ProblemHeader'
 import { useProblemNavigation } from '../../hooks/common/useProblemNavigation'
 import { submissionsService } from '@/services/api/submissions.service'
+import { examService } from '@/services/api/exam.service'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store/stores'
 import type {
@@ -16,6 +17,7 @@ import type {
 } from '@/types/submission.types'
 import type { TestCase, OutputState } from '@/types/editor.types'
 import { io, Socket } from 'socket.io-client'
+import useDebouncedCallback from '@/hooks/useDebouncedCallback'
 
 // Types moved to src/types/editor.types.ts
 
@@ -140,7 +142,9 @@ export default function ProblemDetailPage({
 
       // Filter to only show public test cases
       const allResults = coerceResults(data.data.results) || []
-      const publicResults = allResults.filter(r => r.isPublic !== false)
+      const publicResults = allResults.filter(
+        r => r.isPublic !== false && testCases[r.index]?.isPublic !== false
+      )
 
       // Recalculate summary based on public test cases only
       const publicPassed = publicResults.filter(r => r.ok).length
@@ -374,8 +378,12 @@ export default function ProblemDetailPage({
             'compilation_error',
             'failed',
           ].includes(normalized)
-          const passed = update.result?.passed
-          const total = update.result?.total
+          const allResults = coerceResults(update.result?.results) || []
+          const publicResults = allResults.filter(
+            r => r.isPublic !== false && testCases[r.index]?.isPublic !== false
+          )
+          const passed = publicResults.filter(r => r.ok).length
+          const total = publicResults.length
           setOutput(prev => ({
             status: isTerminal
               ? normalized === 'accepted'
@@ -395,7 +403,7 @@ export default function ProblemDetailPage({
                 : 'Running...',
             passedTests: passed,
             totalTests: total,
-            results: coerceResults(update.result?.results) || prev.results,
+            results: publicResults.length ? publicResults : prev.results,
           }))
           if (isTerminal) {
             isCompletedRef.current = true
@@ -433,7 +441,10 @@ export default function ProblemDetailPage({
           if (terminal.includes(normalized)) {
             // Filter to only show public test cases
             const allResults = coerceResults(detail.result?.results) || []
-            const publicResults = allResults.filter(r => r.isPublic !== false)
+            const publicResults = allResults.filter(
+              r =>
+                r.isPublic !== false && testCases[r.index]?.isPublic !== false
+            )
 
             // Recalculate summary based on public test cases only
             const publicPassed = publicResults.filter(r => r.ok).length
@@ -454,7 +465,10 @@ export default function ProblemDetailPage({
           } else {
             // Filter to only show public test cases
             const allResults = coerceResults(detail.result?.results) || []
-            const publicResults = allResults.filter(r => r.isPublic !== false)
+            const publicResults = allResults.filter(
+              r =>
+                r.isPublic !== false && testCases[r.index]?.isPublic !== false
+            )
 
             // Recalculate summary based on public test cases only
             const publicPassed = publicResults.filter(r => r.ok).length
@@ -512,6 +526,70 @@ export default function ProblemDetailPage({
   const handleReset = () => {
     setCode(DEFAULT_CODE)
   }
+
+  // Autosave: when participating in an exam, sync code edits to server (debounced)
+  const [autosaveStatus, setAutosaveStatus] = useState<
+    'idle' | 'saving' | 'saved' | 'error'
+  >('idle')
+
+  const {
+    callback: debouncedSync,
+    flush: flushSync,
+    cancel: cancelSync,
+  } = useDebouncedCallback(
+    async (latestCode: string) => {
+      const problemId = problemData?.problem?.id
+      if (!participationIdToUse || !problemId) return
+      const answers = {
+        [problemId]: {
+          sourceCode: latestCode,
+          language: selectedLanguage,
+          updatedAt: Date.now(),
+        },
+      }
+      await examService.syncSession(participationIdToUse, answers)
+    },
+    2000,
+    {
+      onStart: () => setAutosaveStatus('saving'),
+      onSuccess: () => {
+        setAutosaveStatus('saved')
+        window.setTimeout(() => setAutosaveStatus('idle'), 2000)
+      },
+      onError: () => {
+        setAutosaveStatus('error')
+        window.setTimeout(() => setAutosaveStatus('idle'), 3000)
+      },
+    }
+  )
+
+  const handleCodeChange = (next: string) => {
+    setCode(next)
+    try {
+      debouncedSync(next)
+    } catch (err) {
+      // intentionally ignore autosave errors here
+      // (network errors are surfaced via onError handler)
+      void err
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      try {
+        flushSync()
+      } catch (e) {
+        // ignore flush errors during unmount
+        void e
+      }
+      try {
+        cancelSync()
+      } catch (e) {
+        // ignore cancel errors during unmount
+        void e
+      }
+    }
+  }, [flushSync, cancelSync])
 
   // Convert API test cases to the format expected by CodeEditorSection
   const testCases: TestCase[] =
@@ -599,7 +677,8 @@ export default function ProblemDetailPage({
         >
           <CodeEditorSection
             code={code}
-            onCodeChange={setCode}
+            onCodeChange={handleCodeChange}
+            autosaveStatus={autosaveStatus}
             selectedLanguage={selectedLanguage}
             onLanguageChange={setSelectedLanguage}
             testCases={testCases}
