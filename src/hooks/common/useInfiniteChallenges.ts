@@ -12,6 +12,10 @@ export const useInfiniteChallenges = (
   tags?: string[]
 ) => {
   const [challenges, setChallenges] = useState<Challenge[]>([])
+  const [rank, setRank] = useState<number | undefined>(undefined)
+  const [rankingPoint, setRankingPoint] = useState<number | undefined>(
+    undefined
+  )
   const [nextCursor, setNextCursor] = useState<Cursor | null>(null)
   const [hasMore, setHasMore] = useState<boolean>(true)
   const [loading, setLoading] = useState<boolean>(false)
@@ -52,6 +56,11 @@ export const useInfiniteChallenges = (
 
       // Append new items to existing challenges
       setChallenges(prev => [...prev, ...mappedChallenges])
+
+      // Capture optional ranking metadata if provided (only on initial or every response)
+      if (typeof response.rank === 'number') setRank(response.rank)
+      if (typeof response.rankingPoint === 'number')
+        setRankingPoint(response.rankingPoint)
 
       // Update cursor and hasMore state
       setNextCursor(response.nextCursor)
@@ -108,6 +117,11 @@ export const useInfiniteChallenges = (
           setChallenges(mappedChallenges)
           setNextCursor(response.nextCursor)
           setHasMore(response.nextCursor !== null)
+
+          // Capture optional ranking metadata returned from initial load
+          if (typeof response.rank === 'number') setRank(response.rank)
+          if (typeof response.rankingPoint === 'number')
+            setRankingPoint(response.rankingPoint)
         } catch (error) {
           console.error('Error fetching initial challenges:', error)
           setHasMore(false)
@@ -120,5 +134,12 @@ export const useInfiniteChallenges = (
     }
   }, [topicId, tags, limit])
 
-  return { challenges, fetchMoreChallenges, hasMore, loading }
+  return {
+    challenges,
+    fetchMoreChallenges,
+    hasMore,
+    loading,
+    rank,
+    rankingPoint,
+  }
 }

@@ -1,7 +1,7 @@
 import React from 'react'
 import { createBrowserRouter } from 'react-router-dom'
 import MainLayout from '@/layouts/MainLayout/MainLayout'
-import Login from '@/pages/auth/Login/Login'
+import Login from '@/pages/auth/login/Login'
 import Register from '@/pages/auth/register/Register'
 import ForgotPassword from '@/pages/auth/forgotpassword/ForgotPassword'
 import Profile from '@/pages/profile/Profile'

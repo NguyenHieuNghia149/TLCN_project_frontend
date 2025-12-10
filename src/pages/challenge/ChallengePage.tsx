@@ -22,8 +22,14 @@ const ChallengePage: React.FC = () => {
   }, [rawCategory])
 
   const [selectedTags, setSelectedTags] = useState<string[]>([])
-  const { challenges, fetchMoreChallenges, hasMore, loading } =
-    useInfiniteChallenges(8, topicId, selectedTags)
+  const {
+    challenges,
+    fetchMoreChallenges,
+    hasMore,
+    loading,
+    rank,
+    rankingPoint,
+  } = useInfiniteChallenges(8, topicId, selectedTags)
   const observerRef = useRef<HTMLDivElement | null>(null)
   const [availableTags, setAvailableTags] = useState<string[]>([])
 
@@ -92,23 +98,25 @@ const ChallengePage: React.FC = () => {
   }, [challenges, query, difficulties, showSolved, showFavorites])
 
   const rankDisplay = useMemo(() => {
-    console.log('User rank:', user)
-    if (!user || user.rank === undefined || user.rank === null) {
-      return '—'
-    }
-    return new Intl.NumberFormat().format(user.rank)
-  }, [user])
+    // Prefer user.rank from auth session; fall back to topic-level rank returned by challenges endpoint
+    const value =
+      (user && typeof user.rank === 'number' ? user.rank : undefined) ??
+      (typeof rank === 'number' ? rank : undefined)
+
+    if (value === undefined || value === null) return '—'
+    return new Intl.NumberFormat().format(value)
+  }, [user, rank])
 
   const rankingPointDisplay = useMemo(() => {
-    if (
-      !user ||
-      user.rankingPoint === undefined ||
-      user.rankingPoint === null
-    ) {
-      return '—'
-    }
-    return new Intl.NumberFormat().format(user.rankingPoint)
-  }, [user])
+    const value =
+      (user && typeof user.rankingPoint === 'number'
+        ? user.rankingPoint
+        : undefined) ??
+      (typeof rankingPoint === 'number' ? rankingPoint : undefined)
+
+    if (value === undefined || value === null) return '—'
+    return new Intl.NumberFormat().format(value)
+  }, [user, rankingPoint])
 
   return (
     <div className="min-h-screen bg-[#121418] text-gray-100">
