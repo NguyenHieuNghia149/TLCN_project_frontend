@@ -142,9 +142,9 @@
   justify-content: center;
   gap: 0.5rem;
   padding: 0.625rem 1rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: #ffffff;
-  border: none;
+  border: 1px solid #3b82f6;
   border-radius: 8px;
   font-size: 0.875rem;
   font-weight: 500;
@@ -153,32 +153,30 @@
 }
 
 .topic-lesson-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+  background: #2563eb;
+  border-color: transparent;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
 }
 
 .topic-lesson-favorite-button {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  color: #ffffff;
+  padding: 0.375rem;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.3s ease;
-  backdrop-filter: blur(10px);
-  flex-shrink: 0;
 }
 
 .topic-lesson-favorite-button:hover {
-  background: rgba(255, 215, 0, 0.2);
-  border-color: #ffd700;
-  color: #ffd700;
-  transform: scale(1.1);
+  background: rgba(107, 114, 128, 0.3);
+}
+
+.topic-lesson-favorite-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 /* Responsive Design */
