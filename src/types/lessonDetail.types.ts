@@ -5,6 +5,7 @@ export interface LessonDetail {
   videoUrl: string | null
   topicId: string
   topicName: string | null
+  isFavorite?: boolean
   createdAt: string
   updatedAt: string
 }
