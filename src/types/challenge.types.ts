@@ -82,6 +82,9 @@ export interface Cursor {
 export interface PaginatedResponse<T> {
   items: T[]
   nextCursor: Cursor | null
+  // Optional metadata returned by some endpoints (e.g., user's rank for this topic)
+  rank?: number
+  rankingPoint?: number
 }
 
 export interface ChallengeItem {

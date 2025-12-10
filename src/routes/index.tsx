@@ -1,7 +1,7 @@
 import React from 'react'
 import { createBrowserRouter } from 'react-router-dom'
 import MainLayout from '@/layouts/MainLayout/MainLayout'
-import Login from '@/pages/auth/Login/Login'
+import Login from '@/pages/auth/login/Login'
 import Register from '@/pages/auth/register/Register'
 import ForgotPassword from '@/pages/auth/forgotpassword/ForgotPassword'
 import Profile from '@/pages/profile/Profile'
@@ -26,6 +26,7 @@ import ManageTeacher from '@/pages/admin/manageteacher/ManageTeacher'
 import ManageUser from '@/pages/admin/manageuser/ManageUser'
 import ManageLesson from '@/pages/admin/managelesson/ManageLesson'
 import AdminHome from '@/pages/admin/adminhome/AdminHome'
+import UserSubmissionsPage from '@/pages/user/submissions/UserSubmissionsPage'
 // removed unused import
 
 export const router = createBrowserRouter([
@@ -138,6 +139,14 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: '/dashboard/submissions',
+        element: (
+          <ProtectedRoute>
+            <UserSubmissionsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: 'exam/:examId/results',
         element: (
           <ProtectedRoute>
@@ -163,6 +172,7 @@ export const router = createBrowserRouter([
       },
     ],
   },
+
   {
     path: '/problems/:id',
     element: (
