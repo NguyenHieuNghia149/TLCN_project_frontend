@@ -92,6 +92,7 @@ const ChallengePage: React.FC = () => {
   }, [challenges, query, difficulties, showSolved, showFavorites])
 
   const rankDisplay = useMemo(() => {
+    console.log('User rank:', user)
     if (!user || user.rank === undefined || user.rank === null) {
       return '—'
     }
