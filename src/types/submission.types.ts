@@ -34,6 +34,8 @@ export interface SubmissionDetail {
   submittedAt: string
   judgedAt?: string
   executionTime?: number
+  problemTitle?: string
+  sourceCode?: string
 }
 
 export interface RunOrSubmitPayload {

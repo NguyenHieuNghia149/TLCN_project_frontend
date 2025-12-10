@@ -49,6 +49,42 @@ class SubmissionsService {
     return json.data
   }
 
+  async getUserSubmissions(params?: {
+    limit?: number
+    offset?: number
+    status?: string
+  }): Promise<{
+    submissions: SubmissionDetail[]
+    total: number
+    limit: number
+    offset: number
+  }> {
+    const res = await apiClient.get('/submissions/user/my-submissions', {
+      params,
+    })
+    console.log(res)
+    const json = res.data as {
+      success?: boolean
+      data?: {
+        submissions?: SubmissionDetail[]
+        total?: number
+        limit?: number
+        offset?: number
+      }
+      message?: string
+    }
+    if (!json?.success || !json.data) {
+      throw new Error(json?.message || 'Failed to get user submissions')
+    }
+
+    return {
+      submissions: json.data.submissions || [],
+      total: json.data.total || 0,
+      limit: json.data.limit || (params?.limit ?? 10),
+      offset: json.data.offset || (params?.offset ?? 0),
+    }
+  }
+
   async getProblemSubmissions(
     problemId: string,
     params?: {

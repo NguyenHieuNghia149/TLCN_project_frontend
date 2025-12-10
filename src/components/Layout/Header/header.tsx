@@ -192,6 +192,11 @@ const Header: React.FC = () => {
                                 setIsProfileOpen(false)
                                 return
                               }
+                              if (item.key === 'submissions') {
+                                navigate('/dashboard/submissions')
+                                setIsProfileOpen(false)
+                                return
+                              }
                             }}
                           >
                             {item.label}

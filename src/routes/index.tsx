@@ -26,6 +26,7 @@ import ManageTeacher from '@/pages/admin/manageteacher/ManageTeacher'
 import ManageUser from '@/pages/admin/manageuser/ManageUser'
 import ManageLesson from '@/pages/admin/managelesson/ManageLesson'
 import AdminHome from '@/pages/admin/adminhome/AdminHome'
+import UserSubmissionsPage from '@/pages/user/submissions/UserSubmissionsPage'
 // removed unused import
 
 export const router = createBrowserRouter([
@@ -138,6 +139,14 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: '/dashboard/submissions',
+        element: (
+          <ProtectedRoute>
+            <UserSubmissionsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: 'exam/:examId/results',
         element: (
           <ProtectedRoute>
@@ -163,6 +172,7 @@ export const router = createBrowserRouter([
       },
     ],
   },
+
   {
     path: '/problems/:id',
     element: (

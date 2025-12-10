@@ -1,6 +1,12 @@
 /* Problem Section Styles */
 .problem-description {
-  color: #d1d5db; /* text-gray-300 */
+  color: #d1d5db;
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+.problem-description p {
+  margin-bottom: 1.25rem;
 }
 
 .problem-description h1,
@@ -9,97 +15,111 @@
 .problem-description h4,
 .problem-description h5,
 .problem-description h6 {
-  color: #f9fafb; /* text-gray-50 */
+  color: #f9fafb;
   font-weight: 600;
   margin-top: 1.5rem;
-  margin-bottom: 0.75rem;
-}
-
-.problem-description h3 {
-  font-size: 1.125rem; /* text-lg */
-  color: #e5e7eb; /* text-gray-200 */
-}
-
-.problem-description p {
   margin-bottom: 1rem;
-  line-height: 1.6;
 }
 
+.problem-description a {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.problem-description a:hover {
+  text-decoration: underline;
+}
+
+/* Inline Code - Enforce inline display to prevent line breaks */
 .problem-description code {
-  background-color: #374151; /* bg-gray-700 */
-  color: #fbbf24; /* text-yellow-400 */
-  padding: 0.125rem 0.375rem;
+  display: inline;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #e5e7eb;
+  padding: 0.15rem 0.4rem;
   border-radius: 0.25rem;
-  font-size: 0.875rem;
-  font-family: 'Courier New', monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+  font-size: 0.875em;
+  white-space: nowrap; /* Keep variable names intact */
 }
 
-.problem-description strong {
-  color: #f9fafb; /* text-gray-50 */
-  font-weight: 600;
-}
-
-.problem-description ul {
-  margin-bottom: 1rem;
-  padding-left: 1.5rem;
-}
-
-.problem-description li {
-  margin-bottom: 0.5rem;
-  line-height: 1.5;
-}
-
-.problem-description .example-block {
-  background-color: #1f2937; /* bg-gray-800 */
-  border: 1px solid #374151; /* border-gray-700 */
-  border-radius: 0.5rem;
+/* Preformatted Code Blocks */
+.problem-description pre {
+  display: block;
+  background-color: rgba(255, 255, 255, 0.05);
   padding: 1rem;
-  margin: 1rem 0;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 1.25rem 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Reset code styles inside pre blocks */
+.problem-description pre code {
+  display: block; /* Code inside pre is block-ish or follows pre formatting */
+  background-color: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: 0.875rem;
+  white-space: pre;
+  border-radius: 0;
+}
+
+/* Example Blocks - Prominent Styling */
+.problem-description .example-block {
+  background-color: rgba(31, 41, 55, 0.5); /* Darker, distinct background */
+  border-left: 4px solid #10b981; /* Prominent green border */
+  padding: 1rem 1.25rem;
+  margin: 1.5rem 0;
+  border-radius: 0.375rem; /* rounded-md */
 }
 
 .problem-description .example-block p {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
 .problem-description .example-block p:last-child {
   margin-bottom: 0;
 }
 
-.problem-description sup {
-  font-size: 0.75rem;
-  vertical-align: super;
-}
-
-/* Code blocks */
-.problem-description pre {
-  background-color: #111827; /* bg-gray-900 */
-  color: #e5e7eb; /* text-gray-200 */
-  padding: 1rem;
-  border-radius: 0.5rem;
-  overflow-x: auto;
-  margin: 1rem 0;
-  border: 1px solid #374151; /* border-gray-700 */
-}
-
-.problem-description pre code {
-  background-color: transparent;
-  color: inherit;
-  padding: 0;
-  border-radius: 0;
-  font-size: 0.875rem;
-}
-
-/* Example headings */
-.problem-description .example-heading {
-  color: #f9fafb; /* text-gray-50 */
-  font-size: 1rem;
+.problem-description .example-block strong {
+  color: #10b981; /* Match border color for labels like 'Input:' */
   font-weight: 600;
-  margin-top: 1.5rem;
-  margin-bottom: 0.75rem;
+  margin-right: 0.5rem;
 }
 
-/* Strong text for Input/Output/Explanation */
-.problem-description strong {
-  color: #f9fafb; /* text-gray-50 */
+.problem-description ul,
+.problem-description ol {
+  margin-bottom: 1.25rem;
+  padding-left: 1.5rem;
+}
+
+.problem-description li {
+  margin-bottom: 0.5rem;
+}
+
+.problem-description img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+}
+
+.problem-description table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.problem-description th,
+.problem-description td {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.75rem;
+  text-align: left;
+}
+
+.problem-description th {
+  background-color: rgba(255, 255, 255, 0.05);
   font-weight: 600;
 }
