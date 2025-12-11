@@ -15,7 +15,7 @@ import { Exam } from '@/types/exam.types'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import Button from '@/components/common/Button/Button'
 import { examService } from '@/services/api/exam.service'
-import { isTeacherOrAdmin } from '@/utils/roleUtils'
+import { isTeacherOrOwner } from '@/utils/roleUtils'
 import './ExamList.scss'
 
 const PAGE_SIZE = 6
@@ -60,7 +60,7 @@ const ExamList: React.FC = () => {
     fetchExams()
   }, [page, searchTerm, filterType])
 
-  const canManageExam = isTeacherOrAdmin(user)
+  const canManageExam = isTeacherOrOwner(user)
 
   // Server-side search & filter: exams already reflect searchTerm/filterType
   const filteredExams = useMemo(() => exams, [exams])

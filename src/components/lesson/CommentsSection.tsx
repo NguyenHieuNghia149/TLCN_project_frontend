@@ -1,9 +1,17 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { commentApi } from '@/services/api/comment.service'
-import type { CommentWithUser } from '@/types/comment.types'
+import type { CommentWithUser, CommentWithReplies } from '@/types/comment.types'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store/stores'
-import { MessageCircle, Edit2, Trash2, Send } from 'lucide-react'
+import {
+  MessageCircle,
+  Edit2,
+  Trash2,
+  Send,
+  Reply as ReplyIcon,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react'
 
 interface Props {
   lessonId?: string
@@ -14,12 +22,15 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
   const contextId = lessonId || problemId
   const contextType = lessonId ? 'lesson' : 'problem'
 
-  const [comments, setComments] = useState<CommentWithUser[]>([])
+  const [comments, setComments] = useState<CommentWithReplies[]>([])
   const [loading, setLoading] = useState(false)
   const [content, setContent] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingContent, setEditingContent] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [replyingTo, setReplyingTo] = useState<string | null>(null)
+  const [replyContent, setReplyContent] = useState('')
+  const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set())
   const auth = useSelector((state: RootState) => state.auth.session)
 
   const fetchComments = useCallback(async () => {
@@ -41,13 +52,7 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
   useEffect(() => {
     if (!contextId) return
     fetchComments()
-  }, [contextId, contextType])
-
-  // Debug: log current user and comments
-  useEffect(() => {
-    console.log('Current auth user:', auth.user)
-    console.log('Comments:', comments)
-  }, [auth.user, comments])
+  }, [contextId, contextType, fetchComments])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -61,11 +66,33 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
           ? { lessonId: contextId }
           : { problemId: contextId }),
       })
-      // Fetch to get user info
       await fetchComments()
       setContent('')
     } catch (err) {
       console.error('Failed to post comment', err)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleReply = async (e: React.FormEvent, parentCommentId: string) => {
+    e.preventDefault()
+    if (!replyContent.trim() || !contextId) return
+
+    setSubmitting(true)
+    try {
+      await commentApi.create({
+        content: replyContent,
+        parentCommentId,
+        ...(contextType === 'lesson'
+          ? { lessonId: contextId }
+          : { problemId: contextId }),
+      })
+      await fetchComments()
+      setReplyContent('')
+      setReplyingTo(null)
+    } catch (err) {
+      console.error('Failed to post reply', err)
     } finally {
       setSubmitting(false)
     }
@@ -96,13 +123,23 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
     if (!confirm('Are you sure you want to delete this comment?')) return
     try {
       await commentApi.delete(id)
-      setComments(prev => prev.filter(c => c.comment.id !== id))
+      await fetchComments()
     } catch (err) {
       console.error('Delete failed', err)
     }
   }
 
-  const getUserName = (user: CommentWithUser['user']) => {
+  const toggleReplies = (commentId: string) => {
+    const newExpanded = new Set(expandedReplies)
+    if (newExpanded.has(commentId)) {
+      newExpanded.delete(commentId)
+    } else {
+      newExpanded.add(commentId)
+    }
+    setExpandedReplies(newExpanded)
+  }
+
+  const getUserNameFromUser = (user: CommentWithUser['user']) => {
     if (!user) return 'Anonymous'
     if (user.firstName && user.lastName)
       return `${user.firstName} ${user.lastName}`
@@ -122,13 +159,209 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
     })
   }
 
+  const renderCommentItem = (
+    commentData: CommentWithUser,
+    parentId?: string,
+    replies?: CommentWithUser[]
+  ) => {
+    const { comment, user } = commentData
+    const isEditing = editingId === comment.id
+    const canEdit =
+      auth.isAuthenticated &&
+      (auth.user?.id === comment.userId ||
+        (auth.user?.role && ['owner', 'teacher'].includes(auth.user.role)))
+    const commentReplies = replies || []
+
+    return (
+      <div
+        key={comment.id}
+        className="rounded-lg border border-gray-700 bg-[#252730] p-4 transition-colors hover:border-gray-600"
+      >
+        {/* User Info */}
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {user?.avatar ? (
+              <img
+                src={user.avatar}
+                alt={getUserNameFromUser(user)}
+                className="h-8 w-8 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600">
+                <span className="text-xs font-semibold text-white">
+                  {getUserNameFromUser(user).charAt(0).toUpperCase()}
+                </span>
+              </div>
+            )}
+            <div>
+              <p className="font-medium text-white">
+                {getUserNameFromUser(user)}
+              </p>
+              <p className="text-xs text-gray-400">
+                {formatDate(comment.createdAt)}
+              </p>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          {canEdit && (
+            <div className="flex gap-2">
+              {auth.user?.id === comment.userId && (
+                <button
+                  onClick={() => handleEdit(comment.id, comment.content)}
+                  className="rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-700 hover:text-yellow-400"
+                  title="Edit"
+                  disabled={editingId !== null}
+                >
+                  <Edit2 className="h-4 w-4" />
+                </button>
+              )}
+              <button
+                onClick={() => handleDelete(comment.id)}
+                className="rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-700 hover:text-red-400"
+                title="Delete"
+                disabled={editingId !== null}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Comment Content */}
+        {isEditing ? (
+          <div className="space-y-3">
+            <textarea
+              className="w-full rounded-lg border border-blue-500 bg-[#1a1b23] px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              rows={2}
+              value={editingContent}
+              onChange={e => setEditingContent(e.target.value)}
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setEditingId(null)}
+                className="rounded px-3 py-1 text-sm text-gray-400 transition-colors hover:bg-gray-700"
+                disabled={submitting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleSaveEdit(comment.id)}
+                className="rounded bg-blue-600 px-3 py-1 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                disabled={submitting || !editingContent.trim()}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="whitespace-pre-wrap text-gray-200">{comment.content}</p>
+        )}
+
+        {/* Reply Button */}
+        {auth.isAuthenticated && !parentId && (
+          <div className="mt-3 flex gap-2">
+            {replyingTo !== comment.id ? (
+              <button
+                onClick={() => setReplyingTo(comment.id)}
+                className="inline-flex items-center gap-1 text-sm text-blue-400 transition-colors hover:text-blue-300"
+              >
+                <ReplyIcon className="h-4 w-4" />
+                Reply
+              </button>
+            ) : (
+              <button
+                onClick={() => setReplyingTo(null)}
+                className="inline-flex items-center gap-1 text-sm text-gray-400 transition-colors hover:text-gray-300"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Replies */}
+        {!parentId && commentReplies.length > 0 && (
+          <div className="mt-4 space-y-3 border-t border-gray-700 pt-4">
+            <button
+              onClick={() => toggleReplies(comment.id)}
+              className="flex items-center gap-2 text-sm text-gray-400 transition-colors hover:text-gray-300"
+            >
+              {expandedReplies.has(comment.id) ? (
+                <>
+                  <ChevronUp className="h-4 w-4" />
+                  Hide {commentReplies.length} repl
+                  {commentReplies.length === 1 ? 'y' : 'ies'}
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="h-4 w-4" />
+                  Show {commentReplies.length} repl
+                  {commentReplies.length === 1 ? 'y' : 'ies'}
+                </>
+              )}
+            </button>
+
+            {expandedReplies.has(comment.id) && (
+              <div className="space-y-3 border-l-2 border-gray-700 pl-4">
+                {commentReplies.map(reply =>
+                  renderCommentItem(reply, comment.id)
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Reply Form */}
+        {replyingTo === comment.id && (
+          <form
+            onSubmit={e => handleReply(e, comment.id)}
+            className="mt-4 space-y-3 border-t border-gray-700 pt-4"
+          >
+            <textarea
+              className="w-full rounded-lg border border-gray-700 bg-[#1a1b23] px-3 py-2 text-white placeholder-gray-500 transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              rows={2}
+              value={replyContent}
+              onChange={e => setReplyContent(e.target.value)}
+              placeholder="Write a reply..."
+              disabled={submitting}
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setReplyingTo(null)}
+                className="rounded px-3 py-1 text-sm text-gray-400 transition-colors hover:bg-gray-700"
+                disabled={submitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="inline-flex items-center gap-2 rounded bg-blue-600 px-3 py-1 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                disabled={submitting || !replyContent.trim()}
+              >
+                <Send className="h-3 w-3" />
+                Reply
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    )
+  }
+
   return (
     <section className="mt-10 rounded-lg border border-gray-800 bg-[#1a1b23] p-6">
       {/* Header */}
       <div className="mb-6 flex items-center gap-3">
         <MessageCircle className="h-5 w-5 text-blue-400" />
         <h3 className="text-xl font-semibold text-white">
-          Comments ({comments.length})
+          Comments (
+          {comments.reduce(
+            (acc, c) => acc + 1 + (c as CommentWithReplies).replies.length,
+            0
+          )}
+          )
         </h3>
       </div>
 
@@ -179,100 +412,9 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
         </div>
       ) : (
         <ul className="space-y-4">
-          {comments.map(({ comment, user }) => (
-            <li
-              key={comment.id}
-              className="rounded-lg border border-gray-700 bg-[#252730] p-4 transition-colors hover:border-gray-600"
-            >
-              {/* User Info */}
-              <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {user?.avatar ? (
-                    <img
-                      src={user.avatar}
-                      alt={getUserName(user)}
-                      className="h-8 w-8 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600">
-                      <span className="text-xs font-semibold text-white">
-                        {getUserName(user).charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                  <div>
-                    <p className="font-medium text-white">
-                      {getUserName(user)}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {formatDate(comment.createdAt)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                {auth.isAuthenticated &&
-                  (auth.user?.id === comment.userId ||
-                    (auth.user?.role &&
-                      ['owner', 'teacher'].includes(auth.user.role))) && (
-                    <div className="flex gap-2">
-                      {auth.user?.id === comment.userId && (
-                        <button
-                          onClick={() =>
-                            handleEdit(comment.id, comment.content)
-                          }
-                          className="rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-700 hover:text-yellow-400"
-                          title="Edit"
-                          disabled={editingId !== null}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleDelete(comment.id)}
-                        className="rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-700 hover:text-red-400"
-                        title="Delete"
-                        disabled={editingId !== null}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
-              </div>
-
-              {/* Comment Content */}
-              {editingId === comment.id ? (
-                <div className="space-y-3">
-                  <textarea
-                    className="w-full rounded-lg border border-blue-500 bg-[#1a1b23] px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    rows={2}
-                    value={editingContent}
-                    onChange={e => setEditingContent(e.target.value)}
-                  />
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => setEditingId(null)}
-                      className="rounded px-3 py-1 text-sm text-gray-400 transition-colors hover:bg-gray-700"
-                      disabled={submitting}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => handleSaveEdit(comment.id)}
-                      className="rounded bg-blue-600 px-3 py-1 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
-                      disabled={submitting || !editingContent.trim()}
-                    >
-                      Save
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <p className="whitespace-pre-wrap text-gray-200">
-                  {comment.content}
-                </p>
-              )}
-            </li>
-          ))}
+          {comments.map(commentData =>
+            renderCommentItem(commentData, undefined, commentData.replies)
+          )}
         </ul>
       )}
     </section>
