@@ -13,6 +13,7 @@ export interface Comment {
   userId: string
   lessonId?: string | null
   problemId?: string | null
+  parentCommentId?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -22,13 +23,18 @@ export interface CommentWithUser {
   user: CommentUser | null
 }
 
+export interface CommentWithReplies extends CommentWithUser {
+  replies: CommentWithUser[]
+}
+
 export interface CommentListResponse {
   success: boolean
-  data: CommentWithUser[]
+  data: CommentWithReplies[]
 }
 
 export interface CreateCommentPayload {
   content: string
   lessonId?: string
   problemId?: string
+  parentCommentId?: string
 }

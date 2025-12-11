@@ -61,33 +61,33 @@ export const router = createBrowserRouter([
   {
     path: 'admin',
     element: (
-      <ProtectedRoute>
+      <TeacherRoute>
         <AdminHome />
-      </ProtectedRoute>
+      </TeacherRoute>
     ),
   },
   {
     path: 'admin/users',
     element: (
-      <ProtectedRoute>
+      <TeacherRoute>
         <ManageUser />
-      </ProtectedRoute>
+      </TeacherRoute>
     ),
   },
   {
     path: 'admin/teachers',
     element: (
-      <ProtectedRoute>
+      <TeacherRoute>
         <ManageTeacher />
-      </ProtectedRoute>
+      </TeacherRoute>
     ),
   },
   {
     path: 'admin/lessons',
     element: (
-      <ProtectedRoute>
+      <TeacherRoute>
         <ManageLesson />
-      </ProtectedRoute>
+      </TeacherRoute>
     ),
   },
   {

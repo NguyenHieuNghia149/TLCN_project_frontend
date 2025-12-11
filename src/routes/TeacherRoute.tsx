@@ -1,7 +1,7 @@
 import React from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/api/useAuth'
-import { isTeacherOrAdmin } from '@/utils/roleUtils'
+import { isTeacherOrOwner } from '@/utils/roleUtils'
 
 interface TeacherRouteProps {
   children: React.ReactNode
@@ -34,7 +34,7 @@ export const TeacherRoute: React.FC<TeacherRouteProps> = ({
     return <Navigate to={redirectTo} state={{ from: location }} replace />
   }
 
-  if (!isTeacherOrAdmin(user)) {
+  if (!isTeacherOrOwner(user)) {
     return <Navigate to={fallbackPath} replace />
   }
 

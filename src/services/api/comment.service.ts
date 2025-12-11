@@ -3,6 +3,7 @@ import type {
   Comment,
   CreateCommentPayload,
   CommentWithUser,
+  CommentWithReplies,
 } from '@/types/comment.types'
 
 class CommentAPI {
@@ -17,15 +18,22 @@ class CommentAPI {
 
   async listByLesson(
     lessonId: string
-  ): Promise<{ success: boolean; data: CommentWithUser[] }> {
+  ): Promise<{ success: boolean; data: CommentWithReplies[] }> {
     const res = await apiClient.get(`${this.baseURL}/lesson/${lessonId}`)
     return res.data
   }
 
   async listByProblem(
     problemId: string
-  ): Promise<{ success: boolean; data: CommentWithUser[] }> {
+  ): Promise<{ success: boolean; data: CommentWithReplies[] }> {
     const res = await apiClient.get(`${this.baseURL}/problem/${problemId}`)
+    return res.data
+  }
+
+  async getReplies(
+    commentId: string
+  ): Promise<{ success: boolean; data: CommentWithUser[] }> {
+    const res = await apiClient.get(`${this.baseURL}/${commentId}/replies`)
     return res.data
   }
 
