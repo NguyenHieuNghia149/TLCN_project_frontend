@@ -1,0 +1,222 @@
+@use '../../../styles/admin-theme.scss';
+
+.admin-nav {
+  width: 260px;
+  height: 100vh;
+  background-color: var(--admin-nav-bg);
+  border-right: 1px solid var(--admin-nav-border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  left: 0;
+  top: 0;
+  overflow-y: auto;
+  transition:
+    width 0.3s ease,
+    background-color 0.3s ease;
+  z-index: 100;
+  box-shadow: var(--admin-card-shadow);
+
+  &--collapsed {
+    width: 80px;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem 1rem;
+    border-bottom: 1px solid var(--admin-nav-border);
+    min-height: 70px;
+    gap: 0.5rem;
+  }
+
+  &__logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--admin-text-primary);
+    min-width: 0;
+    flex: 1;
+
+    span {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  &__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--admin-nav-border);
+    border-radius: 6px;
+    background-color: transparent;
+    color: var(--admin-text-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+
+    &:hover {
+      background-color: var(--admin-nav-hover);
+      border-color: var(--admin-button-primary-bg);
+    }
+  }
+
+  &__list {
+    flex: 1;
+    list-style: none;
+    padding: 1rem 0.5rem;
+    margin: 0;
+  }
+
+  &__item {
+    margin-bottom: 0.5rem;
+  }
+
+  &__link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: none;
+    background-color: transparent;
+    color: var(--admin-text-secondary);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-align: left;
+
+    &:hover {
+      background-color: var(--admin-nav-hover);
+      color: var(--admin-text-primary);
+    }
+
+    &--active {
+      background-color: var(--admin-button-primary-bg);
+      color: var(--admin-button-primary-text);
+
+      .admin-nav__icon {
+        color: inherit;
+      }
+    }
+  }
+
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: currentColor;
+  }
+
+  &__label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__footer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem 0.5rem;
+    border-top: 1px solid var(--admin-nav-border);
+  }
+
+  &__action {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background-color: var(--admin-button-secondary-bg);
+    color: var(--admin-button-secondary-text);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-align: left;
+
+    &:hover {
+      background-color: var(--admin-button-secondary-hover);
+      border-color: var(--admin-nav-border);
+    }
+
+    &--logout {
+      &:hover {
+        background-color: #fee2e2;
+        color: #742a2a;
+
+        [data-admin-theme='dark'] & {
+          background-color: #7f1d1d;
+          color: #fee2e2;
+        }
+      }
+    }
+  }
+}
+
+// Responsive design
+@media (max-width: 768px) {
+  .admin-nav {
+    width: 80px;
+
+    &__header {
+      padding: 1rem 0.5rem;
+    }
+
+    &__logo {
+      display: none;
+    }
+
+    &__list {
+      padding: 0.5rem;
+    }
+
+    &__label {
+      display: none;
+    }
+
+    &__footer {
+      padding: 0.5rem;
+
+      span {
+        display: none;
+      }
+    }
+  }
+}
+
+// Scrollbar styling
+.admin-nav {
+  scrollbar-width: thin;
+  scrollbar-color: var(--admin-nav-border) transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--admin-nav-border);
+    border-radius: 3px;
+
+    &:hover {
+      background-color: var(--admin-button-secondary-hover);
+    }
+  }
+}

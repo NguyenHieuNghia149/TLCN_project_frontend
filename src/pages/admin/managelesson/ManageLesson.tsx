@@ -8,7 +8,7 @@ import {
   BookOpen,
   Upload,
 } from 'lucide-react'
-import './ManageLesson.css'
+import './ManageLesson.scss'
 import {
   adminLessonAPI,
   AdminLessonResponse,

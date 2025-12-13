@@ -1,7 +1,9 @@
 import React from 'react'
 import { createBrowserRouter } from 'react-router-dom'
 import MainLayout from '@/layouts/MainLayout/MainLayout'
-import Login from '@/pages/auth/login/Login'
+import AdminLayout from '@/layouts/AdminLayout/AdminLayout'
+import { AdminThemeProvider } from '@/contexts/AdminThemeContext'
+import Login from '@/pages/auth/Login/Login'
 import Register from '@/pages/auth/register/Register'
 import ForgotPassword from '@/pages/auth/forgotpassword/ForgotPassword'
 import Profile from '@/pages/profile/Profile'
@@ -61,33 +63,49 @@ export const router = createBrowserRouter([
   {
     path: 'admin',
     element: (
-      <TeacherRoute>
-        <AdminHome />
-      </TeacherRoute>
+      <AdminThemeProvider>
+        <TeacherRoute>
+          <AdminLayout>
+            <AdminHome />
+          </AdminLayout>
+        </TeacherRoute>
+      </AdminThemeProvider>
     ),
   },
   {
     path: 'admin/users',
     element: (
-      <TeacherRoute>
-        <ManageUser />
-      </TeacherRoute>
+      <AdminThemeProvider>
+        <TeacherRoute>
+          <AdminLayout>
+            <ManageUser />
+          </AdminLayout>
+        </TeacherRoute>
+      </AdminThemeProvider>
     ),
   },
   {
     path: 'admin/teachers',
     element: (
-      <TeacherRoute>
-        <ManageTeacher />
-      </TeacherRoute>
+      <AdminThemeProvider>
+        <TeacherRoute>
+          <AdminLayout>
+            <ManageTeacher />
+          </AdminLayout>
+        </TeacherRoute>
+      </AdminThemeProvider>
     ),
   },
   {
     path: 'admin/lessons',
     element: (
-      <TeacherRoute>
-        <ManageLesson />
-      </TeacherRoute>
+      <AdminThemeProvider>
+        <TeacherRoute>
+          <AdminLayout>
+            <ManageLesson />
+          </AdminLayout>
+        </TeacherRoute>
+      </AdminThemeProvider>
     ),
   },
   {
