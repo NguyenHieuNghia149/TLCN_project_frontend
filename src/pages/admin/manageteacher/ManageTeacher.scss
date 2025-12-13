@@ -220,6 +220,7 @@
   box-shadow: 0 20px 28px rgba(0, 0, 0, 0.15);
   max-height: 90vh;
   overflow-y: auto;
+  color: var(--admin-text-primary);
 }
 
 .modal h3 {
@@ -253,6 +254,10 @@
   letter-spacing: 0.02em;
 }
 
+.form-group label span {
+  color: var(--admin-text-primary);
+}
+
 .form-group input,
 .form-group textarea,
 .form-group select {
@@ -265,6 +270,31 @@
   font-family: inherit;
   outline: none;
   transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+// Override for form-grid (alternative class name used in forms)
+.form-grid label {
+  color: var(--admin-text-primary);
+}
+
+.form-grid label span {
+  color: var(--admin-text-primary);
+}
+
+.form-grid input,
+.form-grid textarea,
+.form-grid select {
+  padding: 8px 12px;
+  border: 1px solid var(--admin-input-border);
+  border-radius: 6px;
+  background: var(--admin-input-bg);
+  color: var(--admin-input-text);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  transition: all 0.2s ease;
+  font-weight: 500;
 }
 
 .form-group input::placeholder,
@@ -277,6 +307,30 @@
 .form-group select:focus {
   border-color: var(--admin-button-primary-bg);
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+// Date input styling
+.form-group input[type='date'],
+.form-group input[type='time'],
+.form-group input[type='datetime-local'] {
+  color-scheme: light dark;
+  accent-color: var(--admin-button-primary-bg);
+}
+
+.form-grid input[type='date'],
+.form-grid input[type='time'],
+.form-grid input[type='datetime-local'] {
+  color-scheme: light dark;
+  accent-color: var(--admin-button-primary-bg);
+}
+
+// Calendar icon color for date inputs
+input[type='date']::-webkit-calendar-picker-indicator,
+input[type='time']::-webkit-calendar-picker-indicator,
+input[type='datetime-local']::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: var(--admin-date-picker-filter);
+  opacity: 0.8;
 }
 
 .form-actions {

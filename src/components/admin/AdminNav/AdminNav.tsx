@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   Users,
   BookOpen,
+  FileText,
   Settings,
   LogOut,
   ChevronLeft,
@@ -49,6 +50,12 @@ const AdminNav: React.FC = () => {
       label: 'Manage Lessons',
       path: '/admin/lessons',
       icon: <BookOpen size={20} />,
+    },
+    {
+      id: 'topics',
+      label: 'Manage Topics',
+      path: '/admin/topics',
+      icon: <FileText size={20} />,
     },
   ]
 

@@ -27,9 +27,9 @@ import NotFound from '@/pages/NotFound'
 import ManageTeacher from '@/pages/admin/manageteacher/ManageTeacher'
 import ManageUser from '@/pages/admin/manageuser/ManageUser'
 import ManageLesson from '@/pages/admin/managelesson/ManageLesson'
+import ManageTopic from '@/pages/admin/managetopic/ManageTopic'
 import AdminHome from '@/pages/admin/adminhome/AdminHome'
 import UserSubmissionsPage from '@/pages/user/submissions/UserSubmissionsPage'
-// removed unused import
 
 export const router = createBrowserRouter([
   {
@@ -103,6 +103,18 @@ export const router = createBrowserRouter([
         <TeacherRoute>
           <AdminLayout>
             <ManageLesson />
+          </AdminLayout>
+        </TeacherRoute>
+      </AdminThemeProvider>
+    ),
+  },
+  {
+    path: 'admin/topics',
+    element: (
+      <AdminThemeProvider>
+        <TeacherRoute>
+          <AdminLayout>
+            <ManageTopic />
           </AdminLayout>
         </TeacherRoute>
       </AdminThemeProvider>

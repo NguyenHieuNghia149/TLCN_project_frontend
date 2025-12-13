@@ -218,6 +218,13 @@ const AdminHome: React.FC = () => {
                 color="purple"
               />
               <QuickAction
+                title="Manage Topics"
+                description="Create and manage topics"
+                icon={<FileText size={20} />}
+                onClick={() => navigate('/admin/topics')}
+                color="purple"
+              />
+              <QuickAction
                 title="View Reports"
                 description="Access platform analytics"
                 icon={<BarChart3 size={20} />}

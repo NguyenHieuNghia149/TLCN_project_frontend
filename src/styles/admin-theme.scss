@@ -31,9 +31,11 @@
 
   // Inputs
   --admin-input-bg: #ffffff;
-  --admin-input-border: #cbd5e0;
-  --admin-input-text: #2d3748;
-  --admin-input-placeholder: #a0aec0;
+  --admin-input-border: #a0aec0;
+  --admin-input-text: #1a202c;
+  --admin-input-placeholder: #4a5568;
+  --admin-input-icon: #4a5568;
+  --admin-date-picker-filter: invert(60%);
 
   // Tables
   --admin-table-header-bg: #f7fafc;
@@ -100,6 +102,8 @@
   --admin-input-border: #374151;
   --admin-input-text: #e5e7eb;
   --admin-input-placeholder: #6b7280;
+  --admin-input-icon: #6b7280;
+  --admin-date-picker-filter: invert(0%);
 
   // Tables
   --admin-table-header-bg: #1b1c25;
