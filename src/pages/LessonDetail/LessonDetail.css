@@ -162,17 +162,10 @@ body {
 /* Challenge Section */
 .lesson-challenge-section {
   margin: 3rem 0 2rem;
-  padding: 2rem;
-  background: linear-gradient(
-    135deg,
-    rgba(102, 126, 234, 0.1) 0%,
-    rgba(118, 75, 162, 0.1) 100%
-  );
-  border: 1px solid rgba(102, 126, 234, 0.3);
-  border-radius: 1rem;
+  padding: 0;
   display: flex;
-  justify-content: center;
-  align-items: center;
+  flex-direction: column;
+  gap: 2rem;
 }
 
 .lesson-challenge-button {

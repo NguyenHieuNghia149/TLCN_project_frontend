@@ -1,0 +1,11 @@
+@use '../../styles/admin-theme.scss';
+
+// Apply admin theme variables specifically to admin area
+[data-admin-theme] {
+  // This ensures all child elements get the CSS variables
+
+  .admin-layout {
+    background-color: var(--admin-bg-primary);
+    color: var(--admin-text-primary);
+  }
+}

@@ -7,7 +7,7 @@ import {
   RefreshCw,
   UserCircle2,
 } from 'lucide-react'
-import './ManageUser.css'
+import './ManageUser.scss'
 import { apiClient } from '@/config/axios.config'
 
 interface ApiResponse {

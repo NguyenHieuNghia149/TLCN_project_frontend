@@ -7,7 +7,7 @@ import {
   RefreshCw,
   GraduationCap,
 } from 'lucide-react'
-import './ManageTeacher.css'
+import './ManageTeacher.scss'
 import { apiClient } from '@/config/axios.config'
 
 interface ApiResponse {

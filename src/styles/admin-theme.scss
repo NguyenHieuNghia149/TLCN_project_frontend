@@ -1,0 +1,144 @@
+// Admin Theme Variables
+// Light Mode
+:root[data-admin-theme='light'] {
+  // Primary backgrounds
+  --admin-bg-primary: #ffffff;
+  --admin-bg-secondary: #f8f9fa;
+  --admin-bg-tertiary: #f1f3f5;
+
+  // Text colors
+  --admin-text-primary: #1a202c;
+  --admin-text-secondary: #4a5568;
+  --admin-text-tertiary: #718096;
+  --admin-text-muted: #a0aec0;
+
+  // Borders and dividers
+  --admin-border-color: #e2e8f0;
+  --admin-border-light: #edf2f7;
+
+  // Cards
+  --admin-card-bg: #ffffff;
+  --admin-card-border: #e2e8f0;
+  --admin-card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+
+  // Buttons and interactive
+  --admin-button-primary-bg: #3182ce;
+  --admin-button-primary-text: #ffffff;
+  --admin-button-primary-hover: #2c5aa0;
+  --admin-button-secondary-bg: #edf2f7;
+  --admin-button-secondary-text: #2d3748;
+  --admin-button-secondary-hover: #e2e8f0;
+
+  // Inputs
+  --admin-input-bg: #ffffff;
+  --admin-input-border: #cbd5e0;
+  --admin-input-text: #2d3748;
+  --admin-input-placeholder: #a0aec0;
+
+  // Tables
+  --admin-table-header-bg: #f7fafc;
+  --admin-table-header-text: #2d3748;
+  --admin-table-row-hover: #f7fafc;
+  --admin-table-border: #e2e8f0;
+
+  // Status colors
+  --admin-success-bg: #c6f6d5;
+  --admin-success-text: #22543d;
+  --admin-warning-bg: #feebc8;
+  --admin-warning-text: #7c2d12;
+  --admin-error-bg: #fed7d7;
+  --admin-error-text: #742a2a;
+  --admin-info-bg: #bee3f8;
+  --admin-info-text: #2c5282;
+
+  // Nav
+  --admin-nav-bg: #ffffff;
+  --admin-nav-text: #2d3748;
+  --admin-nav-hover: #f7fafc;
+  --admin-nav-active: #edf2f7;
+  --admin-nav-border: #e2e8f0;
+
+  // Header
+  --admin-header-bg: #ffffff;
+  --admin-header-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  --admin-header-border: #e2e8f0;
+}
+
+// Dark Mode (default)
+:root[data-admin-theme='dark'],
+:root {
+  // Primary backgrounds
+  --admin-bg-primary: #121418;
+  --admin-bg-secondary: #1f202a;
+  --admin-bg-tertiary: #232533;
+
+  // Text colors
+  --admin-text-primary: #ffffff;
+  --admin-text-secondary: #d1d5db;
+  --admin-text-tertiary: #9ca3af;
+  --admin-text-muted: #6b7280;
+
+  // Borders and dividers
+  --admin-border-color: #374151;
+  --admin-border-light: #232533;
+
+  // Cards
+  --admin-card-bg: #1f202a;
+  --admin-card-border: #374151;
+  --admin-card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
+
+  // Buttons and interactive
+  --admin-button-primary-bg: #2563eb;
+  --admin-button-primary-text: #ffffff;
+  --admin-button-primary-hover: #1d4ed8;
+  --admin-button-secondary-bg: #232533;
+  --admin-button-secondary-text: #e5e7eb;
+  --admin-button-secondary-hover: #374151;
+
+  // Inputs
+  --admin-input-bg: #1f202a;
+  --admin-input-border: #374151;
+  --admin-input-text: #e5e7eb;
+  --admin-input-placeholder: #6b7280;
+
+  // Tables
+  --admin-table-header-bg: #1b1c25;
+  --admin-table-header-text: #9ca3af;
+  --admin-table-row-hover: #1f202a;
+  --admin-table-border: #232533;
+
+  // Status colors
+  --admin-success-bg: #065f46;
+  --admin-success-text: #d1fae5;
+  --admin-warning-bg: #78350f;
+  --admin-warning-text: #fef3c7;
+  --admin-error-bg: #7f1d1d;
+  --admin-error-text: #fee2e2;
+  --admin-info-bg: #0c4a6e;
+  --admin-info-text: #bae6fd;
+
+  // Nav
+  --admin-nav-bg: #1f202a;
+  --admin-nav-text: #e5e7eb;
+  --admin-nav-hover: #232533;
+  --admin-nav-active: #2563eb;
+  --admin-nav-border: #374151;
+
+  // Header
+  --admin-header-bg: #1f202a;
+  --admin-header-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
+  --admin-header-border: #374151;
+}
+
+// Utility classes for theme
+.admin-light {
+  [data-admin-theme='light'] & {
+    display: block;
+  }
+}
+
+.admin-dark {
+  [data-admin-theme='dark'] & {
+    display: block;
+  }
+}
