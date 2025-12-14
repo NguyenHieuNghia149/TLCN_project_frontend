@@ -7,6 +7,8 @@ import VideoPlayer from '../../components/ui/VideoPlayer'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import { useLessonDetail } from '../../hooks/api/useLessonDetail'
 import CommentsSection from '../../components/lesson/CommentsSection'
+import LessonChallengeCard from '../../components/lesson/LessonChallengeCard'
+import { useLessonChallenges } from '../../hooks/api/useLessonChallenges'
 import { LearnedLessonService } from '../../services/api/learned-lesson.service'
 import './LessonDetail.css'
 import './TechAcademyContent.css'
@@ -15,6 +17,9 @@ const LessonDetail: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>()
   const navigate = useNavigate()
   const { lesson, loading, error } = useLessonDetail(lessonId || '')
+  const { challenges, loading: challengesLoading } = useLessonChallenges(
+    lesson?.topicId || ''
+  )
 
   // Lesson completion tracking
   const [showCompletionMessage, setShowCompletionMessage] = useState(false)
@@ -381,22 +386,47 @@ const LessonDetail: React.FC = () => {
           </div>
         )}
 
-        {/* Challenge Button */}
+        {/* Challenge Section */}
         {lesson.topicId && (
-          <div className="lesson-challenge-section">
-            <button
-              onClick={() => {
-                const categoryParam = lesson.topicName
-                  ? `?category=${encodeURIComponent(lesson.topicName.toLowerCase().replace(/\s+/g, '-'))}`
-                  : ''
-                navigate(
-                  `/dashboard/challenge/${lesson.topicId}${categoryParam}`
-                )
-              }}
-              className="lesson-challenge-button"
-            >
-              Practice This Topic's Challenges
-            </button>
+          <div className="lesson-challenges-section py-8">
+            <h2 className="mb-6 text-2xl font-bold text-white">
+              Practice Challenges
+            </h2>
+
+            {challengesLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <LoadingSpinner />
+              </div>
+            ) : challenges.length > 0 ? (
+              <div className="grid gap-4">
+                {challenges.map(challenge => (
+                  <LessonChallengeCard
+                    key={challenge.id}
+                    challenge={challenge}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-gray-700 bg-[#2a2d3a] p-6 text-center text-gray-400">
+                <p>No challenges available for this topic yet.</p>
+              </div>
+            )}
+
+            {challenges.length > 0 && (
+              <button
+                onClick={() => {
+                  const categoryParam = lesson.topicName
+                    ? `?category=${encodeURIComponent(lesson.topicName.toLowerCase().replace(/\s+/g, '-'))}`
+                    : ''
+                  navigate(
+                    `/dashboard/challenge/${lesson.topicId}${categoryParam}`
+                  )
+                }}
+                className="mt-6 w-full rounded-lg border border-blue-500 bg-blue-500/10 px-6 py-3 font-medium text-blue-400 transition-colors hover:bg-blue-500/20"
+              >
+                View All Challenges for This Topic
+              </button>
+            )}
           </div>
         )}
 
