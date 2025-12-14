@@ -139,31 +139,96 @@ export default function ProblemDetailPage({
           : {}),
       }
       const data = await submissionsService.runCode(payload)
+      const submissionId = data.submissionId
 
-      // Filter to only show public test cases
-      const allResults = coerceResults(data.data.results) || []
-      const publicResults = allResults.filter(
-        r => r.isPublic !== false && testCases[r.index]?.isPublic !== false
-      )
+      // Reuse socket logic similar to handleSubmit but without DB polling
+      // Join socket room
+      const s = ensureSocket()
+      s.emit('join_submission', { submissionId })
 
-      // Recalculate summary based on public test cases only
-      const publicPassed = publicResults.filter(r => r.ok).length
-      const publicTotal = publicResults.length
+      const onUpdate = (update: {
+        submissionId?: string
+        status?: string
+        result?: {
+          passed?: number
+          total?: number
+          results?: Array<{
+            index: number
+            input: string
+            expected?: string
+            expectedOutput?: string
+            actual?: string
+            actualOutput?: string
+            ok: boolean
+            stderr?: string
+            executionTime?: number
+          }>
+        }
+      }) => {
+        if (!update || update.submissionId !== submissionId) return
+        clearSocketTimeout()
 
-      setOutput({
-        status:
-          publicPassed === publicTotal && publicTotal > 0
-            ? 'accepted'
-            : 'rejected',
-        message:
-          publicPassed === publicTotal && publicTotal > 0
-            ? 'All test cases passed!'
-            : `Passed ${publicPassed}/${publicTotal} test cases`,
-        passedTests: publicPassed,
-        totalTests: publicTotal,
-        results: publicResults,
-        processingTime: data.data.processingTime,
-      })
+        const normalized = normalizeStatus(update.status)
+        const isTerminal = [
+          'accepted',
+          'wrong_answer',
+          'time_limit_exceeded',
+          'memory_limit_exceeded',
+          'runtime_error',
+          'compilation_error',
+          'failed',
+        ].includes(normalized)
+
+        const allResults = coerceResults(update.result?.results) || []
+        const publicResults = allResults.filter(
+          r => r.isPublic !== false && testCases[r.index]?.isPublic !== false
+        )
+        const passed = publicResults.filter(r => r.ok).length
+        const total = publicResults.length
+
+        setOutput(prev => ({
+          status: isTerminal
+            ? normalized === 'accepted'
+              ? 'accepted'
+              : 'rejected'
+            : 'running',
+          message: isTerminal
+            ? normalized === 'accepted'
+              ? 'All test cases passed!'
+              : `Status: ${normalized}${
+                  typeof passed === 'number' && typeof total === 'number'
+                    ? ` • ${passed}/${total}`
+                    : ''
+                }`
+            : typeof passed === 'number' && typeof total === 'number'
+              ? `Running... ${passed}/${total} passed`
+              : 'Running...',
+          passedTests: passed,
+          totalTests: total,
+          results: publicResults.length ? publicResults : prev.results,
+        }))
+
+        if (isTerminal) {
+          s.off('submission_update', onUpdate)
+          leaveSubmissionRoom(submissionId)
+        }
+      }
+
+      s.on('submission_update', onUpdate)
+
+      // Fallback timeout since we have no DB polling to rely on for ephemeral runs
+      clearSocketTimeout()
+      socketTimeoutRef.current = window.setTimeout(() => {
+        s.off('submission_update', onUpdate)
+        leaveSubmissionRoom(submissionId)
+        if (output.status === 'running') {
+          setOutput({
+            status: 'rejected',
+            message: 'Execution timed out (no response from server).',
+            error: 'Socket timeout',
+          })
+        }
+      }, 30000) // 30s timeout
     } catch (err) {
       setOutput({
         status: 'rejected',
@@ -268,7 +333,10 @@ export default function ProblemDetailPage({
 
   const ensureSocket = () => {
     if (!socketRef.current) {
-      socketRef.current = io('/', {
+      // Connect to the backend root URL (not /api)
+      const socketUrl =
+        import.meta.env.REACT_APP_API_URL || 'http://localhost:3001'
+      socketRef.current = io(socketUrl, {
         transports: ['websocket'],
         withCredentials: true,
       })

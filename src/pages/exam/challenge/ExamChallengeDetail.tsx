@@ -499,7 +499,9 @@ const ExamChallengeDetail: React.FC = () => {
 
   const ensureSocket = () => {
     if (!socketRef.current) {
-      socketRef.current = io('/', {
+      const socketUrl =
+        import.meta.env.REACT_APP_API_URL || 'http://localhost:3001'
+      socketRef.current = io(socketUrl, {
         transports: ['websocket'],
         withCredentials: true,
       })
@@ -611,61 +613,100 @@ const ExamChallengeDetail: React.FC = () => {
           : {}),
       }
       const data = await submissionsService.runCode(payload)
-      console.log('payload sent for runCode:', payload)
-      console.log('Run code result:', data)
-      const rawData = data as unknown as Record<string, unknown>
-      let rawResults: unknown[] = []
-      // Prefer nested path data.results, fallback to results or result.results
-      if (rawData && typeof rawData === 'object') {
-        const nested = rawData['data'] as Record<string, unknown> | undefined
-        if (nested && Array.isArray(nested['results'] as unknown)) {
-          rawResults = nested['results'] as unknown[]
+      const submissionId = data.submissionId
+
+      // Reuse socket logic similar to handleSubmit but without DB polling
+      // Join socket room
+      const s = ensureSocket()
+      s.emit('join_submission', { submissionId })
+
+      const onUpdate = (update: {
+        submissionId?: string
+        status?: string
+        result?: {
+          passed?: number
+          total?: number
+          results?: Array<{
+            index: number
+            input: string
+            expected?: string
+            expectedOutput?: string
+            actual?: string
+            actualOutput?: string
+            ok: boolean
+            stderr?: string
+            executionTime?: number
+          }>
         }
-        if (
-          !rawResults.length &&
-          Array.isArray(rawData['results'] as unknown)
-        ) {
-          rawResults = rawData['results'] as unknown[]
-        }
-        if (!rawResults.length && typeof rawData['result'] === 'object') {
-          const maybeResult = rawData['result'] as Record<string, unknown>
-          if (Array.isArray(maybeResult['results'] as unknown))
-            rawResults = maybeResult['results'] as unknown[]
+      }) => {
+        if (!update || update.submissionId !== submissionId) return
+        clearSocketTimeout()
+
+        const normalized = normalizeStatus(update.status)
+        const isTerminal = [
+          'accepted',
+          'wrong_answer',
+          'time_limit_exceeded',
+          'memory_limit_exceeded',
+          'runtime_error',
+          'compilation_error',
+          'failed',
+        ].includes(normalized)
+
+        const allResults =
+          coerceResults(update.result?.results, testCases) || []
+        // Note: Exam challenge test cases usually hidden, but if public field exists use it
+        const publicResults = allResults.filter(
+          r => r.isPublic !== false && testCases[r.index]?.isPublic !== false
+        )
+        // Prefer sandbox summary when available
+        const passedCount = publicResults.filter(r => r.ok).length
+        const totalCount = publicResults.length
+
+        setOutput(prev => ({
+          status: isTerminal
+            ? normalized === 'accepted'
+              ? 'accepted'
+              : 'rejected'
+            : 'running',
+          message: isTerminal
+            ? normalized === 'accepted'
+              ? 'All test cases passed!'
+              : `Status: ${normalized}${
+                  typeof passedCount === 'number' &&
+                  typeof totalCount === 'number'
+                    ? ` • ${passedCount}/${totalCount}`
+                    : ''
+                }`
+            : typeof passedCount === 'number' && typeof totalCount === 'number'
+              ? `Running... ${passedCount}/${totalCount} passed`
+              : 'Running...',
+          passedTests: passedCount,
+          totalTests: totalCount,
+          results: publicResults.length ? publicResults : prev.results,
+        }))
+
+        if (isTerminal) {
+          s.off('submission_update', onUpdate)
+          leaveSubmissionRoom(submissionId)
         }
       }
-      console.log('[Run] Raw results from server:', rawResults)
-      const allResults = coerceResults(rawResults as unknown[], testCases) || []
-      console.log('[Run] All normalized results:', allResults)
-      // Normalize public filter to ensure only visible testcases are shown
-      const publicResults = allResults.filter(
-        r => r.isPublic !== false && testCases[r.index]?.isPublic !== false
-      )
-      // Prefer sandbox summary when available (more authoritative than counting results)
-      // rawDataRecord intentionally not used - kept for potential future parsing
-      // Always compute pass/total from publicResults (show only public testcases)
-      const passed = publicResults.filter(r => r.ok).length
-      const total = publicResults.length
-      const nextOutput: OutputState = {
-        status: (passed === total && total > 0
-          ? 'accepted'
-          : 'rejected') as OutputState['status'],
-        message:
-          passed === total && total > 0
-            ? 'All test cases passed!'
-            : `Passed ${passed}/${total} test cases`,
-        passedTests: passed,
-        totalTests: total,
-        results: publicResults,
-        processingTime: data.data.processingTime,
-      }
-      // Debug log the normalized output and counts to help diagnose UI disagreements
-      console.log('[Run] Normalized output:', nextOutput)
-      console.log('[Run] publicResults count/passed:', {
-        total: nextOutput.totalTests,
-        passed: nextOutput.passedTests,
-        publicResultsCount: publicResults.length,
-      })
-      setOutput(nextOutput)
+
+      s.on('submission_update', onUpdate)
+
+      // Fallback timeout since we have no DB polling to rely on for ephemeral runs
+      clearSocketTimeout()
+      socketTimeoutRef.current = window.setTimeout(() => {
+        s.off('submission_update', onUpdate)
+        leaveSubmissionRoom(submissionId)
+        if (output.status === 'running') {
+          setOutput({
+            status: 'rejected',
+            message: 'Execution timed out (no response from server).',
+            error: 'Socket timeout',
+          })
+        }
+      }, 30000) // 30s timeout
     } catch (err) {
       setOutput({
         status: 'rejected',

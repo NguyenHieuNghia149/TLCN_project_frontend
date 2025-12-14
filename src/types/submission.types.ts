@@ -48,9 +48,9 @@ export interface RunOrSubmitPayload {
 export interface RunResponseWrapper {
   success: true
   data: {
-    success: boolean
-    data: RunResponseData
-    timestamp: string
+    submissionId: string
+    status: string
+    message: string
   }
 }
 

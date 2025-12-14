@@ -14,7 +14,7 @@ class SubmissionsService {
     // Note: callers must pass `participationId` explicitly (Redux preferred).
     const res = await apiClient.post('/submissions/run', payload)
     const json = res.data as RunResponseWrapper
-    if (!json?.success || !json.data?.success) {
+    if (!json?.success || !json.data?.submissionId) {
       const message =
         (res.data && (res.data as { message?: string }).message) ||
         'Run code failed'
