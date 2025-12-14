@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   Search,
   MessageCircle,
-  Bell,
   Sun,
   Moon,
   Grid,
@@ -11,6 +10,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../../hooks/api/useAuth'
 import { useTheme } from '@/contexts/useTheme'
+import NotificationDropdown from '../../Notification/NotificationDropdown'
 import './header.scss'
 const Header: React.FC = () => {
   const location = useLocation()
@@ -101,9 +101,7 @@ const Header: React.FC = () => {
                 <button className="nav-icon text-white transition-colors hover:text-white">
                   <MessageCircle className="h-5 w-5" />
                 </button>
-                <button className="nav-icon text-white transition-colors hover:text-white">
-                  <Bell className="h-5 w-5" />
-                </button>
+                <NotificationDropdown />
                 <button
                   className="nav-icon text-white transition-colors hover:text-white"
                   onClick={toggleTheme}
