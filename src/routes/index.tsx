@@ -214,11 +214,7 @@ export const router = createBrowserRouter([
 
   {
     path: 'exam/create',
-    element: (
-      <MainLayout>
-        <NotFound />
-      </MainLayout>
-    ),
+    element: <NotFound />,
   },
   {
     path: 'exam/:examId',
