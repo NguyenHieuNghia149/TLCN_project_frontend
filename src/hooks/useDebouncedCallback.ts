@@ -39,23 +39,17 @@ export default function useDebouncedCallback<T extends unknown[]>(
     (...args: T) => {
       lastArgs.current = args
       if (timer.current) clearTimeout(timer.current)
-      console.log(`[Debounce] Call queued, will execute in ${wait}ms`)
       timer.current = setTimeout(async () => {
         timer.current = null
         const a = lastArgs.current
         lastArgs.current = null
         if (!a) return
         try {
-          console.log(
-            `[Debounce] Executing debounced function after ${wait}ms wait`
-          )
           if (options?.onStart) options.onStart()
           const res = savedFn.current(...a)
           if (res instanceof Promise) await res
-          console.log(`[Debounce] Debounced function completed successfully`)
           if (options?.onSuccess) options.onSuccess()
         } catch (err) {
-          console.error(`[Debounce] Error in debounced function:`, err)
           if (options?.onError) options.onError(err)
         }
       }, wait)

@@ -80,7 +80,6 @@ const ExamChallengeDetail: React.FC = () => {
         examId,
         reduxParticipationId
       )
-      console.log('Fetched submission details:', details)
       if (!details) return
       if (details.perProblem) {
         setExam(prev => {
@@ -107,8 +106,8 @@ const ExamChallengeDetail: React.FC = () => {
         // const pts = (details.perProblem as Array<{ obtained?: number }>)?.reduce((s, p) => s + (p.obtained || 0), 0)
         // setYourPoints(pts)
       }
-    } catch (err) {
-      console.warn('Failed to refresh submission details', err)
+    } catch {
+      // ignore refresh errors; UI will simply not update scores
     }
   }, [examId, reduxParticipationId])
   const splitPaneRef = useRef<HTMLDivElement | null>(null)
@@ -206,7 +205,6 @@ const ExamChallengeDetail: React.FC = () => {
   // Trigger autosave on code change (integrated in useAutosaveSession effect)
   useEffect(() => {
     if (!autosaveEnabled) return
-    console.log(`[UI] Code changed, autosave queued for ${challengeId}`)
   }, [code, autosaveEnabled, challengeId])
 
   // Flush pending autosave on unmount
@@ -255,9 +253,6 @@ const ExamChallengeDetail: React.FC = () => {
       if (!challengeId || !examId) return
       // If we already have loaded the same challenge, skip to prevent redundant fetches
       if (problemData && problemData.problem?.id === challengeId) {
-        console.log(
-          `[Challenge Load] Already loaded challenge ${challengeId}, skipping fetch`
-        )
         return
       }
 
@@ -304,20 +299,15 @@ const ExamChallengeDetail: React.FC = () => {
             // Always start with initial code first
             const initialCode = rawData.initialCode || DEFAULT_CODE
             setCode(initialCode)
-            console.log(
-              `[Challenge Load] Challenge ${challengeId} loaded with initial code`
-            )
 
             // Do NOT recover saved code here — saved code is restored via a separate effect that depends on reduxParticipationId.
             // Do NOT persist current challenge id to localStorage for privacy/security.
             // Keep current challenge in Redux only to avoid leaking session identifiers.
           } else {
-            console.error('Invalid challenge response')
             setError('Failed to load challenge')
             return
           }
-        } catch (apiError) {
-          console.error('Failed to fetch challenge from API', apiError)
+        } catch {
           setError('Failed to load challenge')
           return
         }
@@ -332,7 +322,7 @@ const ExamChallengeDetail: React.FC = () => {
     }
 
     fetchData()
-  }, [examId, challengeId])
+  }, [examId, challengeId, problemData])
 
   // When participation becomes available, attempt to refresh per-problem data and recover saved code for the current challenge
   useEffect(() => {
@@ -356,14 +346,7 @@ const ExamChallengeDetail: React.FC = () => {
         const answers = partData?.currentAnswers || partData?.answers || {}
         const saved = answers?.[challengeId || '']
         if (saved && saved.sourceCode) {
-          console.log(
-            `[Challenge Load] Found saved code for ${challengeId}, restoring from server`
-          )
           setCode(saved.sourceCode)
-        } else {
-          console.log(
-            `[Challenge Load] No saved code for ${challengeId}, using initial code`
-          )
         }
       } catch (err) {
         console.warn(
@@ -389,20 +372,13 @@ const ExamChallengeDetail: React.FC = () => {
       if (prev === challengeId) return // Same challenge, no need to save
       const participationId = reduxParticipationId
       if (!participationId) return
-
-      console.log(
-        `[Challenge Switch] Flushing autosave for previous challenge ${prev}`
-      )
       try {
         // Flush any pending debounced autosave for the previous challenge
         await flushAutosave()
-      } catch (err) {
-        console.warn('Failed to flush previous challenge autosave', err)
+      } catch {
+        // ignore autosave flush failures
       }
 
-      console.log(
-        `[Challenge Switch] Saving previous challenge ${prev} with code length: ${codeRef.current.length}`
-      )
       try {
         await examService.syncSession(participationId, {
           [prev]: {
@@ -411,11 +387,8 @@ const ExamChallengeDetail: React.FC = () => {
             updatedAt: new Date().toISOString(),
           },
         })
-        console.log(
-          `[Challenge Switch] Successfully saved previous challenge ${prev}`
-        )
-      } catch (err) {
-        console.warn('Failed to sync previous challenge code', err)
+      } catch {
+        // ignore sync failures for previous challenge
       }
     }
 
@@ -947,21 +920,19 @@ const ExamChallengeDetail: React.FC = () => {
     try {
       const participationId = reduxParticipationId
       if (examId && participationId) {
-        const result = await examService.submitExam(examId, participationId)
-        console.log('[Submit] Exam submitted successfully:', result)
-
+        await examService.submitExam(examId, participationId)
         // Flush any pending autosave before navigating
         try {
           await flushAutosave()
-        } catch (err) {
-          console.warn('[Submit] Failed to flush autosave:', err)
+        } catch {
+          // ignore autosave flush errors on submit
+          void 0
         }
 
         // Clear participation from Redux since exam is completed
         dispatch({ type: 'exam/clearParticipation' })
       }
-    } catch (e) {
-      console.error('[Submit] Failed to submit exam to API', e)
+    } catch {
       alert('Failed to submit exam. Please try again.')
       return
     } finally {
@@ -980,15 +951,8 @@ const ExamChallengeDetail: React.FC = () => {
       const startAtRaw = reduxStartAt
       const totalSeconds = (exam.duration || 0) * 60
 
-      console.log(
-        `[SessionInit] Starting session recovery. ReduxParticipationId: ${participationId}, Exam: ${exam?.id}`
-      )
-
       // Check if user joined. If Redux lacks participation, try server-backed resume.
       if (!participationId) {
-        console.log(
-          `[SessionInit] No participation in Redux, attempting server recovery...`
-        )
         try {
           if (examId) {
             const myPartRes = await examService.getMyParticipation(examId)
@@ -1000,9 +964,6 @@ const ExamChallengeDetail: React.FC = () => {
               part?.startTimestamp ||
               part?.startedAtMs
             if (partId) {
-              console.log(
-                `[SessionInit] ✓ Recovered participation ${partId} from server. StartedAt: ${serverStart}`
-              )
               const startAtValue = serverStart ?? Date.now()
               try {
                 dispatch(
@@ -1011,7 +972,6 @@ const ExamChallengeDetail: React.FC = () => {
                     startAt: startAtValue,
                   })
                 )
-                console.log(`[SessionInit] ✓ Dispatched participation to Redux`)
               } catch (e) {
                 console.warn(
                   'Failed to dispatch recovered participation to redux',
@@ -1020,9 +980,6 @@ const ExamChallengeDetail: React.FC = () => {
               }
               // proceed as joined
             } else {
-              console.log(
-                `[SessionInit] ✗ No IN_PROGRESS participation found on server`
-              )
               setIsJoined(false)
               return
             }
@@ -1037,9 +994,8 @@ const ExamChallengeDetail: React.FC = () => {
           return
         }
       } else {
-        console.log(
-          `[SessionInit] ✓ Participation already in Redux: ${participationId}`
-        )
+        // participation already present in Redux; continue with existing session
+        void 0
       }
 
       setIsJoined(true)
@@ -1107,9 +1063,6 @@ const ExamChallengeDetail: React.FC = () => {
                     startAt: serverStart ?? null,
                     currentChallengeId: serverCurrentChallenge,
                   })
-                )
-                console.log(
-                  `[SessionInit] ✓ Dispatched recovered currentChallenge ${serverCurrentChallenge} to Redux`
                 )
               } catch (e) {
                 console.warn(

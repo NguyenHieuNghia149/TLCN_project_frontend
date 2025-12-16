@@ -26,11 +26,8 @@ export default function useAutosaveSession(
   const syncFn = useCallback(
     async (pid: string, payload: Record<string, unknown>) => {
       try {
-        console.log(`[Autosave] Syncing session ${pid} with payload:`, payload)
         await examService.syncSession(pid, payload)
-        console.log(`[Autosave] Sync completed successfully`)
-      } catch (err) {
-        console.error(`[Autosave] Sync failed:`, err)
+      } catch {
         // swallow - autosave is best-effort
         // caller may log if desired
       }
