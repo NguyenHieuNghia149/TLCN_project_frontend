@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/api/useAuth'
 import {
@@ -10,6 +10,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Code,
 } from 'lucide-react'
 import './AdminNav.scss'
 
@@ -20,11 +21,16 @@ interface NavItem {
   icon: React.ReactNode
 }
 
-const AdminNav: React.FC = () => {
+interface AdminNavProps {
+  isCollapsed: boolean
+  onToggle: () => void
+}
+
+const AdminNav: React.FC<AdminNavProps> = ({ isCollapsed, onToggle }) => {
   const navigate = useNavigate()
   const location = useLocation()
   const { logout } = useAuth()
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  // Internal state removed in favor of props
 
   const navItems: NavItem[] = [
     {
@@ -57,6 +63,12 @@ const AdminNav: React.FC = () => {
       path: '/admin/topics',
       icon: <FileText size={20} />,
     },
+    {
+      id: 'challenges',
+      label: 'Manage Challenges',
+      path: '/admin/challenges',
+      icon: <Code size={20} />,
+    },
   ]
 
   const isActive = (path: string) => {
@@ -77,7 +89,7 @@ const AdminNav: React.FC = () => {
         </div>
         <button
           className="admin-nav__toggle"
-          onClick={() => setIsCollapsed(!isCollapsed)}
+          onClick={onToggle}
           title={isCollapsed ? 'Expand' : 'Collapse'}
         >
           {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
