@@ -53,11 +53,7 @@ const ExamDetail: React.FC = () => {
 
   const resumeAvailable = Boolean(reduxParticipationId && remainingSeconds > 0)
 
-  useEffect(() => {
-    console.log(
-      `[ExamDetail] Resume state - participationId=${reduxParticipationId}, remainingSeconds=${remainingSeconds}, resumeAvailable=${resumeAvailable}`
-    )
-  }, [reduxParticipationId, remainingSeconds, resumeAvailable])
+  useEffect(() => {}, [reduxParticipationId, remainingSeconds, resumeAvailable])
 
   useEffect(() => {
     const fetchExam = async () => {
@@ -72,17 +68,8 @@ const ExamDetail: React.FC = () => {
             // Always attempt to recover active participation from server
             // (Redux is in-memory only, so it's cleared on page reload/navigation)
             try {
-              console.log(
-                `[ExamDetail] Attempting to recover participation for exam ${examId}...`
-              )
               const myPartRes = await examService.getMyParticipation(apiExam.id)
-              console.log(
-                '[ExamDetail] getMyParticipation response:',
-                myPartRes
-              )
-
               const part = myPartRes?.data || myPartRes
-              console.log('[ExamDetail] Parsed participation object:', part)
 
               const partId = part?.id || part?.participationId
               const serverStart =
@@ -93,19 +80,9 @@ const ExamDetail: React.FC = () => {
               const serverExpires =
                 part?.expiresAt || part?.expires_at || part?.expires
 
-              console.log(
-                `[ExamDetail] Extracted: partId=${partId}, start=${serverStart}, expires=${serverExpires}`
-              )
-
               if (partId) {
-                console.log(
-                  `[ExamDetail] Recovered participation ${partId} from server`
-                )
                 // Dispatch into Redux (do not persist to any client storage)
                 const startAtValue = serverStart ?? Date.now()
-                console.log(
-                  `[ExamDetail] Dispatching to Redux: participationId=${partId}, startAt=${startAtValue}, expiresAt=${serverExpires}`
-                )
 
                 try {
                   // Attempt to fetch full participation details to determine current challenge for resume.
@@ -120,10 +97,6 @@ const ExamDetail: React.FC = () => {
                       details?.currentChallengeId ||
                       details?.currentChallenge ||
                       null
-                    console.log(
-                      '[ExamDetail] Recovered participation details:',
-                      details
-                    )
                   } catch (detailErr) {
                     console.warn(
                       'Failed to fetch participation details for resume:',
@@ -140,9 +113,6 @@ const ExamDetail: React.FC = () => {
                   )
                   // If we recovered a participation, user is already verified (they're continuing an exam)
                   setIsVerified(true)
-                  console.log(
-                    `[ExamDetail] Participation recovered and verified. Show challenges or "Continue Exam" button.`
-                  )
                 } catch (e) {
                   console.warn(
                     'Failed to dispatch recovered participation to redux',
@@ -150,9 +120,6 @@ const ExamDetail: React.FC = () => {
                   )
                 }
               } else {
-                console.log(
-                  `[ExamDetail] No active participation found on server - user must join`
-                )
                 setIsVerified(false)
               }
             } catch (err) {

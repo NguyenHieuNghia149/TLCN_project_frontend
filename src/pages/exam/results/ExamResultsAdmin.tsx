@@ -70,7 +70,6 @@ const ExamResultAdmin: React.FC = () => {
         examId!,
         participationId
       )
-      console.log('Fetched submission details:', response)
       setSelectedSubmission(response)
       setShowDetails(true)
     } catch (err) {

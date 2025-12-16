@@ -110,7 +110,6 @@ class AxiosInstanceManager {
     this.instance.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
         const token = tokenManager.getAccessToken()
-        console.log('token', token)
         if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`
         }

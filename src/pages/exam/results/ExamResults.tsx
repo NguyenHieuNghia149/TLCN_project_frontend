@@ -79,7 +79,6 @@ const ExamResults: React.FC = () => {
             } as unknown as ExamSubmission
           })
           setSubmissions(normalized)
-          console.log('[ExamResults] Normalized leaderboard items:', normalized)
         }
       } catch (err) {
         console.error('Failed to fetch exam results:', err)

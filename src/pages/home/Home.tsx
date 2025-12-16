@@ -179,10 +179,8 @@ const HomePage: React.FC = () => {
   useEffect(() => {
     let isMounted = true
     const svc = new TopicService()
-    const progressSvc = new LearningProcessService()
 
     setIsLoadingTopics(true)
-    setIsLoadingProgress(true)
 
     svc
       .getTopics()
@@ -198,6 +196,25 @@ const HomePage: React.FC = () => {
         if (!isMounted) return
         setIsLoadingTopics(false)
       })
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  // Fetch learning progress only when authenticated
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setRecentTopicProgress(null)
+      setRecentLessonProgress(null)
+      setIsLoadingProgress(false)
+      return
+    }
+
+    let isMounted = true
+    const progressSvc = new LearningProcessService()
+
+    setIsLoadingProgress(true)
 
     // Fetch recent topic progress
     progressSvc
@@ -230,7 +247,7 @@ const HomePage: React.FC = () => {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [isAuthenticated])
 
   const iconForTopic = useMemo(() => {
     const mapping: Record<string, React.ReactNode> = {

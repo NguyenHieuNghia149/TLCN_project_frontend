@@ -36,44 +36,27 @@ const LessonDetail: React.FC = () => {
   const commentsSectionRef = useRef<HTMLDivElement>(null)
 
   // Mark lesson as completed
-  const markLessonCompleted = useCallback(
-    async (reason: 'scroll') => {
-      console.log(
-        `🔍 markLessonCompleted called - lessonId=${lessonId}, reason=${reason}, alreadyMarked=${hasMarkedAsCompletedRef.current}`
-      )
+  const markLessonCompleted = useCallback(async () => {
+    if (!lessonId) {
+      return
+    }
 
-      if (!lessonId) {
-        console.error('❌ Cannot mark lesson: lessonId is empty')
-        return
+    if (hasMarkedAsCompletedRef.current) return
+
+    hasMarkedAsCompletedRef.current = true
+    try {
+      const success =
+        await learnedLessonServiceRef.current.markLessonAsCompleted(lessonId)
+
+      if (success) {
+        setShowCompletionMessage(true)
+        // Auto-hide message after 3 seconds
+        setTimeout(() => setShowCompletionMessage(false), 3000)
       }
-
-      if (hasMarkedAsCompletedRef.current) {
-        console.log('⚠️ Already marked as completed, skipping')
-        return
-      }
-
-      hasMarkedAsCompletedRef.current = true
-      try {
-        console.log(`📤 Sending API request to mark lesson as completed...`)
-        const success =
-          await learnedLessonServiceRef.current.markLessonAsCompleted(lessonId)
-
-        if (success) {
-          setShowCompletionMessage(true)
-          console.log(`✅ Lesson marked as completed via ${reason}`)
-
-          // Auto-hide message after 3 seconds
-          setTimeout(() => setShowCompletionMessage(false), 3000)
-        } else {
-          console.warn('⚠️ API returned false for success')
-        }
-      } catch (error) {
-        console.error('❌ Error marking lesson as completed:', error)
-        hasMarkedAsCompletedRef.current = false
-      }
-    },
-    [lessonId]
-  )
+    } catch {
+      hasMarkedAsCompletedRef.current = false
+    }
+  }, [lessonId])
 
   // Lazy loading for content section
   useEffect(() => {
@@ -89,7 +72,6 @@ const LessonDetail: React.FC = () => {
       const contentObserver = new IntersectionObserver(entries => {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
-            console.log('📖 Content section is visible, loading...')
             setContentLoaded(true)
             if (contentObserver) {
               contentObserver.unobserve(entry.target)
@@ -124,7 +106,6 @@ const LessonDetail: React.FC = () => {
       const commentsObserver = new IntersectionObserver(entries => {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
-            console.log('💬 Comments section is visible, loading...')
             setCommentsLoaded(true)
             if (commentsObserver) {
               commentsObserver.unobserve(entry.target)
@@ -147,33 +128,20 @@ const LessonDetail: React.FC = () => {
 
   // Scroll detection: Mark as completed when user reaches bottom
   useEffect(() => {
-    console.log('🚀 Scroll listener setup...')
-
     let lastScrollCheck = 0
 
     const handleScroll = () => {
-      console.log('🎯 Scroll event fired!')
-
       // Throttle scroll events to every 500ms
       const now = Date.now()
       if (now - lastScrollCheck < 500) return
       lastScrollCheck = now
 
-      console.log('📍 Processing scroll...')
-
-      if (hasMarkedAsCompletedRef.current) {
-        console.log('⚠️ Already marked as completed')
-        return
-      }
+      if (hasMarkedAsCompletedRef.current) return
 
       // Check window scroll (for normal page scroll)
       const scrollTop = window.scrollY
       const windowHeight = window.innerHeight
       const docHeight = document.body.scrollHeight
-
-      console.log(
-        `↕️ Scroll - scrollTop: ${Math.round(scrollTop)}, docHeight: ${Math.round(docHeight)}, windowHeight: ${Math.round(windowHeight)}`
-      )
 
       // Calculate how far down the page we are
       const scrollableHeight = docHeight - windowHeight
@@ -181,41 +149,21 @@ const LessonDetail: React.FC = () => {
         scrollableHeight > 0 ? (scrollTop / scrollableHeight) * 100 : 0
       const distanceToBottom = docHeight - scrollTop - windowHeight
 
-      console.log(
-        `📊 Page scroll: ${scrollPercentage.toFixed(1)}% | Distance to bottom: ${Math.round(distanceToBottom)}px`
-      )
-
       // Mark as complete if scrolled to 80% or within 200px of bottom
       // But only if user has actually scrolled down (scrollTop > 0)
       if (
         scrollTop > 0 &&
         (scrollPercentage >= 80 || distanceToBottom <= 200)
       ) {
-        console.log('✅ Bottom of page detected! Marking lesson as complete...')
-
         if (lessonId) {
-          markLessonCompleted('scroll')
-        } else {
-          console.error('❌ lessonId is not available')
+          markLessonCompleted()
         }
       }
     }
 
-    // Log initial page info
-    const docHeight = document.body.scrollHeight
-    const windowHeight = window.innerHeight
-    const isScrollable = docHeight > windowHeight
-    console.log(
-      `📊 Page info: docHeight=${docHeight}, windowHeight=${windowHeight}, isScrollable=${isScrollable}`
-    )
-
     // Attach listener immediately
-    console.log('🔗 Attaching scroll listener...')
     window.addEventListener('scroll', handleScroll, { passive: true })
-    console.log('✅ Scroll listener attached to window')
-
     return () => {
-      console.log('❌ Removing scroll listener')
       window.removeEventListener('scroll', handleScroll)
     }
   }, [lessonId, markLessonCompleted])
