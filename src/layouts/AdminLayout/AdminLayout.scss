@@ -16,6 +16,10 @@
     flex-direction: column;
     margin-left: 260px;
     transition: margin-left 0.3s ease;
+
+    &--collapsed {
+      margin-left: 80px;
+    }
   }
 
   &__content {

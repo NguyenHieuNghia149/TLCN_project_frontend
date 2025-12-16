@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { AdminThemeContext, AdminThemeMode } from './AdminThemeContextDef'
+import { ConfigProvider, theme } from 'antd'
 
 export const AdminThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -23,14 +24,18 @@ export const AdminThemeProvider: React.FC<{ children: React.ReactNode }> = ({
     const root = document.documentElement
     if (theme === 'light') {
       root.setAttribute('data-admin-theme', 'light')
+      root.classList.remove('dark')
     } else {
       root.setAttribute('data-admin-theme', 'dark')
+      root.classList.add('dark')
     }
     console.log(
       'Applied admin theme:',
       theme,
       'data-admin-theme=',
-      root.getAttribute('data-admin-theme')
+      root.getAttribute('data-admin-theme'),
+      'classList=',
+      root.classList
     )
   }
 
@@ -55,7 +60,16 @@ export const AdminThemeProvider: React.FC<{ children: React.ReactNode }> = ({
     <AdminThemeContext.Provider
       value={{ adminTheme, toggleAdminTheme, setAdminTheme }}
     >
-      {children}
+      <ConfigProvider
+        theme={{
+          algorithm:
+            adminTheme === 'dark'
+              ? theme.darkAlgorithm
+              : theme.defaultAlgorithm,
+        }}
+      >
+        {children}
+      </ConfigProvider>
     </AdminThemeContext.Provider>
   )
 }

@@ -9,10 +9,17 @@ interface AdminLayoutProps {
 }
 
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
+  const [isCollapsed, setIsCollapsed] = React.useState(false)
+
   return (
     <div className="admin-layout">
-      <AdminNav />
-      <div className="admin-layout__main">
+      <AdminNav
+        isCollapsed={isCollapsed}
+        onToggle={() => setIsCollapsed(!isCollapsed)}
+      />
+      <div
+        className={`admin-layout__main ${isCollapsed ? 'admin-layout__main--collapsed' : ''}`}
+      >
         <AdminHeader />
         <main className="admin-layout__content">{children || <Outlet />}</main>
       </div>

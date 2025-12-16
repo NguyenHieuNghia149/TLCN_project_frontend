@@ -96,4 +96,5 @@ export interface ChallengeItem {
   totalPoints: number
   isSolved: boolean
   isFavorite: boolean
+  topicName?: string
 }

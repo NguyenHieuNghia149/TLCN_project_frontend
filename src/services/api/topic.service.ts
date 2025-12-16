@@ -10,3 +10,5 @@ export class TopicService {
     return response.data?.data ?? []
   }
 }
+
+export const topicService = new TopicService()

@@ -65,6 +65,45 @@ export class ChallengeService {
     const response = await apiClient.get(`/challenges/${challengeId}`)
     return response.data
   }
+
+  async getAllTags() {
+    const response = await apiClient.get('/challenges/tags')
+    return response.data.data.tags as string[]
+  }
+  // Admin methods
+  async getAllChallenges(
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+    sortField?: string,
+    sortOrder?: 'asc' | 'desc'
+  ) {
+    const params: Record<string, string | number> = { page, limit }
+    if (search) params.q = search
+    if (sortField) params.sortField = sortField
+    if (sortOrder) params.sortOrder = sortOrder
+
+    const response = await apiClient.get<{
+      success: boolean
+      data: { items: ChallengeItem[]; total: number }
+    }>(`/challenges/all`, { params })
+    return response.data.data
+  }
+
+  async createChallenge(data: Record<string, unknown>) {
+    const response = await apiClient.post('/challenges/create', data)
+    return response.data
+  }
+
+  async updateChallenge(id: string, data: Record<string, unknown>) {
+    const response = await apiClient.put(`/challenges/${id}`, data)
+    return response.data
+  }
+
+  async deleteChallenge(id: string) {
+    const response = await apiClient.delete(`/challenges/${id}`)
+    return response.data
+  }
 }
 
 // Export a singleton instance

@@ -30,6 +30,8 @@ import ManageLesson from '@/pages/admin/managelesson/ManageLesson'
 import ManageTopic from '@/pages/admin/managetopic/ManageTopic'
 import AdminHome from '@/pages/admin/adminhome/AdminHome'
 import UserSubmissionsPage from '@/pages/user/submissions/UserSubmissionsPage'
+import AdminChallengeList from '@/pages/admin/challenge/AdminChallengeList'
+import AdminCreateChallenge from '@/pages/admin/challenge/AdminCreateChallenge'
 
 export const router = createBrowserRouter([
   {
@@ -115,6 +117,42 @@ export const router = createBrowserRouter([
         <TeacherRoute>
           <AdminLayout>
             <ManageTopic />
+          </AdminLayout>
+        </TeacherRoute>
+      </AdminThemeProvider>
+    ),
+  },
+  {
+    path: 'admin/challenges',
+    element: (
+      <AdminThemeProvider>
+        <TeacherRoute>
+          <AdminLayout>
+            <AdminChallengeList />
+          </AdminLayout>
+        </TeacherRoute>
+      </AdminThemeProvider>
+    ),
+  },
+  {
+    path: 'admin/challenges/create',
+    element: (
+      <AdminThemeProvider>
+        <TeacherRoute>
+          <AdminLayout>
+            <AdminCreateChallenge />
+          </AdminLayout>
+        </TeacherRoute>
+      </AdminThemeProvider>
+    ),
+  },
+  {
+    path: 'admin/challenges/edit/:id',
+    element: (
+      <AdminThemeProvider>
+        <TeacherRoute>
+          <AdminLayout>
+            <AdminCreateChallenge />
           </AdminLayout>
         </TeacherRoute>
       </AdminThemeProvider>
