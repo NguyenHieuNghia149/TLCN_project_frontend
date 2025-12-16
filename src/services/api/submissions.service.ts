@@ -62,7 +62,6 @@ class SubmissionsService {
     const res = await apiClient.get('/submissions/user/my-submissions', {
       params,
     })
-    console.log(res)
     const json = res.data as {
       success?: boolean
       data?: {

@@ -73,7 +73,12 @@ export class LearningProcessService {
     try {
       const response = await apiClient.get('/learningprocess/user/recent')
       return response.data?.data ?? null
-    } catch (error) {
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { status?: number } }
+      // Silently handle 401 - user may not be authenticated
+      if (axiosError?.response?.status === 401) {
+        return null
+      }
       console.error('Error fetching recent topic:', error)
       return null
     }
@@ -118,7 +123,12 @@ export class LearningProcessService {
         '/learningprocess/lessons/user/recent'
       )
       return response.data?.data ?? null
-    } catch (error) {
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { status?: number } }
+      // Silently handle 401 - user may not be authenticated
+      if (axiosError?.response?.status === 401) {
+        return null
+      }
       console.error('Error fetching recent lesson:', error)
       return null
     }

@@ -215,8 +215,6 @@ const ManageLesson: React.FC = () => {
 
     setUploadingFile(true)
     try {
-      console.log('Parsing file with Mammoth:', file.name)
-
       // Client-side parsing using Mammoth - xử lý hoàn toàn trên frontend
       const { html, error } = await parseDocxToHtml(file)
 

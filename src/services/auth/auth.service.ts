@@ -105,7 +105,6 @@ export class AuthService {
       const data = response.data?.data ?? {}
       const accessToken: string = data.tokens?.accessToken || data.accessToken
       const user: User = data.user
-      console.log('accessToken', accessToken)
       if (!accessToken || !user) {
         throw new Error('Invalid login response')
       }

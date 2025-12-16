@@ -40,8 +40,6 @@ const UserSubmissionsPage: React.FC = () => {
           limit: pageSize,
           offset,
         })
-
-        console.log(result)
         setSubmissions(result.submissions)
         setTotal(result.total)
       } catch (error) {
