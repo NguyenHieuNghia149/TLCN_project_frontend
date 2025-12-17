@@ -8,7 +8,7 @@ import {
   Space,
   InputNumber,
   Switch,
-  message,
+  notification,
   Divider,
 } from 'antd'
 import {
@@ -127,17 +127,18 @@ const AdminCreateChallenge: React.FC = () => {
   const [previewMode, setPreviewMode] = useState(false)
   const [topics, setTopics] = useState<{ id: string; topicName: string }[]>([])
   const [availableTags, setAvailableTags] = useState<string[]>([])
-
-  const { adminTheme } = useContext(AdminThemeContext) || {
-    adminTheme: 'light',
-  }
-
   const [previewData, setPreviewData] = useState<ChallengeFormValues | null>(
     null
   )
   const [activeTab, setActiveTab] = useState<
     'question' | 'solution' | 'submissions' | 'discussion'
   >('question')
+
+  const { adminTheme } = useContext(AdminThemeContext) || {
+    adminTheme: 'light',
+  }
+
+  const [notificationApi, contextHolder] = notification.useNotification()
 
   useEffect(() => {
     const loadTopics = async () => {
@@ -149,11 +150,15 @@ const AdminCreateChallenge: React.FC = () => {
         setTopics(topicsData as { id: string; topicName: string }[])
         setAvailableTags(tagsData)
       } catch {
-        message.error('Failed to load initial data')
+        notificationApi.error({
+          message: 'Error',
+          description: 'Failed to load initial data',
+          placement: 'topRight',
+        })
       }
     }
     loadTopics()
-  }, [])
+  }, [notificationApi])
 
   const fetchChallenge = React.useCallback(
     async (challengeId: string) => {
@@ -180,7 +185,11 @@ const AdminCreateChallenge: React.FC = () => {
         }
         form.setFieldsValue(formData)
       } catch {
-        message.error('Failed to load challenge')
+        notificationApi.error({
+          message: 'Error',
+          description: 'Failed to load challenge',
+          placement: 'topRight',
+        })
       } finally {
         setLoading(false)
       }
@@ -219,14 +228,26 @@ const AdminCreateChallenge: React.FC = () => {
 
       if (id) {
         await challengeService.updateChallenge(id, payload)
-        message.success('Challenge updated successfully')
+        notificationApi.success({
+          message: 'Success',
+          description: 'Challenge updated successfully',
+          placement: 'topRight',
+        })
       } else {
         await challengeService.createChallenge(payload)
-        message.success('Challenge created successfully')
+        notificationApi.success({
+          message: 'Success',
+          description: 'Challenge created successfully',
+          placement: 'topRight',
+        })
       }
       navigate('/admin/challenges')
     } catch {
-      message.error('Failed to save challenge')
+      notificationApi.error({
+        message: 'Error',
+        description: 'Failed to save challenge',
+        placement: 'topRight',
+      })
     } finally {
       setLoading(false)
     }
@@ -238,7 +259,11 @@ const AdminCreateChallenge: React.FC = () => {
       setPreviewData(values as ChallengeFormValues)
       setPreviewMode(true)
     } catch {
-      message.error('Please fill in all required fields before previewing')
+      notificationApi.error({
+        message: 'Error',
+        description: 'Please fill in all required fields before previewing',
+        placement: 'topRight',
+      })
     }
   }
 
@@ -259,7 +284,7 @@ const AdminCreateChallenge: React.FC = () => {
         isFavorite: false,
       },
       testcases:
-        previewData.testcases?.map((tc, i) => ({
+        previewData.testcases?.map((tc: TestCase, i: number) => ({
           ...tc,
           id: `temp-${i}`,
           createdAt: new Date().toISOString(),
@@ -276,19 +301,21 @@ const AdminCreateChallenge: React.FC = () => {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             solutionApproaches:
-              previewData.solution.solutionApproaches?.map((ap, i) => ({
-                id: `temp-ap-${i}`,
-                title: ap.title,
-                language: ap.language,
-                sourceCode: ap.sourceCode,
-                timeComplexity: ap.timeComplexity || '',
-                spaceComplexity: ap.spaceComplexity || '',
-                explanation: ap.explanation || '',
-                description: ap.description || '',
-                order: i + 1,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-              })) || [],
+              previewData.solution.solutionApproaches?.map(
+                (ap: SolutionApproach, i: number) => ({
+                  id: `temp-ap-${i}`,
+                  title: ap.title,
+                  language: ap.language,
+                  sourceCode: ap.sourceCode,
+                  timeComplexity: ap.timeComplexity || '',
+                  spaceComplexity: ap.spaceComplexity || '',
+                  explanation: ap.explanation || '',
+                  description: ap.description || '',
+                  order: i + 1,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                })
+              ) || [],
           }
         : {
             id: 'no-solution',
@@ -333,6 +360,7 @@ const AdminCreateChallenge: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 p-6 transition-colors duration-300 dark:bg-gray-950">
+      {contextHolder}
       <div className="mb-4 flex items-center gap-4">
         <Button
           icon={<ArrowLeftOutlined />}

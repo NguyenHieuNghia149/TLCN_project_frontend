@@ -91,10 +91,11 @@ export interface ChallengeItem {
   id: string
   title: string
   description: string | null
-  difficult: string
+  difficulty: string
   createdAt: string
   totalPoints: number
   isSolved: boolean
   isFavorite: boolean
   topicName?: string
+  visibility: string
 }

@@ -42,7 +42,8 @@ const ExamList: React.FC = () => {
           PAGE_SIZE,
           (page - 1) * PAGE_SIZE,
           searchTerm || undefined,
-          filterType || undefined
+          filterType || undefined,
+          true // isVisible=true for student view
         )
         const items: Exam[] = json?.data || []
         setExams(items)

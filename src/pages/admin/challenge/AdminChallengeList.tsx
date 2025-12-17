@@ -6,7 +6,7 @@ import {
   Tag,
   Space,
   Modal,
-  message,
+  notification,
   Tooltip,
   Input,
 } from 'antd'
@@ -32,6 +32,8 @@ const AdminChallengeList: React.FC = () => {
     undefined
   )
 
+  const [notificationApi, contextHolder] = notification.useNotification()
+
   const fetchChallenges = async (
     page: number = 1,
     pageSize: number = 10,
@@ -55,7 +57,11 @@ const AdminChallengeList: React.FC = () => {
         total: response.total,
       })
     } catch {
-      message.error('Failed to load challenges')
+      notificationApi.error({
+        message: 'Error',
+        description: 'Failed to load challenges',
+        placement: 'topRight',
+      })
     } finally {
       setLoading(false)
     }
@@ -106,10 +112,18 @@ const AdminChallengeList: React.FC = () => {
       onOk: async () => {
         try {
           await challengeService.deleteChallenge(id)
-          message.success('Challenge deleted successfully')
+          notificationApi.success({
+            message: 'Success',
+            description: 'Challenge deleted successfully',
+            placement: 'topRight',
+          })
           fetchChallenges(pagination.current, pagination.pageSize)
         } catch {
-          message.error('Failed to delete challenge')
+          notificationApi.error({
+            message: 'Error',
+            description: 'Failed to delete challenge',
+            placement: 'topRight',
+          })
         }
       },
     })
@@ -187,6 +201,7 @@ const AdminChallengeList: React.FC = () => {
 
   return (
     <div className="p-6">
+      {contextHolder}
       <div className="mb-4 flex items-center justify-between gap-4">
         <h1 className="whitespace-nowrap text-2xl font-bold">
           Challenge Management
