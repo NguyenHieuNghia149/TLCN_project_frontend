@@ -1,0 +1,239 @@
+import React, { useEffect, useState } from 'react'
+import {
+  Table,
+  Button,
+  Card,
+  Switch,
+  Space,
+  Modal,
+  notification,
+  Tooltip,
+  Input,
+} from 'antd'
+import type { TablePaginationConfig } from 'antd/es/table'
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
+import { examService } from '@/services/api/exam.service'
+import { Exam } from '@/types/exam.types'
+
+const AdminExamList: React.FC = () => {
+  const navigate = useNavigate()
+  const [loading, setLoading] = useState(false)
+  const [exams, setExams] = useState<Exam[]>([])
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  })
+  const [searchText, setSearchText] = useState('')
+
+  const [notificationApi, contextHolder] = notification.useNotification()
+
+  const fetchExams = React.useCallback(
+    async (page: number = 1, pageSize: number = 10, search?: string) => {
+      setLoading(true)
+      try {
+        const response = await examService.getExams(
+          pageSize,
+          (page - 1) * pageSize,
+          search
+        )
+        setExams(response.data)
+        setPagination({
+          current: page,
+          pageSize: pageSize,
+          total: response.total,
+        })
+      } catch {
+        notificationApi.error({
+          message: 'Error',
+          description: 'Failed to load exams',
+          placement: 'topRight',
+        })
+      } finally {
+        setLoading(false)
+      }
+    },
+    [notificationApi]
+  )
+
+  useEffect(() => {
+    fetchExams(1, 10)
+  }, [fetchExams])
+
+  const handleTableChange = (newPagination: TablePaginationConfig) => {
+    fetchExams(
+      newPagination.current || 1,
+      newPagination.pageSize || 10,
+      searchText
+    )
+  }
+
+  const onSearch = (value: string) => {
+    setSearchText(value)
+    fetchExams(1, pagination.pageSize, value)
+  }
+
+  const handleToggleVisibility = async (examId: string, checked: boolean) => {
+    try {
+      await examService.updateExam(examId, { isVisible: checked })
+      notificationApi.success({
+        message: 'Success',
+        description: `Exam is now ${checked ? 'visible' : 'hidden'}`,
+        placement: 'topRight',
+      })
+      // Update local state to reflect change immediately without full reload if desired,
+      // or just let the switch state be controlled/uncontrolled.
+      // For optimisitc UI or valid feedback, mapping usually helps:
+      setExams(prev =>
+        prev.map(exam =>
+          exam.id === examId ? { ...exam, isVisible: checked } : exam
+        )
+      )
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } }
+      notificationApi.error({
+        message: 'Error',
+        description:
+          err.response?.data?.message || 'Failed to update visibility',
+        placement: 'topRight',
+      })
+      // Revert switch if needed, but since we update state on success, if we don't update on failure it might be "stuck" visually if uncontrolled.
+      // Best to use Controlled state which we are doing via setExams.
+    }
+  }
+
+  const handleDelete = (id: string) => {
+    Modal.confirm({
+      title: 'Are you sure you want to delete this exam?',
+      content:
+        'This action cannot be undone. All related participations will be deleted.',
+      okText: 'Yes',
+      okType: 'danger',
+      cancelText: 'No',
+      onOk: async () => {
+        try {
+          await examService.deleteExam(id)
+          notificationApi.success({
+            message: 'Success',
+            description: 'Exam deleted successfully',
+            placement: 'topRight',
+          })
+          fetchExams(pagination.current, pagination.pageSize)
+        } catch {
+          notificationApi.error({
+            message: 'Error',
+            description: 'Failed to delete exam',
+            placement: 'topRight',
+          })
+        }
+      },
+    })
+  }
+
+  const columns = [
+    {
+      title: 'Title',
+      dataIndex: 'title',
+      key: 'title',
+    },
+    {
+      title: 'Start Date',
+      dataIndex: 'startDate',
+      key: 'startDate',
+      render: (date: string) => new Date(date).toLocaleString(),
+    },
+    {
+      title: 'End Date',
+      dataIndex: 'endDate',
+      key: 'endDate',
+      render: (date: string) => new Date(date).toLocaleString(),
+    },
+    {
+      title: 'Duration (min)',
+      dataIndex: 'duration',
+      key: 'duration',
+    },
+    {
+      title: 'Visibility',
+      dataIndex: 'isVisible',
+      key: 'isVisible',
+      render: (visible: boolean, record: Exam) => (
+        <Switch
+          checked={visible}
+          onChange={checked => handleToggleVisibility(record.id, checked)}
+          checkedChildren="Visible"
+          unCheckedChildren="Hidden"
+        />
+      ),
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_: unknown, record: Exam) => (
+        <Space size="middle">
+          <Tooltip title="Edit">
+            <Button
+              type="primary"
+              shape="circle"
+              icon={<EditOutlined />}
+              onClick={() => navigate(`/admin/exams/edit/${record.id}`)}
+              className="bg-blue-500"
+            />
+          </Tooltip>
+          <Tooltip title="Delete">
+            <Button
+              type="primary"
+              danger
+              shape="circle"
+              icon={<DeleteOutlined />}
+              onClick={() => handleDelete(record.id)}
+            />
+          </Tooltip>
+        </Space>
+      ),
+    },
+  ]
+
+  return (
+    <div className="min-h-screen bg-gray-100 p-6 transition-colors duration-300 dark:bg-gray-950">
+      {contextHolder}
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <h1 className="whitespace-nowrap text-2xl font-bold text-gray-900 transition-colors duration-300 dark:text-white">
+          Exam Management
+        </h1>
+        <div className="flex flex-1 items-center justify-end gap-4">
+          <div className="w-full max-w-md">
+            <Input.Search
+              placeholder="Search by title..."
+              allowClear
+              onSearch={onSearch}
+              enterButton
+            />
+          </div>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => navigate('/admin/exams/create')}
+            size="large"
+          >
+            Create Exam
+          </Button>
+        </div>
+      </div>
+
+      <Card className="bg-white transition-colors duration-300 dark:border-gray-700 dark:bg-gray-800">
+        <Table
+          rowKey="id"
+          columns={columns}
+          dataSource={exams}
+          loading={loading}
+          pagination={pagination}
+          onChange={handleTableChange}
+        />
+      </Card>
+    </div>
+  )
+}
+
+export default AdminExamList

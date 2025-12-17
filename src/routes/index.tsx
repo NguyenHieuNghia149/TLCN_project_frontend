@@ -32,6 +32,8 @@ import AdminHome from '@/pages/admin/adminhome/AdminHome'
 import UserSubmissionsPage from '@/pages/user/submissions/UserSubmissionsPage'
 import AdminChallengeList from '@/pages/admin/challenge/AdminChallengeList'
 import AdminCreateChallenge from '@/pages/admin/challenge/AdminCreateChallenge'
+import AdminExamList from '@/pages/admin/exam/AdminExamList'
+import AdminCreateExam from '@/pages/admin/exam/AdminCreateExam'
 
 export const router = createBrowserRouter([
   {
@@ -153,6 +155,42 @@ export const router = createBrowserRouter([
         <TeacherRoute>
           <AdminLayout>
             <AdminCreateChallenge />
+          </AdminLayout>
+        </TeacherRoute>
+      </AdminThemeProvider>
+    ),
+  },
+  {
+    path: 'admin/exams',
+    element: (
+      <AdminThemeProvider>
+        <TeacherRoute>
+          <AdminLayout>
+            <AdminExamList />
+          </AdminLayout>
+        </TeacherRoute>
+      </AdminThemeProvider>
+    ),
+  },
+  {
+    path: 'admin/exams/create',
+    element: (
+      <AdminThemeProvider>
+        <TeacherRoute>
+          <AdminLayout>
+            <AdminCreateExam />
+          </AdminLayout>
+        </TeacherRoute>
+      </AdminThemeProvider>
+    ),
+  },
+  {
+    path: 'admin/exams/edit/:id',
+    element: (
+      <AdminThemeProvider>
+        <TeacherRoute>
+          <AdminLayout>
+            <AdminCreateExam />
           </AdminLayout>
         </TeacherRoute>
       </AdminThemeProvider>

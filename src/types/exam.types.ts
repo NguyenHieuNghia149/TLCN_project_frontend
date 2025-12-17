@@ -1,19 +1,50 @@
-import { Challenge } from './challenge.types'
+import { ChallengeItem } from './challenge.types'
 import { User } from './auth.types'
 
 export interface Exam {
   id: string
   title: string
-  password: string
+  password?: string
   duration: number // in minutes
-  challenges: Challenge[]
+  challenges: ChallengeItem[]
   startDate: string // ISO datetime
   endDate: string // ISO datetime
-  createdBy: string // userId
+  createdBy?: string // userId
+  isVisible: boolean
+  maxAttempts: number
   createdAt: string
   updatedAt?: string
 }
 
+export interface CreateExamPayload {
+  title: string
+  password?: string
+  duration: number
+  startDate: string
+  endDate: string
+  isVisible: boolean
+  maxAttempts: number
+  challenges: Array<{
+    type: 'existing' | 'new'
+    challengeId: string
+    orderIndex?: number
+  }>
+}
+
+export interface UpdateExamPayload {
+  title?: string
+  password?: string
+  duration?: number
+  startDate?: string
+  endDate?: string
+  isVisible?: boolean
+  maxAttempts?: number
+  challenges?: Array<{
+    type: 'existing' | 'new'
+    challengeId: string
+    orderIndex?: number
+  }>
+}
 export interface ExamParticipation {
   id: string
   userId: string
@@ -85,24 +116,6 @@ export interface ExamStatisticsResponse {
       passedCount: number
     }[]
   }
-}
-
-export interface CreateExamPayload {
-  title: string
-  password: string
-  duration: number
-  challengeIds: string[]
-  startDate: string
-  endDate: string
-}
-
-export interface UpdateExamPayload {
-  title?: string
-  password?: string
-  duration?: number
-  challengeIds?: string[]
-  startDate?: string
-  endDate?: string
 }
 
 export interface ExamStatistics {
