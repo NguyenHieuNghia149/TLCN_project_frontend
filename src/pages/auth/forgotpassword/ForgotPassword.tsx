@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { isAxiosError } from 'axios'
-import { apiClient } from '@/config/axios.config'
+import { authService } from '@/services/auth/auth.service'
 import './ForgotPassword.css'
 
 type Step = 'email' | 'otp' | 'password'
@@ -67,14 +67,12 @@ const ForgotPassword: React.FC = () => {
 
     try {
       setIsLoading(true)
-      const response = await apiClient.post('/auth/send-reset-otp', { email })
+      await authService.sendResetOtp(email)
 
-      if (response.data.success) {
-        setError(null)
-        setStep('otp')
-        setOtp(['', '', '', '', '', ''])
-        setOtpCooldown(60)
-      }
+      setError(null)
+      setStep('otp')
+      setOtp(['', '', '', '', '', ''])
+      setOtpCooldown(60)
     } catch (err) {
       const errorMsg = extractErrorMessage(err, 'Failed to send OTP')
       setError(errorMsg)
@@ -132,16 +130,11 @@ const ForgotPassword: React.FC = () => {
 
     try {
       setIsLoading(true)
-      const response = await apiClient.post('/auth/verify-otp', {
-        email,
-        otp: otpCode,
-      })
+      await authService.verifyOtp(email, otpCode)
 
-      if (response.data.success) {
-        setError(null)
-        setStep('password')
-        setFieldError(null)
-      }
+      setError(null)
+      setStep('password')
+      setFieldError(null)
     } catch (err) {
       const errorMsg = extractErrorMessage(err, 'Invalid OTP')
       setError(errorMsg)
@@ -178,22 +171,14 @@ const ForgotPassword: React.FC = () => {
     try {
       setIsLoading(true)
       const otpCode = otp.join('')
-      const response = await apiClient.post('/auth/reset-password', {
-        email,
-        otp: otpCode,
-        newPassword,
-      })
+      await authService.resetPassword(email, otpCode, newPassword)
 
-      if (response.data.success) {
-        setError(null)
-        setSuccessMessage(
-          'Password reset successfully! Redirecting to login...'
-        )
-        // Reset all states and redirect after showing message
-        setTimeout(() => {
-          window.location.href = '/login'
-        }, 2000)
-      }
+      setError(null)
+      setSuccessMessage('Password reset successfully! Redirecting to login...')
+      // Reset all states and redirect after showing message
+      setTimeout(() => {
+        window.location.href = '/login'
+      }, 2000)
     } catch (err) {
       const errorMsg = extractErrorMessage(err, 'Failed to reset password')
       setError(errorMsg)
@@ -207,7 +192,7 @@ const ForgotPassword: React.FC = () => {
 
     try {
       setIsLoading(true)
-      await apiClient.post('/auth/send-reset-otp', { email })
+      await authService.sendResetOtp(email)
       setOtp(['', '', '', '', '', ''])
       setOtpCooldown(60)
       setError(null)
