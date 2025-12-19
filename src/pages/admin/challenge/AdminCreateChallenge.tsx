@@ -138,7 +138,7 @@ const AdminCreateChallenge: React.FC = () => {
     adminTheme: 'light',
   }
 
-  const [notificationApi, contextHolder] = notification.useNotification()
+  // const [notificationApi, contextHolder] = notification.useNotification()
 
   useEffect(() => {
     const loadTopics = async () => {
@@ -150,7 +150,7 @@ const AdminCreateChallenge: React.FC = () => {
         setTopics(topicsData as { id: string; topicName: string }[])
         setAvailableTags(tagsData)
       } catch {
-        notificationApi.error({
+        notification.error({
           message: 'Error',
           description: 'Failed to load initial data',
           placement: 'topRight',
@@ -158,7 +158,7 @@ const AdminCreateChallenge: React.FC = () => {
       }
     }
     loadTopics()
-  }, [notificationApi])
+  }, [])
 
   const fetchChallenge = React.useCallback(
     async (challengeId: string) => {
@@ -185,7 +185,7 @@ const AdminCreateChallenge: React.FC = () => {
         }
         form.setFieldsValue(formData)
       } catch {
-        notificationApi.error({
+        notification.error({
           message: 'Error',
           description: 'Failed to load challenge',
           placement: 'topRight',
@@ -228,24 +228,21 @@ const AdminCreateChallenge: React.FC = () => {
 
       if (id) {
         await challengeService.updateChallenge(id, payload)
-        notificationApi.success({
-          message: 'Success',
-          description: 'Challenge updated successfully',
-          placement: 'topRight',
+        navigate('/admin/challenges', {
+          state: { successMessage: 'Challenge updated successfully' },
         })
       } else {
         await challengeService.createChallenge(payload)
-        notificationApi.success({
-          message: 'Success',
-          description: 'Challenge created successfully',
-          placement: 'topRight',
+        navigate('/admin/challenges', {
+          state: { successMessage: 'Challenge created successfully' },
         })
       }
-      navigate('/admin/challenges')
-    } catch {
-      notificationApi.error({
+    } catch (error: unknown) {
+      console.error('Full Update Error:', error)
+      const err = error as { response?: { data?: { message?: string } } }
+      notification.error({
         message: 'Error',
-        description: 'Failed to save challenge',
+        description: err.response?.data?.message || 'Failed to save challenge',
         placement: 'topRight',
       })
     } finally {
@@ -259,7 +256,7 @@ const AdminCreateChallenge: React.FC = () => {
       setPreviewData(values as ChallengeFormValues)
       setPreviewMode(true)
     } catch {
-      notificationApi.error({
+      notification.error({
         message: 'Error',
         description: 'Please fill in all required fields before previewing',
         placement: 'topRight',
@@ -360,7 +357,7 @@ const AdminCreateChallenge: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 p-6 transition-colors duration-300 dark:bg-gray-950">
-      {contextHolder}
+      {/* {contextHolder} */}
       <div className="mb-4 flex items-center gap-4">
         <Button
           icon={<ArrowLeftOutlined />}
