@@ -247,33 +247,145 @@
   }
 
   .heatmap {
-    padding: 1.5rem;
+    padding: 2rem 1.5rem;
   }
   .heatmap-header {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    margin-bottom: 12px;
+    margin-bottom: 1.5rem;
     color: #ffffff;
+    font-weight: 600;
   }
-  .heatmap-grid {
-    display: grid;
-    grid-template-columns: repeat(35, 10px);
-    gap: 6px;
-    padding: 12px 0;
+
+  /* GitHub-style contribution heatmap */
+  .github-heatmap-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
   }
-  .heat-dot {
-    width: 10px;
-    height: 10px;
+
+  .github-heatmap {
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+    padding: 1rem 0;
+  }
+
+  .heatmap-day-labels {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-right: 8px;
+    justify-content: flex-start;
+  }
+
+  .day-label-item {
+    height: 13px;
+    font-size: 0.75rem;
+    color: #9ca3af;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+  }
+
+  .heatmap-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .month-headers {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 4px;
+    padding-left: 2px;
+  }
+
+  .month-label {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    font-weight: 500;
+    min-width: 28px;
+  }
+
+  .contributions-grid {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .contribution-week {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .contribution-cell {
+    width: 13px;
+    height: 13px;
     border-radius: 2px;
-    background: rgba(55, 65, 81, 0.3);
+    cursor: pointer;
+    transition: all 0.2s ease;
     border: 1px solid rgba(55, 65, 81, 0.2);
   }
-  .months {
-    display: grid;
-    grid-template-columns: repeat(12, 1fr);
-    font-size: 12px;
-    color: #6b7280;
+
+  .contribution-cell:hover {
+    border-color: rgba(102, 126, 234, 0.8);
+    box-shadow: 0 0 8px rgba(102, 126, 234, 0.4);
+    transform: scale(1.5);
+  }
+
+  /* Contribution Legend */
+  .contribution-legend {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(55, 65, 81, 0.3);
+    font-size: 0.75rem;
+  }
+
+  .legend-text {
+    color: #9ca3af;
+    font-weight: 500;
+  }
+
+  .legend-items {
+    display: flex;
+    gap: 4px;
+  }
+
+  .legend-box {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    border: 1px solid rgba(55, 65, 81, 0.3);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .legend-box:hover {
+    border-color: rgba(102, 126, 234, 0.8);
+    box-shadow: 0 0 4px rgba(102, 126, 234, 0.4);
+  }
+
+  @media (max-width: 768px) {
+    .github-heatmap {
+      font-size: 0.7rem;
+    }
+
+    .contribution-cell {
+      width: 10px;
+      height: 10px;
+    }
+
+    .legend-box {
+      width: 10px;
+      height: 10px;
+    }
   }
 
   .recent-panel {
@@ -516,6 +628,92 @@
     font-size: 0.875rem;
   }
 
+  /* Submissions List */
+  .submissions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 1rem;
+  }
+
+  .submission-item {
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: rgba(30, 41, 59, 0.4);
+    border: 1px solid rgba(55, 65, 81, 0.3);
+    transition: all 0.2s ease;
+  }
+
+  .submission-item:hover {
+    background: rgba(30, 41, 59, 0.6);
+    border-color: rgba(102, 126, 234, 0.4);
+  }
+
+  .submission-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .problem-title {
+    font-weight: 500;
+    color: #e5e7eb;
+    flex: 1;
+    word-break: break-word;
+  }
+
+  .submission-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    margin-left: 8px;
+  }
+
+  .submission-badge.accepted {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+  }
+
+  .submission-badge.pending {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+  }
+
+  .submission-badge.rejected {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+  }
+
+  .submission-details {
+    display: flex;
+    gap: 12px;
+    font-size: 0.875rem;
+    color: #9ca3af;
+    flex-wrap: wrap;
+  }
+
+  .language-tag {
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: rgba(102, 126, 234, 0.1);
+    color: #667eea;
+    font-weight: 500;
+  }
+
+  .submission-time {
+    color: #9ca3af;
+  }
+
+  .execution-time {
+    color: #9ca3af;
+  }
+
   @media (max-width: 640px) {
     .form-grid {
       grid-template-columns: 1fr;
@@ -523,6 +721,16 @@
 
     .modal {
       padding: 20px;
+    }
+
+    .submission-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .submission-badge {
+      margin-left: 0;
+      margin-top: 8px;
     }
   }
 }
