@@ -257,20 +257,35 @@ export class AuthService {
     }
   }
 
-  async forgetPassword(
+  async sendResetOtp(email: string): Promise<void> {
+    try {
+      await apiClient.post('/auth/send-reset-otp', { email })
+    } catch (error) {
+      this.handleApiError(error, 'Failed to send OTP')
+    }
+  }
+
+  async verifyOtp(email: string, otp: string): Promise<void> {
+    try {
+      await apiClient.post('/auth/verify-otp', { email, otp })
+    } catch (error) {
+      this.handleApiError(error, 'Invalid OTP')
+    }
+  }
+
+  async resetPassword(
     email: string,
-    opt: string,
+    otp: string,
     newPassword: string
   ): Promise<void> {
     try {
-      const res = await apiClient.post('/auth/forget-password', {
+      await apiClient.post('/auth/reset-password', {
         email,
-        opt,
+        otp,
         newPassword,
       })
-      return res.data
     } catch (error) {
-      this.handleApiError(error, 'Forget password failed')
+      this.handleApiError(error, 'Failed to reset password')
     }
   }
 

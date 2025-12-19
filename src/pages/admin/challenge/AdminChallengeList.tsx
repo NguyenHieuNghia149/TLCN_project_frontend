@@ -13,13 +13,30 @@ import {
 import type { TablePaginationConfig } from 'antd'
 import type { FilterValue, SorterResult } from 'antd/es/table/interface'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { challengeService } from '@/services/api/challenge.service'
 import { ChallengeItem } from '@/types/challenge.types'
 
 const AdminChallengeList: React.FC = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const [loading, setLoading] = useState(false)
+  const [notificationApi, contextHolder] = notification.useNotification()
+
+  const notificationShownRef = React.useRef(false)
+
+  useEffect(() => {
+    if (location.state?.successMessage && !notificationShownRef.current) {
+      notificationApi.success({
+        message: 'Success',
+        description: location.state.successMessage,
+        placement: 'topRight',
+      })
+      notificationShownRef.current = true
+      // Clear state to prevent showing again on refresh (replace history)
+      window.history.replaceState({}, document.title)
+    }
+  }, [location.state, notificationApi])
   const [challenges, setChallenges] = useState<ChallengeItem[]>([])
   const [pagination, setPagination] = useState({
     current: 1,
@@ -32,44 +49,45 @@ const AdminChallengeList: React.FC = () => {
     undefined
   )
 
-  const [notificationApi, contextHolder] = notification.useNotification()
-
-  const fetchChallenges = async (
-    page: number = 1,
-    pageSize: number = 10,
-    search?: string,
-    sField?: string,
-    sOrder?: 'asc' | 'desc'
-  ) => {
-    setLoading(true)
-    try {
-      const response = await challengeService.getAllChallenges(
-        page,
-        pageSize,
-        search,
-        sField,
-        sOrder
-      )
-      setChallenges(response.items)
-      setPagination({
-        current: page,
-        pageSize: pageSize,
-        total: response.total,
-      })
-    } catch {
-      notificationApi.error({
-        message: 'Error',
-        description: 'Failed to load challenges',
-        placement: 'topRight',
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
+  const fetchChallenges = React.useCallback(
+    async (
+      page: number = 1,
+      pageSize: number = 10,
+      search?: string,
+      sField?: string,
+      sOrder?: 'asc' | 'desc'
+    ) => {
+      setLoading(true)
+      try {
+        const response = await challengeService.getAllChallenges(
+          page,
+          pageSize,
+          search,
+          sField,
+          sOrder
+        )
+        setChallenges(response.items)
+        setPagination({
+          current: page,
+          pageSize: pageSize,
+          total: response.total,
+        })
+      } catch {
+        notificationApi.error({
+          message: 'Error',
+          description: 'Failed to load challenges',
+          placement: 'topRight',
+        })
+      } finally {
+        setLoading(false)
+      }
+    },
+    [notificationApi]
+  )
 
   useEffect(() => {
     fetchChallenges(1, 10)
-  }, [])
+  }, [fetchChallenges])
 
   const handleTableChange = (
     newPagination: TablePaginationConfig,
@@ -118,10 +136,12 @@ const AdminChallengeList: React.FC = () => {
             placement: 'topRight',
           })
           fetchChallenges(pagination.current, pagination.pageSize)
-        } catch {
+        } catch (error: unknown) {
+          const err = error as { response?: { data?: { message?: string } } }
           notificationApi.error({
             message: 'Error',
-            description: 'Failed to delete challenge',
+            description:
+              err.response?.data?.message || 'Failed to delete challenge',
             placement: 'topRight',
           })
         }
