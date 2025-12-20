@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Plus,
+  // Plus,
   Calendar,
   Clock,
   MoreVertical,
@@ -137,7 +137,7 @@ const ExamList: React.FC = () => {
                 Craft focused coding exams and monitor cohort performance.
               </p>
             </div>
-            {canManageExam && (
+            {/* {canManageExam && (
               <Button
                 onClick={() => navigate('/exam/create')}
                 variant="primary"
@@ -146,7 +146,7 @@ const ExamList: React.FC = () => {
               >
                 New Exam
               </Button>
-            )}
+            )}  */}
           </div>
 
           <div className="mt-6 grid gap-4 sm:grid-cols-3">
@@ -411,23 +411,31 @@ const ExamCard: React.FC<ExamCardProps> = ({
                 <MoreVertical size={18} />
               </Button>
               {showMenu && (
-                <div className="absolute right-0 mt-2 w-44 rounded-2xl border border-white/10 bg-[#070a12] p-2 text-sm shadow-2xl">
+                <div
+                  className="absolute right-0 mt-2 w-44 rounded-xl border p-2 text-sm shadow-2xl"
+                  style={{
+                    backgroundColor: 'var(--card-color)',
+                    borderColor: 'var(--surface-border)',
+                  }}
+                >
                   <Button
-                    className="flex w-full items-center rounded-xl px-3 py-2 text-left text-gray-300"
+                    className="flex w-full items-center rounded-xl px-3 py-2 text-left"
                     onClick={() => navigate(`/exam/edit/${exam.id}`)}
                     variant="ghost"
+                    style={{ color: 'var(--text-color)' }}
                   >
                     Edit exam
                   </Button>
                   <Button
-                    className="flex w-full items-center rounded-xl px-3 py-2 text-left text-gray-300"
+                    className="flex w-full items-center rounded-xl px-3 py-2 text-left"
                     onClick={onResults}
                     variant="ghost"
+                    style={{ color: 'var(--text-color)' }}
                   >
                     View results
                   </Button>
                   <Button
-                    className="flex w-full items-center rounded-xl px-3 py-2 text-left text-rose-300"
+                    className="flex w-full items-center rounded-xl px-3 py-2 text-left text-rose-500"
                     variant="outline"
                   >
                     Delete

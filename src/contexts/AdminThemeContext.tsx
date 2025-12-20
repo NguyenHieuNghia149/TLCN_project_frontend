@@ -20,13 +20,21 @@ export const AdminThemeProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [])
 
-  const applyAdminTheme = (theme: AdminThemeMode) => {
+  const applyAdminTheme = (themeMode: AdminThemeMode) => {
     const root = document.documentElement
-    if (theme === 'light') {
+    // Remove both classes to ensure clean state
+    root.classList.remove('dark', 'light')
+
+    if (themeMode === 'light') {
+      root.classList.add('light')
+      root.setAttribute('data-theme', 'light')
       root.setAttribute('data-admin-theme', 'light')
-      root.classList.remove('dark')
+      root.style.colorScheme = 'light'
     } else {
+      root.classList.add('dark')
+      root.setAttribute('data-theme', 'dark')
       root.setAttribute('data-admin-theme', 'dark')
+      root.style.colorScheme = 'dark'
     }
   }
 
@@ -55,6 +63,14 @@ export const AdminThemeProvider: React.FC<{ children: React.ReactNode }> = ({
             adminTheme === 'dark'
               ? theme.darkAlgorithm
               : theme.defaultAlgorithm,
+          token: {
+            colorBgContainer: adminTheme === 'dark' ? '#1f1f1f' : '#ffffff',
+            colorBgElevated: adminTheme === 'dark' ? '#141414' : '#ffffff',
+            colorBorder:
+              adminTheme === 'dark' ? 'rgba(255,255,255,0.1)' : '#e2e8f0',
+            colorText: adminTheme === 'dark' ? '#ffffff' : '#1a1a1a',
+            colorTextSecondary: adminTheme === 'dark' ? '#94a3b8' : '#64748b',
+          },
         }}
       >
         {children}

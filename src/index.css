@@ -15,16 +15,38 @@
 
 :root[data-theme='dark'],
 html.dark {
+  /* Background colors */
   --background-color: #121418;
+  --card-color: rgba(255, 255, 255, 0.03);
+  --exam-panel-bg: rgba(255, 255, 255, 0.05);
+
+  /* Text colors */
   --text-color: #ffffff;
+  --muted-text: #94a3b8;
+
+  /* Borders & accents */
+  --surface-border: rgba(255, 255, 255, 0.1);
+  --accent: #20d761;
+
   color: #ffffff;
   background-color: #121418;
 }
 
 :root[data-theme='light'],
 html.light {
+  /* Background colors */
   --background-color: #f0f2f5;
-  --text-color: #000000;
+  --card-color: #ffffff;
+  --exam-panel-bg: #f8f9fa;
+
+  /* Text colors */
+  --text-color: #1a1a1a;
+  --muted-text: #64748b;
+
+  /* Borders & accents */
+  --surface-border: #e2e8f0;
+  --accent: #20d761;
+
   color: #213547;
   background-color: #f0f2f5;
 }

@@ -1,5 +1,5 @@
 import { apiClient } from '@/config/axios.config'
-import { CreateExamPayload, Exam } from '@/types/exam.types'
+import { CreateExamPayload, Exam, ExamParticipation } from '@/types/exam.types'
 
 export class ExamService {
   async getExams(
@@ -34,6 +34,32 @@ export class ExamService {
 
   async deleteExam(id: string): Promise<void> {
     await apiClient.delete(`/exams/${id}`)
+  }
+
+  // Get user's participation for an exam
+  async getMyParticipation(examId: string): Promise<ExamParticipation | null> {
+    const response = await apiClient.get(`/exams/${examId}/participation/me`)
+    return response.data.data
+  }
+
+  // Join an exam (create participation/session)
+  async joinExam(
+    examId: string,
+    password?: string
+  ): Promise<ExamParticipation> {
+    const response = await apiClient.post(`/exams/${examId}/join`, { password })
+    return response.data.data
+  }
+
+  // Get participation details by ID
+  async getParticipation(
+    examId: string,
+    participationId: string
+  ): Promise<ExamParticipation> {
+    const response = await apiClient.get(
+      `/exams/${examId}/participation/${participationId}`
+    )
+    return response.data.data
   }
 }
 

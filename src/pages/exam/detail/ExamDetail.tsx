@@ -69,7 +69,8 @@ const ExamDetail: React.FC = () => {
             // (Redux is in-memory only, so it's cleared on page reload/navigation)
             try {
               const myPartRes = await examService.getMyParticipation(apiExam.id)
-              const part = myPartRes?.data || myPartRes
+              // Response is ExamParticipation directly
+              const part = myPartRes
 
               const partId = part?.id || part?.participationId
               const serverStart =
@@ -92,7 +93,8 @@ const ExamDetail: React.FC = () => {
                       apiExam.id,
                       partId
                     )
-                    const details = partDetailsRes?.data || partDetailsRes
+                    // Response is ExamParticipation directly
+                    const details = partDetailsRes
                     currentChallengeId =
                       details?.currentChallengeId ||
                       details?.currentChallenge ||
@@ -171,10 +173,8 @@ const ExamDetail: React.FC = () => {
 
       // 3b. Lưu thời điểm bắt đầu phiên thi để tính thời gian còn lại khi reload
       // Prefer server-provided start time if available, else use local Date.now()
-      const startAtRaw =
-        res?.data?.startAt || res?.data?.startTimestamp || res?.data?.startedAt
-      const expiresAtRaw =
-        res?.data?.expiresAt || res?.data?.expires_at || res?.expiresAt
+      const startAtRaw = res?.startAt || res?.startTimestamp || res?.startedAt
+      const expiresAtRaw = res?.expiresAt || res?.expires_at
       let startAtValue: number | string = Date.now()
       if (startAtRaw) {
         // If server returns ISO string, store as-is (we'll parse later), if number store as number
@@ -182,11 +182,7 @@ const ExamDetail: React.FC = () => {
       }
 
       // 3. Lưu participationId (quan trọng để backend xác nhận session)
-      const participationId =
-        res?.data?.id ||
-        res?.data?.participationId ||
-        res?.participationId ||
-        res?.id
+      const participationId = res?.id || res?.participationId
       if (participationId) {
         // store in redux first
         try {

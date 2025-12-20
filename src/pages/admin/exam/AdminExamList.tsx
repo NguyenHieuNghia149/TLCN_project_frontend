@@ -11,13 +11,21 @@ import {
   Input,
 } from 'antd'
 import type { TablePaginationConfig } from 'antd/es/table'
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  SunOutlined,
+  MoonOutlined,
+} from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { examService } from '@/services/api/exam.service'
 import { Exam } from '@/types/exam.types'
+import { useAdminTheme } from '@/hooks/useAdminTheme'
 
 const AdminExamList: React.FC = () => {
   const navigate = useNavigate()
+  const { adminTheme, toggleAdminTheme } = useAdminTheme()
   const [loading, setLoading] = useState(false)
   const [exams, setExams] = useState<Exam[]>([])
   const [pagination, setPagination] = useState({
@@ -196,13 +204,28 @@ const AdminExamList: React.FC = () => {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6 transition-colors duration-300 dark:bg-gray-950">
+    <div
+      className="min-h-screen p-6 transition-colors duration-300"
+      style={{
+        backgroundColor: 'var(--background-color)',
+      }}
+    >
       {contextHolder}
       <div className="mb-4 flex items-center justify-between gap-4">
-        <h1 className="whitespace-nowrap text-2xl font-bold text-gray-900 transition-colors duration-300 dark:text-white">
+        <h1
+          className="whitespace-nowrap text-2xl font-bold transition-colors duration-300"
+          style={{ color: 'var(--text-color)' }}
+        >
           Exam Management
         </h1>
         <div className="flex flex-1 items-center justify-end gap-4">
+          <Button
+            icon={adminTheme === 'dark' ? <SunOutlined /> : <MoonOutlined />}
+            onClick={toggleAdminTheme}
+            size="large"
+          >
+            {adminTheme === 'dark' ? 'Light' : 'Dark'}
+          </Button>
           <div className="w-full max-w-md">
             <Input.Search
               placeholder="Search by title..."
@@ -222,7 +245,13 @@ const AdminExamList: React.FC = () => {
         </div>
       </div>
 
-      <Card className="bg-white transition-colors duration-300 dark:border-gray-700 dark:bg-gray-800">
+      <Card
+        className="transition-colors duration-300"
+        style={{
+          backgroundColor: 'var(--card-color)',
+          borderColor: 'var(--surface-border)',
+        }}
+      >
         <Table
           rowKey="id"
           columns={columns}
