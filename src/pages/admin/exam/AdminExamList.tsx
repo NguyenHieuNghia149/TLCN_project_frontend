@@ -1,15 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import {
-  Table,
-  Button,
-  Card,
-  Switch,
-  Space,
-  Modal,
-  notification,
-  Tooltip,
-  Input,
-} from 'antd'
+import { Table, Button, Card, Switch, Space, App, Tooltip, Input } from 'antd'
 import type { TablePaginationConfig } from 'antd/es/table'
 import {
   PlusOutlined,
@@ -33,7 +23,8 @@ const AdminExamList: React.FC = () => {
   })
   const [searchText, setSearchText] = useState('')
 
-  const [notificationApi, contextHolder] = notification.useNotification()
+  // Use App hooks for context-aware feedback
+  const { modal, notification } = App.useApp()
 
   const fetchExams = React.useCallback(
     async (page: number = 1, pageSize: number = 10, search?: string) => {
@@ -51,7 +42,7 @@ const AdminExamList: React.FC = () => {
           total: response.total,
         })
       } catch {
-        notificationApi.error({
+        notification.error({
           message: 'Error',
           description: 'Failed to load exams',
           placement: 'topRight',
@@ -60,12 +51,12 @@ const AdminExamList: React.FC = () => {
         setLoading(false)
       }
     },
-    [notificationApi]
+    [notification]
   )
 
   useEffect(() => {
     fetchExams(pagination.current, pagination.pageSize, searchText)
-  }, [])
+  }, [fetchExams, pagination.current, pagination.pageSize, searchText])
 
   // Automatically sync pagination to URL
   useEffect(() => {
@@ -94,22 +85,14 @@ const AdminExamList: React.FC = () => {
   const handleToggleVisibility = async (examId: string, checked: boolean) => {
     try {
       await examService.updateExam(examId, { isVisible: checked })
-      notificationApi.success({
+      notification.success({
         message: 'Success',
         description: `Exam is now ${checked ? 'visible' : 'hidden'}`,
         placement: 'topRight',
       })
-      // Update local state to reflect change immediately without full reload if desired,
-      // or just let the switch state be controlled/uncontrolled.
-      // For optimisitc UI or valid feedback, mapping usually helps:
-      setExams(prev =>
-        prev.map(exam =>
-          exam.id === examId ? { ...exam, isVisible: checked } : exam
-        )
-      )
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } }
-      notificationApi.error({
+      notification.error({
         message: 'Error',
         description:
           err.response?.data?.message || 'Failed to update visibility',
@@ -121,7 +104,8 @@ const AdminExamList: React.FC = () => {
   }
 
   const handleDelete = (id: string) => {
-    Modal.confirm({
+    console.log('Delete requested for:', id)
+    modal.confirm({
       title: 'Are you sure you want to delete this exam?',
       content:
         'This action cannot be undone. All related participations will be deleted.',
@@ -131,7 +115,7 @@ const AdminExamList: React.FC = () => {
       onOk: async () => {
         try {
           await examService.deleteExam(id)
-          notificationApi.success({
+          notification.success({
             message: 'Success',
             description: 'Exam deleted successfully',
             placement: 'topRight',
@@ -145,7 +129,7 @@ const AdminExamList: React.FC = () => {
             err.response?.data?.code === 'EXAM_HAS_PARTICIPATIONS' ||
             err.response?.data?.message?.includes('participated')
 
-          notificationApi.error({
+          notification.error({
             message: 'Cannot Delete Exam',
             description: isParticipationError
               ? 'This exam cannot be deleted because students have already participated in it. You can hide it instead.'
@@ -243,7 +227,6 @@ const AdminExamList: React.FC = () => {
         backgroundColor: 'var(--admin-bg-primary)',
       }}
     >
-      {contextHolder}
       <div className="mb-4 flex items-center justify-between gap-4">
         <h1
           className="whitespace-nowrap text-2xl font-bold transition-colors duration-300"
@@ -259,6 +242,7 @@ const AdminExamList: React.FC = () => {
               onSearch={onSearch}
               enterButton
               value={searchText}
+              onChange={e => setSearchText(e.target.value)}
             />
           </div>
           <Button

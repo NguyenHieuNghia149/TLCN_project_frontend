@@ -31,7 +31,7 @@ const TestCasePanel: React.FC<TestCasePanelProps> = ({
               className={`rounded px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] ${
                 selectedTestCase === tc.id
                   ? 'bg-[var(--accent)] text-white'
-                  : 'bg-transparent text-[var(--muted-text)] hover:bg-[rgba(0,0,0,0.04)]'
+                  : 'bg-transparent text-[var(--muted-text)] hover:bg-[var(--surface-border)]'
               }`}
               aria-pressed={selectedTestCase === tc.id}
             >
@@ -53,7 +53,7 @@ const TestCasePanel: React.FC<TestCasePanelProps> = ({
       {currentTestCase && (
         <div className="space-y-2">
           <div>
-            <span className="muted text-sm">Input</span>
+            <span className="text-sm text-[var(--muted-text)]">Input</span>
             <div
               className="mt-1 rounded border px-3 py-2 font-mono text-sm"
               style={{
@@ -66,7 +66,9 @@ const TestCasePanel: React.FC<TestCasePanelProps> = ({
             </div>
           </div>
           <div>
-            <span className="muted text-sm">Expected Output</span>
+            <span className="text-sm text-[var(--muted-text)]">
+              Expected Output
+            </span>
             <div
               className="mt-1 rounded border px-3 py-2 font-mono text-sm"
               style={{

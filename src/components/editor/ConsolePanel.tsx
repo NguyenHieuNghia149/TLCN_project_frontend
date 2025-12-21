@@ -185,7 +185,7 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
                         const statusClass =
                           r.ok === false
                             ? 'bg-red-800 text-red-50 hover:bg-red-700'
-                            : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                            : 'bg-[var(--surface-border)] text-[var(--text-color)] hover:opacity-80'
                         const cls = isSelected
                           ? 'bg-blue-600 text-white'
                           : statusClass
@@ -200,18 +200,20 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
                         )
                       })
                     ) : (
-                      <span className="text-xs text-gray-500">No results</span>
+                      <span className="text-xs text-[var(--muted-text)]">
+                        No results
+                      </span>
                     )}
                   </div>
                   {output.passedTests !== undefined &&
                     output.totalTests !== undefined && (
-                      <div className="ml-auto mr-4 text-right text-sm text-gray-400">
+                      <div className="ml-auto mr-4 text-right text-sm text-[var(--muted-text)]">
                         Passed test cases: {output.passedTests}/
                         {output.totalTests}
                       </div>
                     )}
                   {/* Detail panel stacked sections */}
-                  <div className="min-w-0 flex-1 overflow-auto bg-gray-900 p-4">
+                  <div className="min-w-0 flex-1 overflow-auto bg-[var(--code-bg)] p-4">
                     {/* Summary header */}
                     <div className="mb-3 space-y-1">
                       {output.status === 'accepted' ? (
@@ -223,11 +225,11 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
                           ✗ Error
                         </div>
                       ) : null}
-                      <div className="text-sm text-gray-300">
+                      <div className="text-sm text-[var(--text-color)]">
                         {output.message}
                       </div>
                       {typeof output.processingTime === 'number' && (
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-[var(--muted-text)]">
                           Time: {output.processingTime} ms
                         </div>
                       )}
@@ -259,15 +261,15 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
                                   </div>
                                 )}
                                 <div>
-                                  <span className="text-sm text-gray-400">
+                                  <span className="text-sm text-[var(--muted-text)]">
                                     Input:
                                   </span>
-                                  <div className="mt-1 rounded border border-gray-700 bg-gray-800 px-3 py-2 font-mono text-sm text-gray-100">
+                                  <div className="mt-1 rounded border border-[var(--surface-border)] bg-[var(--exam-panel-bg)] px-3 py-2 font-mono text-sm text-[var(--text-color)]">
                                     {r.input}
                                   </div>
                                 </div>
                                 <div>
-                                  <span className="text-sm text-gray-400">
+                                  <span className="text-sm text-[var(--muted-text)]">
                                     Expected output:
                                   </span>
                                   {(() => {
@@ -275,13 +277,13 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
                                     const isPublic = related?.isPublic !== false
                                     if (isPublic) {
                                       return (
-                                        <div className="mt-1 rounded border border-gray-700 bg-gray-800 px-3 py-2 font-mono text-sm text-gray-100">
+                                        <div className="mt-1 rounded border border-[var(--surface-border)] bg-[var(--exam-panel-bg)] px-3 py-2 font-mono text-sm text-[var(--text-color)]">
                                           {r.expectedOutput}
                                         </div>
                                       )
                                     }
                                     return (
-                                      <div className="mt-1 rounded border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-gray-400">
+                                      <div className="mt-1 rounded border border-[var(--surface-border)] bg-[var(--exam-panel-bg)] px-3 py-2 text-sm text-[var(--muted-text)]">
                                         🔒 Output is hidden for private test
                                         case
                                       </div>
@@ -289,16 +291,16 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
                                   })()}
                                 </div>
                                 <div>
-                                  <span className="text-sm text-gray-400">
+                                  <span className="text-sm text-[var(--muted-text)]">
                                     Your output:
                                   </span>
                                   <div
-                                    className={`mt-1 rounded border px-3 py-2 font-mono text-sm ${r.ok ? 'border-green-700 bg-green-900/20 text-green-200' : 'border-gray-700 bg-gray-800 text-gray-100'}`}
+                                    className={`mt-1 rounded border px-3 py-2 font-mono text-sm ${r.ok ? 'border-green-700 bg-green-900/20 text-green-200' : 'border-[var(--surface-border)] bg-[var(--exam-panel-bg)] text-[var(--text-color)]'}`}
                                   >
                                     {r.actualOutput}
                                   </div>
                                 </div>
-                                <div className="text-xs text-gray-500">
+                                <div className="text-xs text-[var(--muted-text)]">
                                   #{r.index} • • Time: {r.executionTime} ms
                                 </div>
                               </div>
@@ -311,7 +313,7 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
               )}
 
               {output.status === 'idle' && (
-                <div className="text-gray-500">{output.message}</div>
+                <div className="text-[var(--muted-text)]">{output.message}</div>
               )}
             </div>
           )}
