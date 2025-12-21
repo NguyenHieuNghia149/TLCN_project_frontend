@@ -5,6 +5,7 @@ import {
   ExamState,
   ExamStatistics,
 } from '@/types/exam.types'
+import { logoutUser, initializeSession } from './authSlice'
 
 const initialState: ExamState = {
   exams: [],
@@ -129,6 +130,39 @@ const examSlice = createSlice({
       state.statistics = null
       state.error = null
     },
+  },
+  extraReducers: builder => {
+    // Clear exam state when user logs out
+    builder.addCase(logoutUser.fulfilled, state => {
+      state.exams = []
+      state.currentExam = null
+      state.submissions = []
+      state.currentSubmission = null
+      state.statistics = null
+      state.error = null
+      state.currentParticipationId = null
+      state.currentParticipationStartAt = null
+      state.currentParticipationExpiresAt = null
+      state.currentParticipationChallengeId = null
+      state.isLoading = false
+    })
+
+    // Clear exam state when session expires
+    builder.addCase(initializeSession.rejected, (state, action) => {
+      if (action.payload?.isRefreshTokenExpired) {
+        state.exams = []
+        state.currentExam = null
+        state.submissions = []
+        state.currentSubmission = null
+        state.statistics = null
+        state.error = null
+        state.currentParticipationId = null
+        state.currentParticipationStartAt = null
+        state.currentParticipationExpiresAt = null
+        state.currentParticipationChallengeId = null
+        state.isLoading = false
+      }
+    })
   },
 })
 

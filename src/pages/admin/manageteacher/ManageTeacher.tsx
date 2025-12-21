@@ -83,7 +83,7 @@ const ManageTeacher: React.FC = () => {
             page,
             limit: pageSize,
             search: search || undefined,
-            role: 'instructor',
+            role: 'teacher',
           },
         })
         const payload = res.data?.data || res.data
@@ -110,7 +110,7 @@ const ManageTeacher: React.FC = () => {
             firstName: u.firstName,
             lastName: u.lastName,
             email: u.email,
-            role: 'instructor',
+            role: 'teacher',
             status: u.status || 'active',
             createdAt: u.createdAt,
             gender: u.gender,
@@ -218,7 +218,7 @@ const ManageTeacher: React.FC = () => {
         firstName: values.firstName,
         lastName: values.lastName,
         email: values.email,
-        role: 'instructor',
+        role: 'teacher',
         status: values.status,
         gender: values.gender || undefined,
         dateOfBirth: values.dateOfBirth
