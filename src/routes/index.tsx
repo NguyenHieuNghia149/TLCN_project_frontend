@@ -14,6 +14,7 @@ import TopicLessonsPage from '@/pages/lessons/TopicLessonsPage'
 import { PublicRoute } from './PublicRoute'
 import { ProtectedRoute } from './ProtectedRoute'
 import { TeacherRoute } from './TeacherRoute'
+import { OwnerRoute } from './OwnerRoute'
 import ChallengePage from '@/pages/challenge/ChallengePage'
 import ProblemDetailPage from '@/pages/challengeDetail/ProblemDetailPage'
 import Ranking from '@/pages/ranking/Ranking'
@@ -92,11 +93,11 @@ export const router = createBrowserRouter([
     path: 'admin/teachers',
     element: (
       <AdminThemeProvider>
-        <TeacherRoute>
+        <OwnerRoute>
           <AdminLayout>
             <ManageTeacher />
           </AdminLayout>
-        </TeacherRoute>
+        </OwnerRoute>
       </AdminThemeProvider>
     ),
   },

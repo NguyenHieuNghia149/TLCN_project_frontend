@@ -1,6 +1,7 @@
 import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/api/useAuth'
+import { isOwner } from '@/utils/roleUtils'
 import {
   LayoutDashboard,
   Users,
@@ -29,7 +30,7 @@ interface AdminNavProps {
 const AdminNav: React.FC<AdminNavProps> = ({ isCollapsed, onToggle }) => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
   // Internal state removed in favor of props
 
   const navItems: NavItem[] = [
@@ -104,22 +105,27 @@ const AdminNav: React.FC<AdminNavProps> = ({ isCollapsed, onToggle }) => {
 
       {/* Navigation Items */}
       <ul className="admin-nav__list">
-        {navItems.map(item => (
-          <li key={item.id} className="admin-nav__item">
-            <button
-              className={`admin-nav__link ${
-                isActive(item.path) ? 'admin-nav__link--active' : ''
-              }`}
-              onClick={() => navigate(item.path)}
-              title={isCollapsed ? item.label : ''}
-            >
-              <span className="admin-nav__icon">{item.icon}</span>
-              {!isCollapsed && (
-                <span className="admin-nav__label">{item.label}</span>
-              )}
-            </button>
-          </li>
-        ))}
+        {navItems
+          .filter(item => {
+            if (item.id === 'teachers') return isOwner(user)
+            return true
+          })
+          .map(item => (
+            <li key={item.id} className="admin-nav__item">
+              <button
+                className={`admin-nav__link ${
+                  isActive(item.path) ? 'admin-nav__link--active' : ''
+                }`}
+                onClick={() => navigate(item.path)}
+                title={isCollapsed ? item.label : ''}
+              >
+                <span className="admin-nav__icon">{item.icon}</span>
+                {!isCollapsed && (
+                  <span className="admin-nav__label">{item.label}</span>
+                )}
+              </button>
+            </li>
+          ))}
       </ul>
 
       {/* Bottom Actions */}
