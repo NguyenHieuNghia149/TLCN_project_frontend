@@ -27,6 +27,7 @@ html.dark {
   /* Borders & accents */
   --surface-border: rgba(255, 255, 255, 0.1);
   --accent: #20d761;
+  --code-bg: rgba(255, 255, 255, 0.1);
 
   color: #ffffff;
   background-color: #121418;
@@ -46,6 +47,7 @@ html.light {
   /* Borders & accents */
   --surface-border: #e2e8f0;
   --accent: #20d761;
+  --code-bg: #e2e8f0;
 
   color: #213547;
   background-color: #f0f2f5;
