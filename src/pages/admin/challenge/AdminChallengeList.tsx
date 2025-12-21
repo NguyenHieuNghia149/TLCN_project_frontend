@@ -1,15 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import {
-  Table,
-  Button,
-  Card,
-  Tag,
-  Space,
-  Modal,
-  notification,
-  Tooltip,
-  Input,
-} from 'antd'
+import { Table, Button, Card, Tag, Space, App, Tooltip, Input } from 'antd'
 import type { TablePaginationConfig } from 'antd'
 import type { FilterValue, SorterResult } from 'antd/es/table/interface'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
@@ -21,13 +11,13 @@ const AdminChallengeList: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const [loading, setLoading] = useState(false)
-  const [notificationApi, contextHolder] = notification.useNotification()
+  const { modal, notification } = App.useApp()
 
   const notificationShownRef = React.useRef(false)
 
   useEffect(() => {
     if (location.state?.successMessage && !notificationShownRef.current) {
-      notificationApi.success({
+      notification.success({
         message: 'Success',
         description: location.state.successMessage,
         placement: 'topRight',
@@ -36,7 +26,7 @@ const AdminChallengeList: React.FC = () => {
       // Clear state to prevent showing again on refresh (replace history)
       window.history.replaceState({}, document.title)
     }
-  }, [location.state, notificationApi])
+  }, [location.state, notification])
   const [challenges, setChallenges] = useState<ChallengeItem[]>([])
   const [pagination, setPagination] = useState({
     current: 1,
@@ -73,7 +63,7 @@ const AdminChallengeList: React.FC = () => {
           total: response.total,
         })
       } catch {
-        notificationApi.error({
+        notification.error({
           message: 'Error',
           description: 'Failed to load challenges',
           placement: 'topRight',
@@ -82,7 +72,7 @@ const AdminChallengeList: React.FC = () => {
         setLoading(false)
       }
     },
-    [notificationApi]
+    [notification]
   )
 
   useEffect(() => {
@@ -121,7 +111,7 @@ const AdminChallengeList: React.FC = () => {
   }
 
   const handleDelete = (id: string) => {
-    Modal.confirm({
+    modal.confirm({
       title: 'Are you sure you want to delete this challenge?',
       content: 'This action cannot be undone.',
       okText: 'Yes',
@@ -130,7 +120,7 @@ const AdminChallengeList: React.FC = () => {
       onOk: async () => {
         try {
           await challengeService.deleteChallenge(id)
-          notificationApi.success({
+          notification.success({
             message: 'Success',
             description: 'Challenge deleted successfully',
             placement: 'topRight',
@@ -138,7 +128,7 @@ const AdminChallengeList: React.FC = () => {
           fetchChallenges(pagination.current, pagination.pageSize)
         } catch (error: unknown) {
           const err = error as { response?: { data?: { message?: string } } }
-          notificationApi.error({
+          notification.error({
             message: 'Error',
             description:
               err.response?.data?.message || 'Failed to delete challenge',
@@ -223,7 +213,6 @@ const AdminChallengeList: React.FC = () => {
 
   return (
     <div className="p-6">
-      {contextHolder}
       <div className="mb-4 flex items-center justify-between gap-4">
         <h1 className="whitespace-nowrap text-2xl font-bold">
           Challenge Management

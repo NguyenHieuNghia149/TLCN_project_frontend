@@ -4,11 +4,11 @@ import {
   Button,
   Card,
   Space,
+  App,
   Modal,
   Form,
   Input,
   Select,
-  notification,
   Tooltip,
   Tag,
   DatePicker,
@@ -73,7 +73,8 @@ const ManageUser: React.FC = () => {
   const [showForm, setShowForm] = useState<boolean>(false)
   const [editing, setEditing] = useState<UserItem | null>(null)
   const [form] = Form.useForm()
-  const [notificationApi, contextHolder] = notification.useNotification()
+
+  const { modal, notification } = App.useApp()
 
   const fetchUsers = React.useCallback(
     async (page: number = 1, pageSize: number = 10, search?: string) => {
@@ -128,7 +129,8 @@ const ManageUser: React.FC = () => {
         })
       } catch (error) {
         const err = error as { response?: { data?: { message?: string } } }
-        notificationApi.error({
+
+        notification.error({
           message: 'Error',
           description: err?.response?.data?.message || 'Failed to fetch users',
           placement: 'topRight',
@@ -137,7 +139,7 @@ const ManageUser: React.FC = () => {
         setLoading(false)
       }
     },
-    [notificationApi]
+    [notification]
   )
 
   useEffect(() => {
@@ -176,7 +178,7 @@ const ManageUser: React.FC = () => {
   }
 
   const onDelete = (user: UserItem) => {
-    Modal.confirm({
+    modal.confirm({
       title: `Delete user ${user.name}?`,
       content: 'This action cannot be undone.',
       okText: 'Yes',
@@ -185,7 +187,8 @@ const ManageUser: React.FC = () => {
       onOk: async () => {
         try {
           await apiClient.delete(`/admin/users/${user.id}`)
-          notificationApi.success({
+
+          notification.success({
             message: 'Success',
             description: 'User deleted successfully',
             placement: 'topRight',
@@ -193,7 +196,8 @@ const ManageUser: React.FC = () => {
           fetchUsers(pagination.current, pagination.pageSize, searchText)
         } catch (error: unknown) {
           const err = error as { response?: { data?: { message?: string } } }
-          notificationApi.error({
+
+          notification.error({
             message: 'Error',
             description: err.response?.data?.message || 'Failed to delete user',
             placement: 'topRight',
@@ -228,14 +232,14 @@ const ManageUser: React.FC = () => {
 
       if (editing) {
         await apiClient.put(`/admin/users/${editing.id}`, payload)
-        notificationApi.success({
+        notification.success({
           message: 'Success',
           description: 'User updated successfully',
           placement: 'topRight',
         })
       } else {
         await apiClient.post(`/admin/users`, payload)
-        notificationApi.success({
+        notification.success({
           message: 'Success',
           description: 'User created successfully',
           placement: 'topRight',
@@ -248,7 +252,7 @@ const ManageUser: React.FC = () => {
       fetchUsers(pagination.current, pagination.pageSize, searchText)
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } }
-      notificationApi.error({
+      notification.error({
         message: 'Error',
         description: err.response?.data?.message || 'Failed to save user',
         placement: 'topRight',
@@ -338,7 +342,6 @@ const ManageUser: React.FC = () => {
         backgroundColor: 'var(--background-color)',
       }}
     >
-      {contextHolder}
       <div className="mb-4 flex items-center justify-between gap-4">
         <h1
           className="whitespace-nowrap text-2xl font-bold transition-colors duration-300"

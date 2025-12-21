@@ -4,10 +4,10 @@ import {
   Button,
   Card,
   Space,
+  App,
   Modal,
   Form,
   Input,
-  notification,
   Tooltip,
   Tag,
   Alert,
@@ -50,9 +50,9 @@ const ManageTopic: React.FC = () => {
     null
   )
   const [verifyInput, setVerifyInput] = useState<string>('')
-
   const [form] = Form.useForm()
-  const [notificationApi, contextHolder] = notification.useNotification()
+
+  const { modal, notification } = App.useApp()
 
   const fetchTopics = React.useCallback(
     async (page: number = 1, pageSize: number = 10, search?: string) => {
@@ -94,7 +94,7 @@ const ManageTopic: React.FC = () => {
         setTopicStats(stats)
       } catch (error) {
         const err = error as { response?: { data?: { message?: string } } }
-        notificationApi.error({
+        notification.error({
           message: 'Error',
           description: err?.response?.data?.message || 'Failed to fetch topics',
           placement: 'topRight',
@@ -103,7 +103,7 @@ const ManageTopic: React.FC = () => {
         setLoading(false)
       }
     },
-    [notificationApi]
+    [notification]
   )
 
   useEffect(() => {
@@ -147,7 +147,7 @@ const ManageTopic: React.FC = () => {
       setVerifyInput('')
     } else {
       // Direct delete for empty topics
-      Modal.confirm({
+      modal.confirm({
         title: `Delete topic "${topic.topicName}"?`,
         content: 'This action cannot be undone.',
         okText: 'Yes',
@@ -161,7 +161,7 @@ const ManageTopic: React.FC = () => {
   const handleDelete = async (topicId: string) => {
     try {
       await adminTopicAPI.deleteTopic(topicId)
-      notificationApi.success({
+      notification.success({
         message: 'Success',
         description: 'Topic deleted successfully',
         placement: 'topRight',
@@ -171,7 +171,7 @@ const ManageTopic: React.FC = () => {
       setVerifyInput('')
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } }
-      notificationApi.error({
+      notification.error({
         message: 'Error',
         description: err.response?.data?.message || 'Failed to delete topic',
         placement: 'topRight',
@@ -183,7 +183,7 @@ const ManageTopic: React.FC = () => {
     if (!deleteVerifyModal) return
 
     if (verifyInput !== deleteVerifyModal.topicName) {
-      notificationApi.error({
+      notification.error({
         message: 'Verification Failed',
         description: 'Topic name does not match. Please check again.',
         placement: 'topRight',
@@ -200,7 +200,7 @@ const ManageTopic: React.FC = () => {
         await adminTopicAPI.updateTopic(editing.id, {
           topicName: values.topicName,
         })
-        notificationApi.success({
+        notification.success({
           message: 'Success',
           description: 'Topic updated successfully',
           placement: 'topRight',
@@ -209,7 +209,7 @@ const ManageTopic: React.FC = () => {
         await adminTopicAPI.createTopic({
           topicName: values.topicName,
         })
-        notificationApi.success({
+        notification.success({
           message: 'Success',
           description: 'Topic created successfully',
           placement: 'topRight',
@@ -222,7 +222,7 @@ const ManageTopic: React.FC = () => {
       fetchTopics(pagination.current, pagination.pageSize, searchText)
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } }
-      notificationApi.error({
+      notification.error({
         message: 'Error',
         description: err.response?.data?.message || 'Failed to save topic',
         placement: 'topRight',
@@ -287,7 +287,6 @@ const ManageTopic: React.FC = () => {
         backgroundColor: 'var(--background-color)',
       }}
     >
-      {contextHolder}
       <div className="mb-4 flex items-center justify-between gap-4">
         <h1
           className="whitespace-nowrap text-2xl font-bold transition-colors duration-300"

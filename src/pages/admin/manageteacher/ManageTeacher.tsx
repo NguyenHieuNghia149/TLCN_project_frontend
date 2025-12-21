@@ -4,11 +4,11 @@ import {
   Button,
   Card,
   Space,
+  App,
   Modal,
   Form,
   Input,
   Select,
-  notification,
   Tooltip,
   Tag,
   DatePicker,
@@ -72,7 +72,8 @@ const ManageTeacher: React.FC = () => {
   const [showForm, setShowForm] = useState<boolean>(false)
   const [editing, setEditing] = useState<UserItem | null>(null)
   const [form] = Form.useForm()
-  const [notificationApi, contextHolder] = notification.useNotification()
+
+  const { modal, notification } = App.useApp()
 
   const fetchTeachers = React.useCallback(
     async (page: number = 1, pageSize: number = 10, search?: string) => {
@@ -127,7 +128,7 @@ const ManageTeacher: React.FC = () => {
         })
       } catch (error) {
         const err = error as { response?: { data?: { message?: string } } }
-        notificationApi.error({
+        notification.error({
           message: 'Error',
           description:
             err?.response?.data?.message || 'Failed to fetch teachers',
@@ -137,7 +138,7 @@ const ManageTeacher: React.FC = () => {
         setLoading(false)
       }
     },
-    [notificationApi]
+    [notification]
   )
 
   useEffect(() => {
@@ -176,7 +177,7 @@ const ManageTeacher: React.FC = () => {
   }
 
   const onDelete = (teacher: UserItem) => {
-    Modal.confirm({
+    modal.confirm({
       title: `Delete teacher ${teacher.name}?`,
       content: 'This action cannot be undone.',
       okText: 'Yes',
@@ -185,7 +186,7 @@ const ManageTeacher: React.FC = () => {
       onOk: async () => {
         try {
           await apiClient.delete(`/admin/users/${teacher.id}`)
-          notificationApi.success({
+          notification.success({
             message: 'Success',
             description: 'Teacher deleted successfully',
             placement: 'topRight',
@@ -193,7 +194,7 @@ const ManageTeacher: React.FC = () => {
           fetchTeachers(pagination.current, pagination.pageSize, searchText)
         } catch (error: unknown) {
           const err = error as { response?: { data?: { message?: string } } }
-          notificationApi.error({
+          notification.error({
             message: 'Error',
             description:
               err.response?.data?.message || 'Failed to delete teacher',
@@ -229,14 +230,14 @@ const ManageTeacher: React.FC = () => {
 
       if (editing) {
         await apiClient.put(`/admin/users/${editing.id}`, payload)
-        notificationApi.success({
+        notification.success({
           message: 'Success',
           description: 'Teacher updated successfully',
           placement: 'topRight',
         })
       } else {
         await apiClient.post(`/admin/users`, payload)
-        notificationApi.success({
+        notification.success({
           message: 'Success',
           description: 'Teacher created successfully',
           placement: 'topRight',
@@ -249,7 +250,7 @@ const ManageTeacher: React.FC = () => {
       fetchTeachers(pagination.current, pagination.pageSize, searchText)
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } }
-      notificationApi.error({
+      notification.error({
         message: 'Error',
         description: err.response?.data?.message || 'Failed to save teacher',
         placement: 'topRight',
@@ -333,7 +334,6 @@ const ManageTeacher: React.FC = () => {
         backgroundColor: 'var(--background-color)',
       }}
     >
-      {contextHolder}
       <div className="mb-4 flex items-center justify-between gap-4">
         <h1
           className="whitespace-nowrap text-2xl font-bold transition-colors duration-300"

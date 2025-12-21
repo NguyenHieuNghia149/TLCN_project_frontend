@@ -4,11 +4,11 @@ import {
   Button,
   Card,
   Space,
+  App,
   Modal,
   Form,
   Input,
   Select,
-  notification,
   Tooltip,
   Tag,
   Upload,
@@ -59,7 +59,8 @@ const ManageLesson: React.FC = () => {
   const [uploadingFile, setUploadingFile] = useState<boolean>(false)
   const [contentFromFile, setContentFromFile] = useState<string>('')
   const [form] = Form.useForm()
-  const [notificationApi, contextHolder] = notification.useNotification()
+
+  const { modal, notification } = App.useApp()
 
   // Fetch topics on mount
   useEffect(() => {
@@ -108,7 +109,7 @@ const ManageLesson: React.FC = () => {
         })
       } catch (error) {
         const err = error as { response?: { data?: { message?: string } } }
-        notificationApi.error({
+        notification.error({
           message: 'Error',
           description:
             err?.response?.data?.message || 'Failed to fetch lessons',
@@ -118,7 +119,7 @@ const ManageLesson: React.FC = () => {
         setLoading(false)
       }
     },
-    [notificationApi]
+    [notification]
   )
 
   useEffect(() => {
@@ -157,7 +158,7 @@ const ManageLesson: React.FC = () => {
   }
 
   const onDelete = (lesson: LessonItem) => {
-    Modal.confirm({
+    modal.confirm({
       title: `Delete lesson "${lesson.title}"?`,
       content: 'This action cannot be undone.',
       okText: 'Yes',
@@ -166,7 +167,7 @@ const ManageLesson: React.FC = () => {
       onOk: async () => {
         try {
           await adminLessonAPI.deleteLesson(lesson.id)
-          notificationApi.success({
+          notification.success({
             message: 'Success',
             description: 'Lesson deleted successfully',
             placement: 'topRight',
@@ -174,7 +175,7 @@ const ManageLesson: React.FC = () => {
           fetchLessons(pagination.current, pagination.pageSize, searchText)
         } catch (error: unknown) {
           const err = error as { response?: { data?: { message?: string } } }
-          notificationApi.error({
+          notification.error({
             message: 'Error',
             description:
               err.response?.data?.message || 'Failed to delete lesson',
@@ -187,7 +188,7 @@ const ManageLesson: React.FC = () => {
 
   const handleWordFileUpload = async (file: File) => {
     if (!isValidDocxFile(file)) {
-      notificationApi.error({
+      notification.error({
         message: 'Invalid File',
         description: 'Please select a valid .docx file',
         placement: 'topRight',
@@ -200,7 +201,7 @@ const ManageLesson: React.FC = () => {
       const { html, error } = await parseDocxToHtml(file)
 
       if (error) {
-        notificationApi.error({
+        notification.error({
           message: 'Error',
           description: error,
           placement: 'topRight',
@@ -211,13 +212,13 @@ const ManageLesson: React.FC = () => {
       if (html) {
         setContentFromFile(html)
         form.setFieldsValue({ content: html })
-        notificationApi.success({
+        notification.success({
           message: 'Success',
           description: `Content from "${file.name}" loaded successfully`,
           placement: 'topRight',
         })
       } else {
-        notificationApi.error({
+        notification.error({
           message: 'Error',
           description: 'Unable to extract content from file',
           placement: 'topRight',
@@ -226,7 +227,7 @@ const ManageLesson: React.FC = () => {
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : 'Error processing file'
-      notificationApi.error({
+      notification.error({
         message: 'Error',
         description: errorMessage,
         placement: 'topRight',
@@ -244,7 +245,7 @@ const ManageLesson: React.FC = () => {
     topicId: string
   }) => {
     if (!values.content || !values.content.trim()) {
-      notificationApi.error({
+      notification.error({
         message: 'Validation Error',
         description: 'Content is required',
         placement: 'topRight',
@@ -262,14 +263,14 @@ const ManageLesson: React.FC = () => {
 
       if (editing) {
         await adminLessonAPI.updateLesson(editing.id, payload)
-        notificationApi.success({
+        notification.success({
           message: 'Success',
           description: 'Lesson updated successfully',
           placement: 'topRight',
         })
       } else {
         await adminLessonAPI.createLesson(payload)
-        notificationApi.success({
+        notification.success({
           message: 'Success',
           description: 'Lesson created successfully',
           placement: 'topRight',
@@ -283,7 +284,7 @@ const ManageLesson: React.FC = () => {
       fetchLessons(pagination.current, pagination.pageSize, searchText)
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } }
-      notificationApi.error({
+      notification.error({
         message: 'Error',
         description: err.response?.data?.message || 'Failed to save lesson',
         placement: 'topRight',
@@ -369,7 +370,6 @@ const ManageLesson: React.FC = () => {
         backgroundColor: 'var(--background-color)',
       }}
     >
-      {contextHolder}
       <div className="mb-4 flex items-center justify-between gap-4">
         <h1
           className="whitespace-nowrap text-2xl font-bold transition-colors duration-300"
