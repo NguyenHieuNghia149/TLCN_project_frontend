@@ -1,20 +1,37 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
-  Search,
-  Plus,
-  Pencil,
-  Trash2,
-  RefreshCw,
-  GraduationCap,
-} from 'lucide-react'
-import './ManageTeacher.scss'
+  Table,
+  Button,
+  Card,
+  Space,
+  Modal,
+  Form,
+  Input,
+  Select,
+  notification,
+  Tooltip,
+  Tag,
+  DatePicker,
+} from 'antd'
+import type { TablePaginationConfig } from 'antd/es/table'
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  UserOutlined,
+} from '@ant-design/icons'
 import { apiClient } from '@/config/axios.config'
+import dayjs from 'dayjs'
 
 interface ApiResponse {
-  data?: {
-    data?: Array<ApiUserData>
-    pagination?: { total?: number }
-  }
+  data?:
+    | {
+        data?: Array<ApiUserData>
+        pagination?: { total?: number }
+      }
+    | Array<ApiUserData>
+  pagination?: { total?: number }
+  total?: number
 }
 
 interface ApiUserData {
@@ -39,35 +56,61 @@ interface UserItem {
   gender?: string
   dateOfBirth?: string
   lastLoginAt?: string
+  firstName?: string
+  lastName?: string
 }
 
-const PAGE_SIZE = 10
-
 const ManageTeacher: React.FC = () => {
-  const [users, setUsers] = useState<UserItem[]>([])
+  const [teachers, setTeachers] = useState<UserItem[]>([])
   const [loading, setLoading] = useState<boolean>(false)
-  const [error, setError] = useState<string>('')
-  const [query, setQuery] = useState<string>('')
-  const [page, setPage] = useState<number>(1)
+  const [searchText, setSearchText] = useState<string>('')
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  })
   const [showForm, setShowForm] = useState<boolean>(false)
   const [editing, setEditing] = useState<UserItem | null>(null)
+  const [form] = Form.useForm()
+  const [notificationApi, contextHolder] = notification.useNotification()
 
-  useEffect(() => {
-    const fetchTeachers = async () => {
+  const fetchTeachers = React.useCallback(
+    async (page: number = 1, pageSize: number = 10, search?: string) => {
       setLoading(true)
-      setError('')
       try {
-        const res = await apiClient.get<ApiResponse>('/admin/teachers', {
-          params: { page, limit: PAGE_SIZE },
+        const res = await apiClient.get<ApiResponse>('/admin/users', {
+          params: {
+            page,
+            limit: pageSize,
+            search: search || undefined,
+            role: 'instructor',
+          },
         })
         const payload = res.data?.data || res.data
-        const userData = Array.isArray(payload) ? payload : payload.data || []
+        const userData: ApiUserData[] = Array.isArray(payload)
+          ? payload
+          : (
+              payload as {
+                data?: ApiUserData[]
+                pagination?: { total?: number }
+              }
+            )?.data || []
+        const totalCount =
+          res.data?.pagination?.total ||
+          res.data?.total ||
+          (payload && !Array.isArray(payload)
+            ? (payload as { pagination?: { total?: number } }).pagination?.total
+            : undefined) ||
+          userData.length
+
         const items: UserItem[] = (userData as ApiUserData[]).map(
           (u: ApiUserData) => ({
             id: u.id,
             name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email,
+            firstName: u.firstName,
+            lastName: u.lastName,
             email: u.email,
-            role: 'teacher',
+            role: 'instructor',
             status: u.status || 'active',
             createdAt: u.createdAt,
             gender: u.gender,
@@ -75,334 +118,367 @@ const ManageTeacher: React.FC = () => {
             lastLoginAt: u.lastLoginAt,
           })
         )
-        setUsers(items)
+
+        setTeachers(items)
+        setPagination({
+          current: page,
+          pageSize: pageSize,
+          total: totalCount,
+        })
       } catch (error) {
         const err = error as { response?: { data?: { message?: string } } }
-        setError(err?.response?.data?.message || 'Failed to fetch teachers')
+        notificationApi.error({
+          message: 'Error',
+          description:
+            err?.response?.data?.message || 'Failed to fetch teachers',
+          placement: 'topRight',
+        })
       } finally {
         setLoading(false)
       }
-    }
-    fetchTeachers()
-  }, [page])
+    },
+    [notificationApi]
+  )
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return users
-    return users.filter(u =>
-      [u.name, u.email].some(v => v?.toLowerCase().includes(q))
-    )
-  }, [users, query])
+  useEffect(() => {
+    fetchTeachers(pagination.current, pagination.pageSize, searchText)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const paginated = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE
-    return filtered.slice(start, start + PAGE_SIZE)
-  }, [filtered, page])
+  const handleTableChange = (newPagination: TablePaginationConfig) => {
+    const newPage = newPagination.current || 1
+    const newPageSize = newPagination.pageSize || 10
+    fetchTeachers(newPage, newPageSize, searchText)
+  }
+
+  const onSearch = (value: string) => {
+    setSearchText(value)
+    fetchTeachers(1, pagination.pageSize, value)
+  }
 
   const onCreate = () => {
     setEditing(null)
+    form.resetFields()
     setShowForm(true)
   }
 
-  const onEdit = (u: UserItem) => {
-    setEditing(u)
+  const onEdit = (teacher: UserItem) => {
+    setEditing(teacher)
+    form.setFieldsValue({
+      firstName: teacher.firstName,
+      lastName: teacher.lastName,
+      email: teacher.email,
+      status: teacher.status,
+      gender: teacher.gender || undefined,
+      dateOfBirth: teacher.dateOfBirth ? dayjs(teacher.dateOfBirth) : undefined,
+    })
     setShowForm(true)
   }
 
-  const onDelete = async (u: UserItem) => {
-    if (!confirm(`Delete teacher ${u.name}?`)) return
-    try {
-      await apiClient.delete(`/admin/users/${u.id}`)
-      setUsers(prev => prev.filter(x => x.id !== u.id))
-    } catch {
-      alert('Delete failed')
-    }
+  const onDelete = (teacher: UserItem) => {
+    Modal.confirm({
+      title: `Delete teacher ${teacher.name}?`,
+      content: 'This action cannot be undone.',
+      okText: 'Yes',
+      okType: 'danger',
+      cancelText: 'No',
+      onOk: async () => {
+        try {
+          await apiClient.delete(`/admin/users/${teacher.id}`)
+          notificationApi.success({
+            message: 'Success',
+            description: 'Teacher deleted successfully',
+            placement: 'topRight',
+          })
+          fetchTeachers(pagination.current, pagination.pageSize, searchText)
+        } catch (error: unknown) {
+          const err = error as { response?: { data?: { message?: string } } }
+          notificationApi.error({
+            message: 'Error',
+            description:
+              err.response?.data?.message || 'Failed to delete teacher',
+            placement: 'topRight',
+          })
+        }
+      },
+    })
   }
 
-  const submitForm = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const form = new FormData(e.currentTarget)
-    const firstName = String(form.get('firstName') || '')
-    const lastName = String(form.get('lastName') || '')
-    const email = String(form.get('email') || '')
-    const status = String(form.get('status') || 'active') as 'active' | 'banned'
-    const password = String(form.get('password') || '')
-    const gender = String(form.get('gender') || '') || undefined
-    const dateOfBirthStr = String(form.get('dateOfBirth') || '')
-    const dateOfBirth = dateOfBirthStr
-      ? new Date(dateOfBirthStr).toISOString()
-      : undefined
-
+  const handleFormSubmit = async (values: {
+    firstName: string
+    lastName: string
+    email: string
+    status: 'active' | 'banned'
+    password?: string
+    gender?: string
+    dateOfBirth?: dayjs.Dayjs
+  }) => {
     try {
-      if (editing) {
-        const res = await apiClient.put(`/admin/teachers/${editing.id}`, {
-          email,
-          status,
-          firstName,
-          lastName,
-          role: 'teacher',
-          gender,
-          dateOfBirth,
-        })
-        const u = (res.data?.data || res.data) as ApiUserData
-        const updated: UserItem = {
-          id: u.id,
-          name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email,
-          email: u.email,
-          role: 'teacher',
-          status: u.status || 'active',
-          createdAt: u.createdAt,
-          gender: u.gender,
-          dateOfBirth: u.dateOfBirth,
-          lastLoginAt: u.lastLoginAt,
-        }
-        setUsers(prev => prev.map(x => (x.id === editing.id ? updated : x)))
-      } else {
-        const res = await apiClient.post(`/admin/teachers`, {
-          email,
-          password,
-          status,
-          firstName,
-          lastName,
-          gender,
-          dateOfBirth,
-        })
-        const u = (res.data?.data || res.data) as ApiUserData
-        const created: UserItem = {
-          id: u.id,
-          name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email,
-          email: u.email,
-          role: 'teacher',
-          status: u.status || 'active',
-          createdAt: u.createdAt,
-          gender: u.gender,
-          dateOfBirth: u.dateOfBirth,
-          lastLoginAt: u.lastLoginAt,
-        }
-        setUsers(prev => [created, ...prev])
+      const payload = {
+        firstName: values.firstName,
+        lastName: values.lastName,
+        email: values.email,
+        role: 'instructor',
+        status: values.status,
+        gender: values.gender || undefined,
+        dateOfBirth: values.dateOfBirth
+          ? values.dateOfBirth.toISOString()
+          : undefined,
+        ...(editing ? {} : { password: values.password }),
       }
+
+      if (editing) {
+        await apiClient.put(`/admin/users/${editing.id}`, payload)
+        notificationApi.success({
+          message: 'Success',
+          description: 'Teacher updated successfully',
+          placement: 'topRight',
+        })
+      } else {
+        await apiClient.post(`/admin/users`, payload)
+        notificationApi.success({
+          message: 'Success',
+          description: 'Teacher created successfully',
+          placement: 'topRight',
+        })
+      }
+
       setShowForm(false)
       setEditing(null)
-    } catch {
-      alert('Save failed')
+      form.resetFields()
+      fetchTeachers(pagination.current, pagination.pageSize, searchText)
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } }
+      notificationApi.error({
+        message: 'Error',
+        description: err.response?.data?.message || 'Failed to save teacher',
+        placement: 'topRight',
+      })
     }
   }
 
+  const columns = [
+    {
+      title: 'Name',
+      dataIndex: 'name',
+      key: 'name',
+    },
+    {
+      title: 'Email',
+      dataIndex: 'email',
+      key: 'email',
+    },
+    {
+      title: 'Gender',
+      dataIndex: 'gender',
+      key: 'gender',
+      render: (gender: string) => gender || '-',
+    },
+    {
+      title: 'Date of Birth',
+      dataIndex: 'dateOfBirth',
+      key: 'dateOfBirth',
+      render: (date: string) =>
+        date ? new Date(date).toLocaleDateString() : '-',
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: 'active' | 'banned') => (
+        <Tag color={status === 'active' ? 'green' : 'red'}>
+          {status?.toUpperCase()}
+        </Tag>
+      ),
+    },
+    {
+      title: 'Last Login',
+      dataIndex: 'lastLoginAt',
+      key: 'lastLoginAt',
+      render: (date: string) => (date ? new Date(date).toLocaleString() : '-'),
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_: unknown, record: UserItem) => (
+        <Space size="middle">
+          <Tooltip title="Edit">
+            <Button
+              type="primary"
+              ghost
+              shape="circle"
+              icon={<EditOutlined />}
+              onClick={() => onEdit(record)}
+            />
+          </Tooltip>
+          <Tooltip title="Delete">
+            <Button
+              type="primary"
+              danger
+              ghost
+              shape="circle"
+              icon={<DeleteOutlined />}
+              onClick={() => onDelete(record)}
+            />
+          </Tooltip>
+        </Space>
+      ),
+    },
+  ]
+
   return (
-    <div className="admin-manage">
-      <div className="admin-manage__header">
-        <div className="admin-manage__title">
-          <GraduationCap size={24} />
-          <h1>Manage Teachers</h1>
-        </div>
-        <div className="admin-manage__actions">
-          <div className="admin-manage__search">
-            <Search size={16} />
-            <input
-              placeholder="Search by name or email..."
-              value={query}
-              onChange={event => {
-                setQuery(event.target.value)
-                setPage(1)
-              }}
+    <div
+      className="min-h-screen p-6 transition-colors duration-300"
+      style={{
+        backgroundColor: 'var(--background-color)',
+      }}
+    >
+      {contextHolder}
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <h1
+          className="whitespace-nowrap text-2xl font-bold transition-colors duration-300"
+          style={{ color: 'var(--text-color)' }}
+        >
+          <UserOutlined className="mr-2" />
+          Manage Teachers
+        </h1>
+        <div className="flex flex-1 items-center justify-end gap-4">
+          <div className="w-full max-w-md">
+            <Input.Search
+              placeholder="Search by name, email..."
+              allowClear
+              onSearch={onSearch}
+              enterButton
+              value={searchText}
+              onChange={e => setSearchText(e.target.value)}
             />
           </div>
-          <button
-            className="btn btn--secondary"
-            onClick={() => window.location.reload()}
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={onCreate}
+            size="large"
           >
-            <RefreshCw size={16} />
-            Refresh
-          </button>
-          <button className="btn btn--primary" onClick={onCreate}>
-            <Plus size={16} />
             New Teacher
-          </button>
+          </Button>
         </div>
       </div>
 
-      <div className="admin-card">
-        {loading ? (
-          <div className="admin-empty">Loading...</div>
-        ) : error ? (
-          <div className="admin-empty error">{error}</div>
-        ) : paginated.length === 0 ? (
-          <div className="admin-empty">No teachers found</div>
-        ) : (
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Gender</th>
-                <th>Date of Birth</th>
-                <th>Status</th>
-                <th>Last Login</th>
-                <th style={{ width: 120 }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginated.map(u => (
-                <tr key={u.id}>
-                  <td>{u.name}</td>
-                  <td>{u.email}</td>
-                  <td>{u.gender || '-'}</td>
-                  <td>
-                    {u.dateOfBirth
-                      ? new Date(u.dateOfBirth).toLocaleDateString()
-                      : '-'}
-                  </td>
-                  <td>
-                    <span
-                      className={`badge ${u.status === 'active' ? 'badge--green' : 'badge--gray'}`}
-                    >
-                      {u.status}
-                    </span>
-                  </td>
-                  <td>
-                    {u.lastLoginAt
-                      ? new Date(u.lastLoginAt).toLocaleString()
-                      : '-'}
-                  </td>
-                  <td>
-                    <div className="table-actions">
-                      <button
-                        className="icon-btn"
-                        onClick={() => onEdit(u)}
-                        title="Edit"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        className="icon-btn danger"
-                        onClick={() => onDelete(u)}
-                        title="Delete"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      <Card
+        className="transition-colors duration-300"
+        style={{
+          backgroundColor: 'var(--card-color)',
+          borderColor: 'var(--surface-border)',
+        }}
+      >
+        <Table
+          rowKey="id"
+          columns={columns}
+          dataSource={teachers}
+          loading={loading}
+          pagination={pagination}
+          onChange={handleTableChange}
+        />
+      </Card>
 
-      <div className="admin-pagination">
-        <button
-          disabled={page === 1}
-          onClick={() => setPage(p => Math.max(1, p - 1))}
+      <Modal
+        title={editing ? 'Edit Teacher' : 'Create Teacher'}
+        open={showForm}
+        onCancel={() => {
+          setShowForm(false)
+          setEditing(null)
+          form.resetFields()
+        }}
+        footer={null}
+        width={600}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleFormSubmit}
+          initialValues={{
+            status: 'active',
+          }}
         >
-          Prev
-        </button>
-        <span>
-          Page {page} / {totalPages}
-        </span>
-        <button
-          disabled={page === totalPages}
-          onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-        >
-          Next
-        </button>
-      </div>
+          <Form.Item
+            name="firstName"
+            label="First Name"
+            rules={[{ required: true, message: 'Please enter first name' }]}
+          >
+            <Input placeholder="Enter first name" />
+          </Form.Item>
 
-      {showForm && (
-        <div className="modal-backdrop" onClick={() => setShowForm(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <h3>{editing ? 'Edit Teacher' : 'Create Teacher'}</h3>
-            <form onSubmit={submitForm} className="form-grid">
-              <label>
-                <span>First name</span>
-                <input
-                  name="firstName"
-                  defaultValue={editing?.name?.split(' ')[0] || ''}
-                  required
-                />
-              </label>
-              <label>
-                <span>Last name</span>
-                <input
-                  name="lastName"
-                  defaultValue={
-                    editing?.name?.split(' ').slice(1).join(' ') || ''
-                  }
-                  required
-                />
-              </label>
-              <label>
-                <span>Email</span>
-                <input
-                  type="email"
-                  name="email"
-                  defaultValue={editing?.email || ''}
-                  required
-                />
-              </label>
-              <label>
-                <span>Gender</span>
-                <select name="gender" defaultValue={editing?.gender || ''}>
-                  <option value="">(not set)</option>
-                  <option value="male">male</option>
-                  <option value="female">female</option>
-                  <option value="other">other</option>
-                </select>
-              </label>
-              <label>
-                <span>Date of Birth</span>
-                <input
-                  type="date"
-                  name="dateOfBirth"
-                  defaultValue={
-                    editing?.dateOfBirth
-                      ? new Date(editing.dateOfBirth).toISOString().slice(0, 10)
-                      : ''
-                  }
-                />
-              </label>
-              <label>
-                <span>Role</span>
-                <input value="teacher" disabled readOnly />
-              </label>
-              <label>
-                <span>Status</span>
-                <select
-                  name="status"
-                  defaultValue={editing?.status || 'active'}
-                >
-                  <option value="active">active</option>
-                  <option value="banned">banned</option>
-                </select>
-              </label>
-              {!editing && (
-                <label>
-                  <span>Password</span>
-                  <input
-                    type="password"
-                    name="password"
-                    minLength={8}
-                    required
-                  />
-                </label>
-              )}
+          <Form.Item
+            name="lastName"
+            label="Last Name"
+            rules={[{ required: true, message: 'Please enter last name' }]}
+          >
+            <Input placeholder="Enter last name" />
+          </Form.Item>
 
-              <div className="modal__actions">
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => setShowForm(false)}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn--primary">
-                  Save
-                </button>
-              </div>
-            </form>
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[
+              { required: true, message: 'Please enter email' },
+              { type: 'email', message: 'Please enter a valid email' },
+            ]}
+          >
+            <Input placeholder="Enter email" />
+          </Form.Item>
+
+          <Form.Item name="gender" label="Gender">
+            <Select placeholder="Select gender" allowClear>
+              <Select.Option value="male">Male</Select.Option>
+              <Select.Option value="female">Female</Select.Option>
+              <Select.Option value="other">Other</Select.Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item name="dateOfBirth" label="Date of Birth">
+            <DatePicker className="w-full" />
+          </Form.Item>
+
+          <Form.Item
+            name="status"
+            label="Status"
+            rules={[{ required: true, message: 'Please select status' }]}
+          >
+            <Select>
+              <Select.Option value="active">Active</Select.Option>
+              <Select.Option value="banned">Banned</Select.Option>
+            </Select>
+          </Form.Item>
+
+          {!editing && (
+            <Form.Item
+              name="password"
+              label="Password"
+              rules={[
+                { required: true, message: 'Please enter password' },
+                { min: 8, message: 'Password must be at least 8 characters' },
+              ]}
+            >
+              <Input.Password placeholder="Enter password (min 8 characters)" />
+            </Form.Item>
+          )}
+
+          <div className="flex justify-end gap-2 border-t pt-4">
+            <Button
+              onClick={() => {
+                setShowForm(false)
+                setEditing(null)
+                form.resetFields()
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="primary" htmlType="submit">
+              {editing ? 'Update' : 'Create'}
+            </Button>
           </div>
-        </div>
-      )}
+        </Form>
+      </Modal>
     </div>
   )
 }

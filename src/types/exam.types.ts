@@ -47,10 +47,21 @@ export interface UpdateExamPayload {
 }
 export interface ExamParticipation {
   id: string
+  participationId?: string // Alias for id
   userId: string
   examId: string
+  startedAt?: string
+  startAt?: string | number // Alias
+  startTimestamp?: number // Alias
+  startedAtMs?: number // Alias
+  expiresAt?: string | number
+  expires_at?: string // Alias
+  expires?: string | number // Alias
+  currentChallengeId?: string
+  currentChallenge?: string // Alias
   totalScore: number
   submittedAt?: string
+  status?: string // Add status property
   createdAt: string
   updatedAt?: string
 }

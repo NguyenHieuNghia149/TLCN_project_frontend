@@ -1,14 +1,26 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
-  Search,
-  Plus,
-  Pencil,
-  Trash2,
-  RefreshCw,
-  BookOpen,
+  Table,
+  Button,
+  Card,
+  Space,
+  Modal,
+  Form,
+  Input,
+  Select,
+  notification,
+  Tooltip,
+  Tag,
   Upload,
-} from 'lucide-react'
-import './ManageLesson.scss'
+} from 'antd'
+import type { TablePaginationConfig } from 'antd/es/table'
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  BookOutlined,
+  UploadOutlined,
+} from '@ant-design/icons'
 import {
   adminLessonAPI,
   AdminLessonResponse,
@@ -32,20 +44,22 @@ interface LessonItem {
   updatedAt: string
 }
 
-const PAGE_SIZE = 10
-
 const ManageLesson: React.FC = () => {
   const [lessons, setLessons] = useState<LessonItem[]>([])
   const [loading, setLoading] = useState<boolean>(false)
-  const [error, setError] = useState<string>('')
-  const [query, setQuery] = useState<string>('')
-  const [page, setPage] = useState<number>(1)
+  const [searchText, setSearchText] = useState<string>('')
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  })
   const [showForm, setShowForm] = useState<boolean>(false)
   const [editing, setEditing] = useState<LessonItem | null>(null)
   const [topics, setTopics] = useState<ApiTopicData[]>([])
   const [uploadingFile, setUploadingFile] = useState<boolean>(false)
   const [contentFromFile, setContentFromFile] = useState<string>('')
-  const [fileInputKey, setFileInputKey] = useState<number>(0)
+  const [form] = Form.useForm()
+  const [notificationApi, contextHolder] = notification.useNotification()
 
   // Fetch topics on mount
   useEffect(() => {
@@ -64,16 +78,14 @@ const ManageLesson: React.FC = () => {
     fetchTopics()
   }, [])
 
-  // Fetch lessons
-  useEffect(() => {
-    const fetchLessons = async () => {
+  const fetchLessons = React.useCallback(
+    async (page: number = 1, pageSize: number = 10, search?: string) => {
       setLoading(true)
-      setError('')
       try {
         const result = await adminLessonAPI.listLessons({
           page,
-          limit: PAGE_SIZE,
-          search: query || undefined,
+          limit: pageSize,
+          search: search || undefined,
         })
         const lessonData = result.data.data || []
         const items: LessonItem[] = lessonData.map(
@@ -89,398 +101,425 @@ const ManageLesson: React.FC = () => {
           })
         )
         setLessons(items)
+        setPagination({
+          current: page,
+          pageSize: pageSize,
+          total: result.data.pagination.total,
+        })
       } catch (error) {
         const err = error as { response?: { data?: { message?: string } } }
-        setError(err?.response?.data?.message || 'Failed to fetch lessons')
+        notificationApi.error({
+          message: 'Error',
+          description:
+            err?.response?.data?.message || 'Failed to fetch lessons',
+          placement: 'topRight',
+        })
       } finally {
         setLoading(false)
       }
-    }
-    fetchLessons()
-  }, [page, query])
+    },
+    [notificationApi]
+  )
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return lessons
-    return lessons.filter(l =>
-      [l.title, l.content, l.topicName].some(v => v?.toLowerCase().includes(q))
-    )
-  }, [lessons, query])
+  useEffect(() => {
+    fetchLessons(pagination.current, pagination.pageSize, searchText)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const paginated = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE
-    return filtered.slice(start, start + PAGE_SIZE)
-  }, [filtered, page])
+  const handleTableChange = (newPagination: TablePaginationConfig) => {
+    const newPage = newPagination.current || 1
+    const newPageSize = newPagination.pageSize || 10
+    fetchLessons(newPage, newPageSize, searchText)
+  }
+
+  const onSearch = (value: string) => {
+    setSearchText(value)
+    fetchLessons(1, pagination.pageSize, value)
+  }
 
   const onCreate = () => {
     setEditing(null)
-    setShowForm(true)
+    form.resetFields()
     setContentFromFile('')
-    setFileInputKey(prev => prev + 1)
-  }
-
-  const onEdit = (l: LessonItem) => {
-    setEditing(l)
     setShowForm(true)
+  }
+
+  const onEdit = (lesson: LessonItem) => {
+    setEditing(lesson)
+    form.setFieldsValue({
+      title: lesson.title,
+      content: lesson.content || '',
+      videoUrl: lesson.videoUrl || '',
+      topicId: lesson.topicId,
+    })
     setContentFromFile('')
-    setFileInputKey(prev => prev + 1)
+    setShowForm(true)
   }
 
-  const onDelete = async (l: LessonItem) => {
-    if (!confirm(`Delete lesson "${l.title}"?`)) return
-    try {
-      await adminLessonAPI.deleteLesson(l.id)
-      setLessons(prev => prev.filter(x => x.id !== l.id))
-    } catch {
-      alert('Delete failed')
-    }
-  }
-
-  const submitForm = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const form = new FormData(e.currentTarget)
-    const title = String(form.get('title') || '')
-    const content = String(form.get('content') || '').trim()
-
-    // Kiểm tra content không trống khi submit
-    if (!content) {
-      alert('Content is required')
-      return
-    }
-
-    const videoUrl = String(form.get('videoUrl') || '') || undefined
-    const topicId = String(form.get('topicId') || '')
-
-    try {
-      if (editing) {
-        const result = await adminLessonAPI.updateLesson(editing.id, {
-          title,
-          content,
-          videoUrl,
-          topicId,
-        })
-        const l = result.data
-        const updated: LessonItem = {
-          id: l.id,
-          title: l.title,
-          content: l.content,
-          videoUrl: l.videoUrl,
-          topicId: l.topicId,
-          topicName: l.topicName,
-          createdAt: l.createdAt,
-          updatedAt: l.updatedAt,
+  const onDelete = (lesson: LessonItem) => {
+    Modal.confirm({
+      title: `Delete lesson "${lesson.title}"?`,
+      content: 'This action cannot be undone.',
+      okText: 'Yes',
+      okType: 'danger',
+      cancelText: 'No',
+      onOk: async () => {
+        try {
+          await adminLessonAPI.deleteLesson(lesson.id)
+          notificationApi.success({
+            message: 'Success',
+            description: 'Lesson deleted successfully',
+            placement: 'topRight',
+          })
+          fetchLessons(pagination.current, pagination.pageSize, searchText)
+        } catch (error: unknown) {
+          const err = error as { response?: { data?: { message?: string } } }
+          notificationApi.error({
+            message: 'Error',
+            description:
+              err.response?.data?.message || 'Failed to delete lesson',
+            placement: 'topRight',
+          })
         }
-        setLessons(prev => prev.map(x => (x.id === editing.id ? updated : x)))
-      } else {
-        const result = await adminLessonAPI.createLesson({
-          title,
-          content,
-          videoUrl,
-          topicId,
-        })
-        const l = result.data
-        const created: LessonItem = {
-          id: l.id,
-          title: l.title,
-          content: l.content,
-          videoUrl: l.videoUrl,
-          topicId: l.topicId,
-          topicName: l.topicName,
-          createdAt: l.createdAt,
-          updatedAt: l.updatedAt,
-        }
-        setLessons(prev => [created, ...prev])
-      }
-      setShowForm(false)
-      setEditing(null)
-      setContentFromFile('')
-    } catch {
-      alert('Save failed')
-    }
+      },
+    })
   }
 
-  const handleWordFileUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    // Client-side validation
+  const handleWordFileUpload = async (file: File) => {
     if (!isValidDocxFile(file)) {
-      alert('File không hợp lệ. Vui lòng chọn file .docx')
-      setFileInputKey(prev => prev + 1)
-      return
+      notificationApi.error({
+        message: 'Invalid File',
+        description: 'Please select a valid .docx file',
+        placement: 'topRight',
+      })
+      return false
     }
 
     setUploadingFile(true)
     try {
-      // Client-side parsing using Mammoth - xử lý hoàn toàn trên frontend
       const { html, error } = await parseDocxToHtml(file)
 
       if (error) {
-        alert(error)
-        return
+        notificationApi.error({
+          message: 'Error',
+          description: error,
+          placement: 'topRight',
+        })
+        return false
       }
 
       if (html) {
-        // Đã xử lý xong trên frontend, dùng trực tiếp
-        // Upload file sẽ xoá content nhập tay trước đó
         setContentFromFile(html)
-        alert(`Content from "${file.name}" loaded successfully`)
+        form.setFieldsValue({ content: html })
+        notificationApi.success({
+          message: 'Success',
+          description: `Content from "${file.name}" loaded successfully`,
+          placement: 'topRight',
+        })
       } else {
-        alert('Không thể trích xuất nội dung từ file')
+        notificationApi.error({
+          message: 'Error',
+          description: 'Unable to extract content from file',
+          placement: 'topRight',
+        })
       }
     } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Lỗi khi xử lý file'
-      console.error('Processing error:', error)
-      alert(errorMessage)
+        error instanceof Error ? error.message : 'Error processing file'
+      notificationApi.error({
+        message: 'Error',
+        description: errorMessage,
+        placement: 'topRight',
+      })
     } finally {
       setUploadingFile(false)
-      // Reset file input
-      setFileInputKey(prev => prev + 1)
+    }
+    return false // Prevent default upload behavior
+  }
+
+  const handleFormSubmit = async (values: {
+    title: string
+    content: string
+    videoUrl?: string
+    topicId: string
+  }) => {
+    if (!values.content || !values.content.trim()) {
+      notificationApi.error({
+        message: 'Validation Error',
+        description: 'Content is required',
+        placement: 'topRight',
+      })
+      return
+    }
+
+    try {
+      const payload = {
+        title: values.title,
+        content: values.content,
+        videoUrl: values.videoUrl || undefined,
+        topicId: values.topicId,
+      }
+
+      if (editing) {
+        await adminLessonAPI.updateLesson(editing.id, payload)
+        notificationApi.success({
+          message: 'Success',
+          description: 'Lesson updated successfully',
+          placement: 'topRight',
+        })
+      } else {
+        await adminLessonAPI.createLesson(payload)
+        notificationApi.success({
+          message: 'Success',
+          description: 'Lesson created successfully',
+          placement: 'topRight',
+        })
+      }
+
+      setShowForm(false)
+      setEditing(null)
+      setContentFromFile('')
+      form.resetFields()
+      fetchLessons(pagination.current, pagination.pageSize, searchText)
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } }
+      notificationApi.error({
+        message: 'Error',
+        description: err.response?.data?.message || 'Failed to save lesson',
+        placement: 'topRight',
+      })
     }
   }
 
-  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    // Khi user nhập text, xoá content từ file
-    setContentFromFile(e.currentTarget.value)
-  }
+  const columns = [
+    {
+      title: 'Title',
+      dataIndex: 'title',
+      key: 'title',
+      render: (text: string) => <strong>{text}</strong>,
+    },
+    {
+      title: 'Topic',
+      dataIndex: 'topicName',
+      key: 'topicName',
+      render: (text: string) => <Tag color="blue">{text || 'N/A'}</Tag>,
+    },
+    {
+      title: 'Content Preview',
+      dataIndex: 'content',
+      key: 'content',
+      render: (text: string) => {
+        if (!text) return '-'
+        const plainText = text.replace(/<[^>]*>/g, '')
+        return plainText.substring(0, 50) + (plainText.length > 50 ? '...' : '')
+      },
+    },
+    {
+      title: 'Video URL',
+      dataIndex: 'videoUrl',
+      key: 'videoUrl',
+      render: (url: string) =>
+        url ? (
+          <a href={url} target="_blank" rel="noopener noreferrer">
+            View
+          </a>
+        ) : (
+          '-'
+        ),
+    },
+    {
+      title: 'Created At',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      render: (date: string) => new Date(date).toLocaleDateString(),
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_: unknown, record: LessonItem) => (
+        <Space size="middle">
+          <Tooltip title="Edit">
+            <Button
+              type="primary"
+              ghost
+              shape="circle"
+              icon={<EditOutlined />}
+              onClick={() => onEdit(record)}
+            />
+          </Tooltip>
+          <Tooltip title="Delete">
+            <Button
+              type="primary"
+              danger
+              ghost
+              shape="circle"
+              icon={<DeleteOutlined />}
+              onClick={() => onDelete(record)}
+            />
+          </Tooltip>
+        </Space>
+      ),
+    },
+  ]
 
   return (
-    <div className="admin-manage">
-      <div className="admin-manage__header">
-        <div className="admin-manage__title">
-          <BookOpen size={24} />
-          <h1>Manage Lessons</h1>
-        </div>
-        <div className="admin-manage__actions">
-          <div className="admin-manage__search">
-            <Search size={16} />
-            <input
+    <div
+      className="min-h-screen p-6 transition-colors duration-300"
+      style={{
+        backgroundColor: 'var(--background-color)',
+      }}
+    >
+      {contextHolder}
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <h1
+          className="whitespace-nowrap text-2xl font-bold transition-colors duration-300"
+          style={{ color: 'var(--text-color)' }}
+        >
+          <BookOutlined className="mr-2" />
+          Manage Lessons
+        </h1>
+        <div className="flex flex-1 items-center justify-end gap-4">
+          <div className="w-full max-w-md">
+            <Input.Search
               placeholder="Search by title, content, topic..."
-              value={query}
-              onChange={event => {
-                setQuery(event.target.value)
-                setPage(1)
-              }}
+              allowClear
+              onSearch={onSearch}
+              enterButton
+              value={searchText}
+              onChange={e => setSearchText(e.target.value)}
             />
           </div>
-          <button
-            className="btn btn--secondary"
-            onClick={() => window.location.reload()}
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={onCreate}
+            size="large"
           >
-            <RefreshCw size={16} />
-            Refresh
-          </button>
-          <button className="btn btn--primary" onClick={onCreate}>
-            <Plus size={16} />
             New Lesson
-          </button>
+          </Button>
         </div>
       </div>
 
-      <div className="admin-card">
-        {loading ? (
-          <div className="admin-empty">Loading...</div>
-        ) : error ? (
-          <div className="admin-empty error">{error}</div>
-        ) : paginated.length === 0 ? (
-          <div className="admin-empty">No lessons found</div>
-        ) : (
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>Topic</th>
-                <th>Content Preview</th>
-                <th>Video URL</th>
-                <th>Created At</th>
-                <th style={{ width: 120 }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginated.map(l => (
-                <tr key={l.id}>
-                  <td style={{ fontWeight: 600 }}>{l.title}</td>
-                  <td>
-                    <span className="topic-badge">{l.topicName || '-'}</span>
-                  </td>
-                  <td>
-                    <span className="content-preview">
-                      {l.content ? l.content.substring(0, 50) + '...' : '-'}
-                    </span>
-                  </td>
-                  <td>
-                    {l.videoUrl ? (
-                      <a
-                        href={l.videoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="link"
-                      >
-                        View
-                      </a>
-                    ) : (
-                      '-'
-                    )}
-                  </td>
-                  <td>{new Date(l.createdAt).toLocaleDateString()}</td>
-                  <td>
-                    <div className="table-actions">
-                      <button
-                        className="icon-btn"
-                        onClick={() => onEdit(l)}
-                        title="Edit"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        className="icon-btn danger"
-                        onClick={() => onDelete(l)}
-                        title="Delete"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+      <Card
+        className="transition-colors duration-300"
+        style={{
+          backgroundColor: 'var(--card-color)',
+          borderColor: 'var(--surface-border)',
+        }}
+      >
+        <Table
+          rowKey="id"
+          columns={columns}
+          dataSource={lessons}
+          loading={loading}
+          pagination={pagination}
+          onChange={handleTableChange}
+        />
+      </Card>
+
+      <Modal
+        title={editing ? 'Edit Lesson' : 'Create Lesson'}
+        open={showForm}
+        onCancel={() => {
+          setShowForm(false)
+          setEditing(null)
+          setContentFromFile('')
+          form.resetFields()
+        }}
+        footer={null}
+        width={800}
+      >
+        <Form form={form} layout="vertical" onFinish={handleFormSubmit}>
+          <Form.Item
+            name="title"
+            label="Title"
+            rules={[{ required: true, message: 'Please enter lesson title' }]}
+          >
+            <Input placeholder="Enter lesson title" />
+          </Form.Item>
+
+          <Form.Item
+            name="topicId"
+            label="Topic"
+            rules={[{ required: true, message: 'Please select a topic' }]}
+          >
+            <Select placeholder="Select a topic">
+              {topics.map(t => (
+                <Select.Option key={t.id} value={t.id}>
+                  {t.topicName}
+                </Select.Option>
               ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+            </Select>
+          </Form.Item>
 
-      <div className="admin-pagination">
-        <button
-          disabled={page === 1}
-          onClick={() => setPage(p => Math.max(1, p - 1))}
-        >
-          Prev
-        </button>
-        <span>
-          Page {page} / {totalPages}
-        </span>
-        <button
-          disabled={page === totalPages}
-          onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-        >
-          Next
-        </button>
-      </div>
+          <Form.Item label="Content">
+            <div className="mb-2">
+              <Upload
+                beforeUpload={file => {
+                  handleWordFileUpload(file)
+                  return false
+                }}
+                maxCount={1}
+                accept=".docx,.doc"
+                showUploadList={false}
+              >
+                <Button
+                  icon={<UploadOutlined />}
+                  loading={uploadingFile}
+                  disabled={uploadingFile}
+                >
+                  {uploadingFile ? 'Uploading...' : 'Upload Word File (.docx)'}
+                </Button>
+              </Upload>
+              {contentFromFile && (
+                <Tag color="green" className="mt-2">
+                  ✓ Content loaded from file
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={() => {
+                      setContentFromFile('')
+                      form.setFieldsValue({ content: '' })
+                    }}
+                  >
+                    Clear
+                  </Button>
+                </Tag>
+              )}
+            </div>
+          </Form.Item>
 
-      {showForm && (
-        <div className="modal-backdrop" onClick={() => setShowForm(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <h3>{editing ? 'Edit Lesson' : 'Create Lesson'}</h3>
-            <form onSubmit={submitForm} className="form-grid">
-              <label>
-                <span>Title *</span>
-                <input
-                  name="title"
-                  defaultValue={editing?.title || ''}
-                  placeholder="Enter lesson title"
-                  required
-                />
-              </label>
-              <label>
-                <span>Topic *</span>
-                <select
-                  name="topicId"
-                  defaultValue={editing?.topicId || ''}
-                  required
-                >
-                  <option value="">Select a topic</option>
-                  {topics.map(t => (
-                    <option key={t.id} value={t.id}>
-                      {t.topicName}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label style={{ gridColumn: '1 / -1' }}>
-                <span>Content</span>
-                <div className="file-upload-section">
-                  <div className="file-upload-group">
-                    <label
-                      htmlFor={`word-file-${fileInputKey}`}
-                      className="file-input-label"
-                    >
-                      <Upload size={16} />
-                      {uploadingFile
-                        ? 'Uploading...'
-                        : 'Upload Word File (.docx/.doc)'}
-                    </label>
-                    <input
-                      id={`word-file-${fileInputKey}`}
-                      key={fileInputKey}
-                      type="file"
-                      accept=".docx,.doc"
-                      onChange={handleWordFileUpload}
-                      disabled={uploadingFile}
-                      style={{ display: 'none' }}
-                    />
-                  </div>
-                  {contentFromFile && (
-                    <div className="file-loaded-indicator">
-                      ✓ Content loaded from file
-                      <button
-                        type="button"
-                        onClick={() => setContentFromFile('')}
-                        className="clear-btn"
-                      >
-                        Clear
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <textarea
-                  name="content"
-                  value={contentFromFile || editing?.content || ''}
-                  onChange={handleContentChange}
-                  placeholder="Enter lesson content or upload Word file"
-                  rows={6}
-                />
-                {contentFromFile && (
-                  <div className="preview-section">
-                    <details>
-                      <summary>Preview content from file</summary>
-                      <div
-                        className="content-preview-html"
-                        dangerouslySetInnerHTML={{
-                          __html: contentFromFile.substring(0, 500) + '...',
-                        }}
-                      />
-                    </details>
-                  </div>
-                )}
-              </label>
-              <label style={{ gridColumn: '1 / -1' }}>
-                <span>Video URL</span>
-                <input
-                  type="url"
-                  name="videoUrl"
-                  defaultValue={editing?.videoUrl || ''}
-                  placeholder="https://example.com/video.mp4"
-                />
-              </label>
-              <div className="form-actions">
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => setShowForm(false)}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn--primary">
-                  {editing ? 'Update' : 'Create'}
-                </button>
-              </div>
-            </form>
+          <Form.Item
+            name="content"
+            rules={[{ required: true, message: 'Please enter content' }]}
+          >
+            <Input.TextArea
+              rows={8}
+              placeholder="Enter lesson content or upload Word file"
+            />
+          </Form.Item>
+
+          <Form.Item name="videoUrl" label="Video URL">
+            <Input type="url" placeholder="https://example.com/video.mp4" />
+          </Form.Item>
+
+          <div className="flex justify-end gap-2 border-t pt-4">
+            <Button
+              onClick={() => {
+                setShowForm(false)
+                setEditing(null)
+                setContentFromFile('')
+                form.resetFields()
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="primary" htmlType="submit">
+              {editing ? 'Update' : 'Create'}
+            </Button>
           </div>
-        </div>
-      )}
+        </Form>
+      </Modal>
     </div>
   )
 }

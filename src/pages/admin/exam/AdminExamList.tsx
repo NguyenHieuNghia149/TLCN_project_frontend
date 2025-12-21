@@ -11,17 +11,23 @@ import {
   Input,
 } from 'antd'
 import type { TablePaginationConfig } from 'antd/es/table'
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  EyeOutlined,
+} from '@ant-design/icons'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { examService } from '@/services/api/exam.service'
 import { Exam } from '@/types/exam.types'
 
 const AdminExamList: React.FC = () => {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [loading, setLoading] = useState(false)
   const [exams, setExams] = useState<Exam[]>([])
   const [pagination, setPagination] = useState({
-    current: 1,
+    current: parseInt(searchParams.get('page') || '1', 10),
     pageSize: 10,
     total: 0,
   })
@@ -58,15 +64,26 @@ const AdminExamList: React.FC = () => {
   )
 
   useEffect(() => {
-    fetchExams(1, 10)
-  }, [fetchExams])
+    fetchExams(pagination.current, pagination.pageSize, searchText)
+  }, [])
+
+  // Automatically sync pagination to URL
+  useEffect(() => {
+    if (pagination.current !== 1) {
+      setSearchParams(
+        { page: pagination.current.toString() },
+        { replace: true }
+      )
+    } else {
+      setSearchParams({}, { replace: true })
+    }
+  }, [pagination.current, setSearchParams])
 
   const handleTableChange = (newPagination: TablePaginationConfig) => {
-    fetchExams(
-      newPagination.current || 1,
-      newPagination.pageSize || 10,
-      searchText
-    )
+    const newPage = newPagination.current || 1
+    const newPageSize = newPagination.pageSize || 10
+
+    fetchExams(newPage, newPageSize, searchText)
   }
 
   const onSearch = (value: string) => {
@@ -172,19 +189,33 @@ const AdminExamList: React.FC = () => {
       key: 'actions',
       render: (_: unknown, record: Exam) => (
         <Space size="middle">
+          <Tooltip title="View Results">
+            <Button
+              type="primary"
+              ghost
+              shape="circle"
+              icon={<EyeOutlined />}
+              onClick={() => navigate(`/exam/${record.id}/results/manage`)}
+            />
+          </Tooltip>
           <Tooltip title="Edit">
             <Button
               type="primary"
+              ghost
               shape="circle"
               icon={<EditOutlined />}
-              onClick={() => navigate(`/admin/exams/edit/${record.id}`)}
-              className="bg-blue-500"
+              onClick={() =>
+                navigate(`/admin/exams/edit/${record.id}`, {
+                  state: { returnPage: pagination.current },
+                })
+              }
             />
           </Tooltip>
           <Tooltip title="Delete">
             <Button
               type="primary"
               danger
+              ghost
               shape="circle"
               icon={<DeleteOutlined />}
               onClick={() => handleDelete(record.id)}
@@ -196,10 +227,18 @@ const AdminExamList: React.FC = () => {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6 transition-colors duration-300 dark:bg-gray-950">
+    <div
+      className="min-h-screen p-6 transition-colors duration-300"
+      style={{
+        backgroundColor: 'var(--background-color)',
+      }}
+    >
       {contextHolder}
       <div className="mb-4 flex items-center justify-between gap-4">
-        <h1 className="whitespace-nowrap text-2xl font-bold text-gray-900 transition-colors duration-300 dark:text-white">
+        <h1
+          className="whitespace-nowrap text-2xl font-bold transition-colors duration-300"
+          style={{ color: 'var(--text-color)' }}
+        >
           Exam Management
         </h1>
         <div className="flex flex-1 items-center justify-end gap-4">
@@ -209,6 +248,7 @@ const AdminExamList: React.FC = () => {
               allowClear
               onSearch={onSearch}
               enterButton
+              value={searchText}
             />
           </div>
           <Button
@@ -222,7 +262,13 @@ const AdminExamList: React.FC = () => {
         </div>
       </div>
 
-      <Card className="bg-white transition-colors duration-300 dark:border-gray-700 dark:bg-gray-800">
+      <Card
+        className="transition-colors duration-300"
+        style={{
+          backgroundColor: 'var(--card-color)',
+          borderColor: 'var(--surface-border)',
+        }}
+      >
         <Table
           rowKey="id"
           columns={columns}

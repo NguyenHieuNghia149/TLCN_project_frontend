@@ -200,6 +200,7 @@ const AdminChallengeList: React.FC = () => {
           <Tooltip title="View/Edit">
             <Button
               type="primary"
+              ghost
               shape="circle"
               icon={<EditOutlined />}
               onClick={() => navigate(`/admin/challenges/edit/${record.id}`)}
@@ -209,6 +210,7 @@ const AdminChallengeList: React.FC = () => {
             <Button
               type="primary"
               danger
+              ghost
               shape="circle"
               icon={<DeleteOutlined />}
               onClick={() => handleDelete(record.id)}

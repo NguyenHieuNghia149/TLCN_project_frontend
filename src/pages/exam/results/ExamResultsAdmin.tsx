@@ -70,7 +70,7 @@ const ExamResultAdmin: React.FC = () => {
         examId!,
         participationId
       )
-      setSelectedSubmission(response)
+      setSelectedSubmission(response as unknown as ExamSubmission)
       setShowDetails(true)
     } catch (err) {
       console.error('Failed to fetch submission details:', err)
@@ -237,27 +237,33 @@ const ExamResultAdmin: React.FC = () => {
   }
 
   return (
-    <div
-      className="min-h-screen"
-      style={{
-        backgroundColor: 'var(--background-color)',
-        color: 'var(--text-color)',
-      }}
-    >
-      <div className="mx-auto max-w-7xl px-4 py-8">
+    <div className="p-6">
+      <div className="mx-auto max-w-7xl">
+        {/* Back Button */}
+        <div className="mb-4">
+          <Button
+            onClick={() => navigate(-1)}
+            variant="secondary"
+            size="sm"
+            icon={<ChevronLeft size={16} />}
+          >
+            Back
+          </Button>
+        </div>
+
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="mb-2 flex items-center gap-2">
-            <Trophy size={20} style={{ color: 'var(--accent)' }} />
+            <Trophy size={20} style={{ color: '#20d761' }} />
             <p
               className="text-xs font-semibold uppercase tracking-wider"
-              style={{ color: 'var(--accent)' }}
+              style={{ color: '#20d761' }}
             >
               Exam Results (Admin)
             </p>
           </div>
           <h1 className="mb-1 text-3xl font-bold">{exam.title}</h1>
-          <p className="text-sm" style={{ color: 'var(--muted-text)' }}>
+          <p className="text-sm text-gray-500">
             View and manage student submissions
           </p>
         </div>
@@ -302,7 +308,7 @@ const ExamResultAdmin: React.FC = () => {
               >
                 <Award size={20} className="text-amber-600" />
               </div>
-              <p className="text-2xl font-bold">{stats.avgScore}%</p>
+              <p className="text-2xl font-bold">{stats.avgScore}</p>
             </div>
             <p className="text-sm font-medium">Average Score</p>
             <p className="mt-1 text-xs" style={{ color: 'var(--muted-text)' }}>
@@ -325,7 +331,7 @@ const ExamResultAdmin: React.FC = () => {
               >
                 <Trophy size={20} className="text-blue-600" />
               </div>
-              <p className="text-2xl font-bold">{stats.highestScore}%</p>
+              <p className="text-2xl font-bold">{stats.highestScore}</p>
             </div>
             <p className="text-sm font-medium">Highest Score</p>
             <p className="mt-1 text-xs" style={{ color: 'var(--muted-text)' }}>
@@ -673,6 +679,7 @@ const ExamResultAdmin: React.FC = () => {
               style={{
                 backgroundColor: 'var(--background-color)',
                 borderColor: 'var(--surface-border)',
+                color: 'var(--text-color)',
               }}
               onClick={e => e.stopPropagation()}
             >
@@ -680,8 +687,8 @@ const ExamResultAdmin: React.FC = () => {
               <div
                 className="sticky top-0 flex items-center justify-between border-b p-6 backdrop-blur-sm"
                 style={{
-                  borderColor: 'var(--surface-border)',
                   backgroundColor: 'var(--background-color)',
+                  borderColor: 'var(--surface-border)',
                 }}
               >
                 <div>
@@ -702,8 +709,7 @@ const ExamResultAdmin: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setShowDetails(false)}
-                  className="rounded-lg p-2 transition-colors hover:opacity-70"
-                  style={{ backgroundColor: 'var(--surface-color)' }}
+                  className="rounded-lg bg-gray-100 p-2 transition-colors hover:opacity-70 dark:bg-gray-800"
                 >
                   <X size={20} />
                 </button>
@@ -715,8 +721,8 @@ const ExamResultAdmin: React.FC = () => {
                 <div
                   className="mb-6 grid grid-cols-3 gap-4 rounded-xl border p-5"
                   style={{
-                    borderColor: 'var(--surface-border)',
                     backgroundColor: 'var(--surface-color)',
+                    borderColor: 'var(--surface-border)',
                   }}
                 >
                   <div>
@@ -771,8 +777,8 @@ const ExamResultAdmin: React.FC = () => {
                           key={`${solution.challengeId}-${idx}`}
                           className="rounded-xl border p-5 shadow-sm"
                           style={{
-                            borderColor: 'var(--surface-border)',
                             backgroundColor: 'var(--surface-color)',
+                            borderColor: 'var(--surface-border)',
                           }}
                         >
                           <div className="mb-4 flex items-start justify-between">
@@ -800,7 +806,7 @@ const ExamResultAdmin: React.FC = () => {
                                 style={{
                                   color:
                                     solution.score >= 90
-                                      ? 'var(--accent)'
+                                      ? '#10b981'
                                       : solution.score >= 70
                                         ? '#f59e0b'
                                         : '#ef4444',
@@ -842,7 +848,7 @@ const ExamResultAdmin: React.FC = () => {
                                         ? 'rgba(32, 215, 97, 0.15)'
                                         : 'rgba(239, 68, 68, 0.15)',
                                       color: result.passed
-                                        ? 'var(--accent)'
+                                        ? '#10b981'
                                         : '#ef4444',
                                     }}
                                   >
