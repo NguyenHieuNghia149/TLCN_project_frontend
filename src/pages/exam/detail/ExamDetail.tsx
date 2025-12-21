@@ -519,20 +519,9 @@ const ExamDetail: React.FC = () => {
 
       {showPasswordModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div
-            className="w-full max-w-md rounded-md border p-6"
-            style={{
-              borderColor: 'var(--surface-border)',
-              backgroundColor: 'var(--exam-panel-bg)',
-            }}
-          >
+          <div className="w-full max-w-md rounded-md border border-gray-200 bg-white p-6 text-gray-900 shadow-xl dark:border-white/10 dark:bg-[#0f172a] dark:text-gray-100">
             <div className="flex items-center justify-between">
-              <h3
-                className="text-lg font-semibold"
-                style={{ color: 'var(--text-color)' }}
-              >
-                Enter password
-              </h3>
+              <h3 className="text-lg font-semibold">Enter password</h3>
               <Button
                 onClick={() => setShowPasswordModal(false)}
                 variant="ghost"
@@ -543,7 +532,7 @@ const ExamDetail: React.FC = () => {
               </Button>
             </div>
 
-            <p className="muted mt-4 text-sm">
+            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
               This exam is protected. Request the access password from your
               mentor.
             </p>
