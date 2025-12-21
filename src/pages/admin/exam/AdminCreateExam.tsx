@@ -250,7 +250,13 @@ const AdminCreateExam: React.FC = () => {
   }
 
   return (
-    <div className="p-6">
+    <div
+      className="p-6 transition-colors duration-300"
+      style={{
+        backgroundColor: 'var(--admin-bg-primary)',
+        color: 'var(--admin-text-primary)',
+      }}
+    >
       {contextHolder}
       <div className="mb-4 flex items-center gap-4">
         <Button
@@ -275,6 +281,8 @@ const AdminCreateExam: React.FC = () => {
             isVisible: false,
             maxAttempts: 1,
             duration: 90,
+            startDate: dayjs().add(1, 'hour'),
+            endDate: dayjs().add(1, 'day'),
           }}
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -307,7 +315,23 @@ const AdminCreateExam: React.FC = () => {
             <Form.Item
               name="endDate"
               label="End Date & Time"
-              rules={[{ required: true }]}
+              dependencies={['startDate']}
+              rules={[
+                { required: true },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || !getFieldValue('startDate')) {
+                      return Promise.resolve()
+                    }
+                    if (value.isAfter(getFieldValue('startDate'))) {
+                      return Promise.resolve()
+                    }
+                    return Promise.reject(
+                      new Error('End date must be after start date')
+                    )
+                  },
+                }),
+              ]}
             >
               <DatePicker showTime className="w-full" size="large" />
             </Form.Item>

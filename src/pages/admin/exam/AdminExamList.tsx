@@ -137,11 +137,21 @@ const AdminExamList: React.FC = () => {
             placement: 'topRight',
           })
           fetchExams(pagination.current, pagination.pageSize)
-        } catch {
+        } catch (error: unknown) {
+          const err = error as {
+            response?: { data?: { code?: string; message?: string } }
+          }
+          const isParticipationError =
+            err.response?.data?.code === 'EXAM_HAS_PARTICIPATIONS' ||
+            err.response?.data?.message?.includes('participated')
+
           notificationApi.error({
-            message: 'Error',
-            description: 'Failed to delete exam',
+            message: 'Cannot Delete Exam',
+            description: isParticipationError
+              ? 'This exam cannot be deleted because students have already participated in it. You can hide it instead.'
+              : 'Failed to delete exam. Please try again later.',
             placement: 'topRight',
+            duration: 5,
           })
         }
       },
@@ -230,14 +240,14 @@ const AdminExamList: React.FC = () => {
     <div
       className="min-h-screen p-6 transition-colors duration-300"
       style={{
-        backgroundColor: 'var(--background-color)',
+        backgroundColor: 'var(--admin-bg-primary)',
       }}
     >
       {contextHolder}
       <div className="mb-4 flex items-center justify-between gap-4">
         <h1
           className="whitespace-nowrap text-2xl font-bold transition-colors duration-300"
-          style={{ color: 'var(--text-color)' }}
+          style={{ color: 'var(--admin-text-primary)' }}
         >
           Exam Management
         </h1>
@@ -265,8 +275,8 @@ const AdminExamList: React.FC = () => {
       <Card
         className="transition-colors duration-300"
         style={{
-          backgroundColor: 'var(--card-color)',
-          borderColor: 'var(--surface-border)',
+          backgroundColor: 'var(--admin-card-bg)',
+          borderColor: 'var(--admin-card-border)',
         }}
       >
         <Table

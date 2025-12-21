@@ -359,6 +359,11 @@ const ExamResultAdmin: React.FC = () => {
                   placeholder="Search by student name..."
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
+                  style={{
+                    backgroundColor: 'var(--admin-input-bg)',
+                    color: 'var(--admin-text-primary)',
+                    borderColor: 'var(--admin-input-border)',
+                  }}
                 />
               </div>
 
