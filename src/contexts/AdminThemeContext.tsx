@@ -1,24 +1,22 @@
 import React, { useEffect, useState } from 'react'
 import { AdminThemeContext, AdminThemeMode } from './AdminThemeContextDef'
-import { ConfigProvider, theme } from 'antd'
+import { ConfigProvider, theme, App } from 'antd'
 
 export const AdminThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [adminTheme, setAdminThemeState] = useState<AdminThemeMode>('dark')
-
-  // Load admin theme from localStorage on mount
-  useEffect(() => {
-    const savedTheme = localStorage.getItem(
+  // Read from localStorage immediately to prevent flash of wrong theme
+  const [adminTheme, setAdminThemeState] = useState<AdminThemeMode>(() => {
+    const saved = localStorage.getItem(
       'admin-theme-preference'
     ) as AdminThemeMode | null
-    if (savedTheme) {
-      setAdminThemeState(savedTheme)
-      applyAdminTheme(savedTheme)
-    } else {
-      applyAdminTheme('dark')
-    }
-  }, [])
+    return saved || 'dark'
+  })
+
+  // Apply theme on mount and when it changes
+  useEffect(() => {
+    applyAdminTheme(adminTheme)
+  }, [adminTheme])
 
   const applyAdminTheme = (themeMode: AdminThemeMode) => {
     const root = document.documentElement
@@ -73,7 +71,7 @@ export const AdminThemeProvider: React.FC<{ children: React.ReactNode }> = ({
           },
         }}
       >
-        {children}
+        <App>{children}</App>
       </ConfigProvider>
     </AdminThemeContext.Provider>
   )

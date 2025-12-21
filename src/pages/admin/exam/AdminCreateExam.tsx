@@ -22,7 +22,7 @@ import {
   DeleteOutlined,
   SearchOutlined,
 } from '@ant-design/icons'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { examService } from '@/services/api/exam.service'
 import { CreateExamPayload } from '@/types/exam.types'
 import { challengeService } from '@/services/api/challenge.service'
@@ -31,7 +31,9 @@ import dayjs from 'dayjs'
 
 const AdminCreateExam: React.FC = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { id } = useParams<{ id: string }>()
+  const returnPage = location.state?.returnPage
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
 
@@ -229,7 +231,12 @@ const AdminCreateExam: React.FC = () => {
           placement: 'topRight',
         })
       }
-      navigate('/admin/exams')
+      // Delay navigation to let user see the notification
+      setTimeout(() => {
+        navigate(
+          returnPage ? `/admin/exams?page=${returnPage}` : '/admin/exams'
+        )
+      }, 1000)
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } }
       notificationApi.error({
@@ -243,19 +250,23 @@ const AdminCreateExam: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6 transition-colors duration-300 dark:bg-gray-950">
+    <div className="p-6">
       {contextHolder}
       <div className="mb-4 flex items-center gap-4">
         <Button
           icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/admin/exams')}
+          onClick={() =>
+            navigate(
+              returnPage ? `/admin/exams?page=${returnPage}` : '/admin/exams'
+            )
+          }
         />
-        <h1 className="text-2xl font-bold text-gray-900 transition-colors duration-300 dark:text-white">
+        <h1 className="text-2xl font-bold">
           {id ? 'Edit Exam' : 'Create Exam'}
         </h1>
       </div>
 
-      <Card className="bg-white shadow-sm transition-colors duration-300 dark:border-gray-700 dark:bg-gray-800">
+      <Card>
         <Form
           form={form}
           layout="vertical"
@@ -327,7 +338,7 @@ const AdminCreateExam: React.FC = () => {
 
           <Divider orientation="left">Selected Challenges</Divider>
 
-          <div className="mb-4 rounded border bg-gray-50 p-4 transition-colors duration-300 dark:border-gray-700 dark:bg-gray-900">
+          <div className="mb-4 rounded border p-4">
             <List
               itemLayout="horizontal"
               dataSource={selectedChallenges}
@@ -342,11 +353,11 @@ const AdminCreateExam: React.FC = () => {
                       onClick={() => handleRemoveChallenge(item.id)}
                     />,
                   ]}
-                  className="mb-2 rounded border border-gray-200 bg-white px-4 transition-colors duration-300 dark:border-gray-700 dark:bg-gray-800"
+                  className="mb-2 rounded border px-4"
                 >
                   <List.Item.Meta
                     title={
-                      <span className="font-semibold text-gray-800 dark:text-gray-200">
+                      <span className="font-semibold">
                         #{index + 1} {item.title}
                       </span>
                     }
@@ -415,7 +426,6 @@ const AdminCreateExam: React.FC = () => {
         onCancel={() => setIsModalVisible(false)}
         footer={null}
         width={800}
-        className="dark:bg-gray-800"
       >
         <div className="mb-4 flex gap-2">
           <Input
@@ -436,7 +446,7 @@ const AdminCreateExam: React.FC = () => {
           dataSource={allChallenges}
           renderItem={item => (
             <List.Item
-              className="mb-2 rounded-lg border border-gray-200 bg-gray-50 p-3 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700/50 dark:hover:bg-gray-700"
+              className="mb-2 rounded-lg border p-3"
               actions={[
                 selectedChallenges.some(s => s.id === item.id) ? (
                   <Tag color="blue" className="m-0">
@@ -455,11 +465,7 @@ const AdminCreateExam: React.FC = () => {
               ]}
             >
               <List.Item.Meta
-                title={
-                  <span className="font-semibold text-gray-800 dark:text-gray-200">
-                    {item.title}
-                  </span>
-                }
+                title={<span className="font-semibold">{item.title}</span>}
                 description={
                   <div className="mt-1 flex gap-2">
                     <Tag

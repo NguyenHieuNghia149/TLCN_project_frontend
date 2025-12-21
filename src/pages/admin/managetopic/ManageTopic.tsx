@@ -1,14 +1,26 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
-  Search,
-  Plus,
-  Pencil,
-  Trash2,
-  AlertCircle,
-  CheckCircle2,
-  FileText,
-} from 'lucide-react'
-import './ManageTopic.scss'
+  Table,
+  Button,
+  Card,
+  Space,
+  Modal,
+  Form,
+  Input,
+  notification,
+  Tooltip,
+  Tag,
+  Alert,
+} from 'antd'
+import type { TablePaginationConfig } from 'antd/es/table'
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  FileTextOutlined,
+  ExclamationCircleOutlined,
+  CheckCircleOutlined,
+} from '@ant-design/icons'
 import adminTopicAPI, {
   AdminTopicResponse,
 } from '@/services/api/adminTopic.service'
@@ -20,40 +32,36 @@ interface TopicItem {
   updatedAt?: string
 }
 
-const PAGE_SIZE = 10
-
 const ManageTopic: React.FC = () => {
   const [topics, setTopics] = useState<TopicItem[]>([])
   const [loading, setLoading] = useState<boolean>(false)
-  const [error, setError] = useState<string>('')
-  const [query, setQuery] = useState<string>('')
-  const [page, setPage] = useState<number>(1)
+  const [searchText, setSearchText] = useState<string>('')
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  })
   const [showForm, setShowForm] = useState<boolean>(false)
   const [editing, setEditing] = useState<TopicItem | null>(null)
-  const [formData, setFormData] = useState<{ topicName: string }>({
-    topicName: '',
-  })
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<TopicItem | null>(
-    null
-  )
-  const [showDeleteVerify, setShowDeleteVerify] = useState<TopicItem | null>(
-    null
-  )
-  const [deleteVerifyInput, setDeleteVerifyInput] = useState<string>('')
   const [topicStats, setTopicStats] = useState<{
     [key: string]: { totalLessons: number; totalProblems: number }
   }>({})
+  const [deleteVerifyModal, setDeleteVerifyModal] = useState<TopicItem | null>(
+    null
+  )
+  const [verifyInput, setVerifyInput] = useState<string>('')
 
-  // Fetch topics
-  useEffect(() => {
-    const fetchTopics = async () => {
+  const [form] = Form.useForm()
+  const [notificationApi, contextHolder] = notification.useNotification()
+
+  const fetchTopics = React.useCallback(
+    async (page: number = 1, pageSize: number = 10, search?: string) => {
       setLoading(true)
-      setError('')
       try {
         const result = await adminTopicAPI.listTopics({
           page,
-          limit: PAGE_SIZE,
-          search: query || undefined,
+          limit: pageSize,
+          search: search || undefined,
         })
         const topicData = result.data.data || []
         const items: TopicItem[] = topicData.map((t: AdminTopicResponse) => ({
@@ -62,7 +70,13 @@ const ManageTopic: React.FC = () => {
           createdAt: t.createdAt,
           updatedAt: t.updatedAt,
         }))
+
         setTopics(items)
+        setPagination({
+          current: page,
+          pageSize: pageSize,
+          total: result.data.pagination.total,
+        })
 
         // Fetch stats for each topic
         const stats: typeof topicStats = {}
@@ -80,396 +94,359 @@ const ManageTopic: React.FC = () => {
         setTopicStats(stats)
       } catch (error) {
         const err = error as { response?: { data?: { message?: string } } }
-        setError(err?.response?.data?.message || 'Failed to fetch topics')
+        notificationApi.error({
+          message: 'Error',
+          description: err?.response?.data?.message || 'Failed to fetch topics',
+          placement: 'topRight',
+        })
       } finally {
         setLoading(false)
       }
-    }
-    fetchTopics()
-  }, [page, query])
+    },
+    [notificationApi]
+  )
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return topics
-    return topics.filter(t => t.topicName.toLowerCase().includes(q))
-  }, [topics, query])
+  useEffect(() => {
+    fetchTopics(pagination.current, pagination.pageSize, searchText)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const paginated = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE
-    return filtered.slice(start, start + PAGE_SIZE)
-  }, [filtered, page])
+  const handleTableChange = (newPagination: TablePaginationConfig) => {
+    const newPage = newPagination.current || 1
+    const newPageSize = newPagination.pageSize || 10
+    fetchTopics(newPage, newPageSize, searchText)
+  }
+
+  const onSearch = (value: string) => {
+    setSearchText(value)
+    fetchTopics(1, pagination.pageSize, value)
+  }
 
   const onCreate = () => {
     setEditing(null)
-    setFormData({ topicName: '' })
+    form.resetFields()
     setShowForm(true)
   }
 
-  const onEdit = (t: TopicItem) => {
-    setEditing(t)
-    setFormData({ topicName: t.topicName })
+  const onEdit = (topic: TopicItem) => {
+    setEditing(topic)
+    form.setFieldsValue({
+      topicName: topic.topicName,
+    })
     setShowForm(true)
   }
 
-  const onDeleteClick = (t: TopicItem) => {
-    setShowDeleteConfirm(t)
-  }
+  const onDeleteClick = (topic: TopicItem) => {
+    const stats = topicStats[topic.id]
+    const hasContent =
+      stats && (stats.totalLessons > 0 || stats.totalProblems > 0)
 
-  const confirmDelete = (t: TopicItem) => {
-    setShowDeleteConfirm(null)
-    setShowDeleteVerify(t)
-    setDeleteVerifyInput('')
-  }
-
-  const submitDelete = async () => {
-    if (!showDeleteVerify) return
-
-    if (deleteVerifyInput !== showDeleteVerify.topicName) {
-      alert('Topic name does not match. Please check again.')
-      return
-    }
-
-    try {
-      await adminTopicAPI.deleteTopic(showDeleteVerify.id)
-      setTopics(prev => prev.filter(x => x.id !== showDeleteVerify.id))
-      setShowDeleteVerify(null)
-      setDeleteVerifyInput('')
-      setTopicStats(prev => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { [showDeleteVerify.id]: _unused, ...rest } = prev
-        return rest
+    if (hasContent) {
+      // Show verification modal for topics with content
+      setDeleteVerifyModal(topic)
+      setVerifyInput('')
+    } else {
+      // Direct delete for empty topics
+      Modal.confirm({
+        title: `Delete topic "${topic.topicName}"?`,
+        content: 'This action cannot be undone.',
+        okText: 'Yes',
+        okType: 'danger',
+        cancelText: 'No',
+        onOk: () => handleDelete(topic.id),
       })
-    } catch (error) {
-      const err = error as { response?: { data?: { message?: string } } }
-      alert(err?.response?.data?.message || 'Unable to delete topic')
     }
   }
 
-  const submitForm = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const topicName = formData.topicName.trim()
+  const handleDelete = async (topicId: string) => {
+    try {
+      await adminTopicAPI.deleteTopic(topicId)
+      notificationApi.success({
+        message: 'Success',
+        description: 'Topic deleted successfully',
+        placement: 'topRight',
+      })
+      fetchTopics(pagination.current, pagination.pageSize, searchText)
+      setDeleteVerifyModal(null)
+      setVerifyInput('')
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } }
+      notificationApi.error({
+        message: 'Error',
+        description: err.response?.data?.message || 'Failed to delete topic',
+        placement: 'topRight',
+      })
+    }
+  }
 
-    if (!topicName) {
-      alert('Topic name cannot be empty')
+  const handleVerifiedDelete = () => {
+    if (!deleteVerifyModal) return
+
+    if (verifyInput !== deleteVerifyModal.topicName) {
+      notificationApi.error({
+        message: 'Verification Failed',
+        description: 'Topic name does not match. Please check again.',
+        placement: 'topRight',
+      })
       return
     }
 
+    handleDelete(deleteVerifyModal.id)
+  }
+
+  const handleFormSubmit = async (values: { topicName: string }) => {
     try {
       if (editing) {
-        const result = await adminTopicAPI.updateTopic(editing.id, {
-          topicName,
+        await adminTopicAPI.updateTopic(editing.id, {
+          topicName: values.topicName,
         })
-        const t = result.data
-        const updated: TopicItem = {
-          id: t.id,
-          topicName: t.topicName,
-          createdAt: t.createdAt,
-          updatedAt: t.updatedAt,
-        }
-        setTopics(prev => prev.map(x => (x.id === editing.id ? updated : x)))
+        notificationApi.success({
+          message: 'Success',
+          description: 'Topic updated successfully',
+          placement: 'topRight',
+        })
       } else {
-        const result = await adminTopicAPI.createTopic({
-          topicName,
+        await adminTopicAPI.createTopic({
+          topicName: values.topicName,
         })
-        const t = result.data
-        const created: TopicItem = {
-          id: t.id,
-          topicName: t.topicName,
-          createdAt: t.createdAt,
-          updatedAt: t.updatedAt,
-        }
-        setTopics(prev => [created, ...prev])
-
-        // Fetch stats for new topic
-        try {
-          const statsResult = await adminTopicAPI.getTopicStats(created.id)
-          setTopicStats(prev => ({
-            ...prev,
-            [created.id]: {
-              totalLessons: statsResult.data.totalLessons,
-              totalProblems: statsResult.data.totalProblems,
-            },
-          }))
-        } catch (err) {
-          console.error('Failed to fetch stats for new topic:', err)
-        }
+        notificationApi.success({
+          message: 'Success',
+          description: 'Topic created successfully',
+          placement: 'topRight',
+        })
       }
+
       setShowForm(false)
       setEditing(null)
-      setFormData({ topicName: '' })
-    } catch (error) {
+      form.resetFields()
+      fetchTopics(pagination.current, pagination.pageSize, searchText)
+    } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } }
-      alert(err?.response?.data?.message || 'Unable to save topic')
+      notificationApi.error({
+        message: 'Error',
+        description: err.response?.data?.message || 'Failed to save topic',
+        placement: 'topRight',
+      })
     }
   }
 
+  const columns = [
+    {
+      title: 'Topic Name',
+      dataIndex: 'topicName',
+      key: 'topicName',
+      render: (text: string) => <strong>{text}</strong>,
+    },
+    {
+      title: 'Lessons',
+      key: 'lessons',
+      render: (_: unknown, record: TopicItem) => (
+        <Tag color="blue">{topicStats[record.id]?.totalLessons || 0}</Tag>
+      ),
+    },
+    {
+      title: 'Problems',
+      key: 'problems',
+      render: (_: unknown, record: TopicItem) => (
+        <Tag color="green">{topicStats[record.id]?.totalProblems || 0}</Tag>
+      ),
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_: unknown, record: TopicItem) => (
+        <Space size="middle">
+          <Tooltip title="Edit">
+            <Button
+              type="primary"
+              ghost
+              shape="circle"
+              icon={<EditOutlined />}
+              onClick={() => onEdit(record)}
+            />
+          </Tooltip>
+          <Tooltip title="Delete">
+            <Button
+              type="primary"
+              danger
+              ghost
+              shape="circle"
+              icon={<DeleteOutlined />}
+              onClick={() => onDeleteClick(record)}
+            />
+          </Tooltip>
+        </Space>
+      ),
+    },
+  ]
+
   return (
-    <div className="admin-manage">
-      <div className="admin-manage__header">
-        <div className="admin-manage__title">
-          <h1>Manage Topics</h1>
-        </div>
-        <div className="admin-manage__actions">
-          <button
-            className="btn btn--primary"
+    <div
+      className="min-h-screen p-6 transition-colors duration-300"
+      style={{
+        backgroundColor: 'var(--background-color)',
+      }}
+    >
+      {contextHolder}
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <h1
+          className="whitespace-nowrap text-2xl font-bold transition-colors duration-300"
+          style={{ color: 'var(--text-color)' }}
+        >
+          <FileTextOutlined className="mr-2" />
+          Manage Topics
+        </h1>
+        <div className="flex flex-1 items-center justify-end gap-4">
+          <div className="w-full max-w-md">
+            <Input.Search
+              placeholder="Search topics..."
+              allowClear
+              onSearch={onSearch}
+              enterButton
+              value={searchText}
+              onChange={e => setSearchText(e.target.value)}
+            />
+          </div>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
             onClick={onCreate}
-            disabled={loading}
+            size="large"
           >
-            <Plus size={20} />
             New Topic
-          </button>
+          </Button>
         </div>
       </div>
 
-      {error && (
-        <div className="alert alert-error">
-          <AlertCircle size={20} />
-          <span>{error}</span>
-        </div>
-      )}
-
-      <div className="admin-manage__search">
-        <Search size={20} />
-        <input
-          type="text"
-          placeholder="Search topics..."
-          value={query}
-          onChange={e => {
-            setQuery(e.target.value)
-            setPage(1)
-          }}
-          disabled={loading}
+      <Card
+        className="transition-colors duration-300"
+        style={{
+          backgroundColor: 'var(--card-color)',
+          borderColor: 'var(--surface-border)',
+        }}
+      >
+        <Table
+          rowKey="id"
+          columns={columns}
+          dataSource={topics}
+          loading={loading}
+          pagination={pagination}
+          onChange={handleTableChange}
         />
-      </div>
+      </Card>
 
-      {loading && <div className="loading">Loading...</div>}
-
-      {!loading && paginated.length === 0 && (
-        <div className="admin-empty">
-          <FileText size={48} />
-          <p>No topics found</p>
-        </div>
-      )}
-
-      {!loading && paginated.length > 0 && (
-        <>
-          <div className="admin-card">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Topic Name</th>
-                  <th>Lessons</th>
-                  <th>Problems</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginated.map(t => (
-                  <tr key={t.id}>
-                    <td className="topic-name">{t.topicName}</td>
-                    <td className="stat-cell">
-                      {topicStats[t.id]?.totalLessons || 0}
-                    </td>
-                    <td className="stat-cell">
-                      {topicStats[t.id]?.totalProblems || 0}
-                    </td>
-                    <td className="action-cell">
-                      <button
-                        className="btn-icon btn-edit"
-                        onClick={() => onEdit(t)}
-                        title="Edit"
-                        disabled={loading}
-                      >
-                        <Pencil size={18} />
-                      </button>
-                      <button
-                        className="btn-icon btn-delete"
-                        onClick={() => onDeleteClick(t)}
-                        title="Delete"
-                        disabled={loading}
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {totalPages > 1 && (
-            <div className="admin-pagination">
-              <span className="admin-pagination__info">
-                Page {page} / {totalPages}
-              </span>
-              <div className="admin-pagination__controls">
-                <button
-                  onClick={() => setPage(Math.max(1, page - 1))}
-                  disabled={page === 1 || loading}
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => setPage(Math.min(totalPages, page + 1))}
-                  disabled={page === totalPages || loading}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Form Modal */}
-      {showForm && (
-        <div
-          className="modal-overlay"
-          onClick={() => !loading && setShowForm(false)}
-        >
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <h2>{editing ? 'Edit Topic' : 'Add New Topic'}</h2>
-            <form onSubmit={submitForm}>
-              <div className="form-group">
-                <label htmlFor="topicName">Topic Name *</label>
-                <input
-                  id="topicName"
-                  type="text"
-                  value={formData.topicName}
-                  onChange={e => setFormData({ topicName: e.target.value })}
-                  placeholder="Enter Topic Name"
-                  disabled={loading}
-                  required
-                />
-              </div>
-              <div className="modal-actions">
-                <button
-                  type="submit"
-                  className="btn btn--primary"
-                  disabled={loading}
-                >
-                  {editing ? 'Update' : 'Create'}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--secondary"
-                  onClick={() => setShowForm(false)}
-                  disabled={loading}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div
-          className="modal-overlay"
-          onClick={() => setShowDeleteConfirm(null)}
-        >
-          <div
-            className="modal-content modal-warning"
-            onClick={e => e.stopPropagation()}
+      {/* Create/Edit Modal */}
+      <Modal
+        title={editing ? 'Edit Topic' : 'Add New Topic'}
+        open={showForm}
+        onCancel={() => {
+          setShowForm(false)
+          setEditing(null)
+          form.resetFields()
+        }}
+        footer={null}
+        width={500}
+      >
+        <Form form={form} layout="vertical" onFinish={handleFormSubmit}>
+          <Form.Item
+            name="topicName"
+            label="Topic Name"
+            rules={[{ required: true, message: 'Please enter topic name' }]}
           >
-            <div className="modal-icon">
-              <AlertCircle size={48} />
-            </div>
-            <h2>Delete Topic</h2>
-            <p>
-              Are you sure you want to delete the topic{' '}
-              <strong>"{showDeleteConfirm.topicName}"</strong>?
-            </p>
-            <p className="warning-text">
-              ⚠️ This action will delete all lessons and problems in this topic.
-              This cannot be undone!
-            </p>
-            <div className="modal-actions">
-              <button
-                className="btn btn--danger"
-                onClick={() => confirmDelete(showDeleteConfirm)}
-                disabled={loading}
-              >
-                Continue Delete
-              </button>
-              <button
-                className="btn btn--secondary"
-                onClick={() => setShowDeleteConfirm(null)}
-                disabled={loading}
-              >
-                Cancel
-              </button>
-            </div>
+            <Input placeholder="Enter topic name" />
+          </Form.Item>
+
+          <div className="flex justify-end gap-2 border-t pt-4">
+            <Button
+              onClick={() => {
+                setShowForm(false)
+                setEditing(null)
+                form.resetFields()
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="primary" htmlType="submit">
+              {editing ? 'Update' : 'Create'}
+            </Button>
           </div>
-        </div>
-      )}
+        </Form>
+      </Modal>
 
       {/* Delete Verification Modal */}
-      {showDeleteVerify && (
-        <div
-          className="modal-overlay"
-          onClick={() => setShowDeleteVerify(null)}
-        >
-          <div
-            className="modal-content modal-verify"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="modal-icon danger">
-              <AlertCircle size={48} />
-            </div>
-            <h2>Confirm Delete</h2>
-            <p>
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
+            <span>Confirm Delete</span>
+          </div>
+        }
+        open={!!deleteVerifyModal}
+        onCancel={() => {
+          setDeleteVerifyModal(null)
+          setVerifyInput('')
+        }}
+        footer={null}
+        width={550}
+      >
+        {deleteVerifyModal && (
+          <>
+            <Alert
+              message="Warning"
+              description={`This action will delete all lessons and problems in topic "${deleteVerifyModal.topicName}". This cannot be undone!`}
+              type="warning"
+              showIcon
+              className="mb-4"
+            />
+
+            <p className="mb-3">
               To confirm deleting the topic{' '}
-              <strong>"{showDeleteVerify.topicName}"</strong>, please enter the
-              Topic Name below:
+              <strong>"{deleteVerifyModal.topicName}"</strong>, please enter the
+              topic name below:
             </p>
-            <div className="form-group">
-              <input
-                type="text"
-                value={deleteVerifyInput}
-                onChange={e => setDeleteVerifyInput(e.target.value)}
-                placeholder={`Enter "${showDeleteVerify.topicName}"`}
-                disabled={loading}
-                autoFocus
-              />
-            </div>
-            {deleteVerifyInput === showDeleteVerify.topicName && (
-              <div className="verify-status status-matched">
-                <CheckCircle2 size={20} />
-                <span>Topic name matches ✓</span>
+
+            <Input
+              value={verifyInput}
+              onChange={e => setVerifyInput(e.target.value)}
+              placeholder={`Enter "${deleteVerifyModal.topicName}"`}
+              autoFocus
+            />
+
+            {verifyInput && (
+              <div className="mt-2">
+                {verifyInput === deleteVerifyModal.topicName ? (
+                  <Tag icon={<CheckCircleOutlined />} color="success">
+                    Topic name matches ✓
+                  </Tag>
+                ) : (
+                  <Tag icon={<ExclamationCircleOutlined />} color="error">
+                    Topic name does not match
+                  </Tag>
+                )}
               </div>
             )}
-            {deleteVerifyInput &&
-              deleteVerifyInput !== showDeleteVerify.topicName && (
-                <div className="verify-status status-not-matched">
-                  <AlertCircle size={20} />
-                  <span>Topic name does not match</span>
-                </div>
-              )}
-            <div className="modal-actions">
-              <button
-                className="btn btn--danger"
-                onClick={submitDelete}
-                disabled={
-                  loading || deleteVerifyInput !== showDeleteVerify.topicName
-                }
-              >
-                Delete Topic
-              </button>
-              <button
-                className="btn btn--secondary"
-                onClick={() => setShowDeleteVerify(null)}
-                disabled={loading}
+
+            <div className="mt-6 flex justify-end gap-2 border-t pt-4">
+              <Button
+                onClick={() => {
+                  setDeleteVerifyModal(null)
+                  setVerifyInput('')
+                }}
               >
                 Cancel
-              </button>
+              </Button>
+              <Button
+                type="primary"
+                danger
+                onClick={handleVerifiedDelete}
+                disabled={verifyInput !== deleteVerifyModal.topicName}
+              >
+                Delete Topic
+              </Button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
     </div>
   )
 }

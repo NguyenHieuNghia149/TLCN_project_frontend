@@ -61,6 +61,62 @@ export class ExamService {
     )
     return response.data.data
   }
+
+  // Get specific challenge details within an exam
+  async getExamChallenge(
+    examId: string,
+    challengeId: string
+  ): Promise<{ data: unknown }> {
+    const response = await apiClient.get(
+      `/exams/${examId}/challenge/${challengeId}`
+    )
+    return response.data
+  }
+
+  // Sync session progress
+  async syncSession(
+    participationId: string,
+    answers: Record<string, unknown>
+  ): Promise<void> {
+    await apiClient.put('/exams/session/sync', {
+      sessionId: participationId,
+      answers,
+      clientTimestamp: new Date().toISOString(),
+    })
+  }
+
+  // Get submission details for a participation
+  async getSubmissionDetails(
+    examId: string,
+    participationId: string
+  ): Promise<Record<string, unknown>> {
+    const response = await apiClient.get(
+      `/exams/${examId}/participation/${participationId}/submission`
+    )
+    return response.data.data
+  }
+
+  // Get exam leaderboard/submissions
+  async getLeaderboard(
+    examId: string,
+    limit = 200,
+    offset = 0
+  ): Promise<{ data: unknown[] }> {
+    const response = await apiClient.get(`/exams/${examId}/leaderboard`, {
+      params: { limit, offset },
+    })
+    return response.data
+  }
+  // Submit exam (finish)
+  async submitExam(
+    examId: string,
+    participationId: string
+  ): Promise<ExamParticipation> {
+    const response = await apiClient.post(`/exams/${examId}/submit`, {
+      participationId,
+    })
+    return response.data.data
+  }
 }
 
 export const examService = new ExamService()

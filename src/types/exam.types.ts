@@ -61,6 +61,7 @@ export interface ExamParticipation {
   currentChallenge?: string // Alias
   totalScore: number
   submittedAt?: string
+  status?: string // Add status property
   createdAt: string
   updatedAt?: string
 }

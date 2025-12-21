@@ -197,6 +197,18 @@ export const router = createBrowserRouter([
     ),
   },
   {
+    path: 'exam/:examId/results/manage',
+    element: (
+      <AdminThemeProvider>
+        <TeacherRoute>
+          <AdminLayout>
+            <ExamResultsAdmin />
+          </AdminLayout>
+        </TeacherRoute>
+      </AdminThemeProvider>
+    ),
+  },
+  {
     path: '/',
     element: <MainLayout />,
     children: [
@@ -266,14 +278,6 @@ export const router = createBrowserRouter([
           <ProtectedRoute>
             <ExamList />
           </ProtectedRoute>
-        ),
-      },
-      {
-        path: 'exam/:examId/results/manage',
-        element: (
-          <TeacherRoute>
-            <ExamResultsAdmin />
-          </TeacherRoute>
         ),
       },
     ],

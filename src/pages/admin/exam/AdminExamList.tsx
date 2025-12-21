@@ -15,21 +15,19 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  SunOutlined,
-  MoonOutlined,
+  EyeOutlined,
 } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { examService } from '@/services/api/exam.service'
 import { Exam } from '@/types/exam.types'
-import { useAdminTheme } from '@/hooks/useAdminTheme'
 
 const AdminExamList: React.FC = () => {
   const navigate = useNavigate()
-  const { adminTheme, toggleAdminTheme } = useAdminTheme()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [loading, setLoading] = useState(false)
   const [exams, setExams] = useState<Exam[]>([])
   const [pagination, setPagination] = useState({
-    current: 1,
+    current: parseInt(searchParams.get('page') || '1', 10),
     pageSize: 10,
     total: 0,
   })
@@ -66,15 +64,26 @@ const AdminExamList: React.FC = () => {
   )
 
   useEffect(() => {
-    fetchExams(1, 10)
-  }, [fetchExams])
+    fetchExams(pagination.current, pagination.pageSize, searchText)
+  }, [])
+
+  // Automatically sync pagination to URL
+  useEffect(() => {
+    if (pagination.current !== 1) {
+      setSearchParams(
+        { page: pagination.current.toString() },
+        { replace: true }
+      )
+    } else {
+      setSearchParams({}, { replace: true })
+    }
+  }, [pagination.current, setSearchParams])
 
   const handleTableChange = (newPagination: TablePaginationConfig) => {
-    fetchExams(
-      newPagination.current || 1,
-      newPagination.pageSize || 10,
-      searchText
-    )
+    const newPage = newPagination.current || 1
+    const newPageSize = newPagination.pageSize || 10
+
+    fetchExams(newPage, newPageSize, searchText)
   }
 
   const onSearch = (value: string) => {
@@ -180,19 +189,33 @@ const AdminExamList: React.FC = () => {
       key: 'actions',
       render: (_: unknown, record: Exam) => (
         <Space size="middle">
+          <Tooltip title="View Results">
+            <Button
+              type="primary"
+              ghost
+              shape="circle"
+              icon={<EyeOutlined />}
+              onClick={() => navigate(`/exam/${record.id}/results/manage`)}
+            />
+          </Tooltip>
           <Tooltip title="Edit">
             <Button
               type="primary"
+              ghost
               shape="circle"
               icon={<EditOutlined />}
-              onClick={() => navigate(`/admin/exams/edit/${record.id}`)}
-              className="bg-blue-500"
+              onClick={() =>
+                navigate(`/admin/exams/edit/${record.id}`, {
+                  state: { returnPage: pagination.current },
+                })
+              }
             />
           </Tooltip>
           <Tooltip title="Delete">
             <Button
               type="primary"
               danger
+              ghost
               shape="circle"
               icon={<DeleteOutlined />}
               onClick={() => handleDelete(record.id)}
@@ -219,19 +242,13 @@ const AdminExamList: React.FC = () => {
           Exam Management
         </h1>
         <div className="flex flex-1 items-center justify-end gap-4">
-          <Button
-            icon={adminTheme === 'dark' ? <SunOutlined /> : <MoonOutlined />}
-            onClick={toggleAdminTheme}
-            size="large"
-          >
-            {adminTheme === 'dark' ? 'Light' : 'Dark'}
-          </Button>
           <div className="w-full max-w-md">
             <Input.Search
               placeholder="Search by title..."
               allowClear
               onSearch={onSearch}
               enterButton
+              value={searchText}
             />
           </div>
           <Button
