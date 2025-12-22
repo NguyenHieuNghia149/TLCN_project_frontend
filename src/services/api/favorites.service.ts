@@ -66,7 +66,6 @@ export class FavoritesService {
     const response = await apiClient.put<FavoriteResponse>(
       `/favorites/${problemId}/toggle`
     )
-    //console.log(response.data)
     return response.data
   }
 
@@ -75,9 +74,7 @@ export class FavoritesService {
    * @returns Promise with list of favorites
    */
   async getFavorites(): Promise<FavoritesListResponse> {
-    //console.log('Fetching favorites from /favorites')
     const response = await apiClient.get<FavoritesListResponse>('/favorites')
-    //console.log('Favorites response:', response.data)
     return response.data
   }
 
@@ -89,11 +86,9 @@ export class FavoritesService {
   async toggleLessonFavorite(
     lessonId: string
   ): Promise<LessonFavoriteResponse> {
-    //console.log('Toggling lesson favorite for:', lessonId)
     const response = await apiClient.put<LessonFavoriteResponse>(
       `/favorites/lesson/${lessonId}/toggle`
     )
-    //console.log('Toggle lesson favorite response:', response.data)
     return response.data
   }
 
@@ -102,10 +97,8 @@ export class FavoritesService {
    * @returns Promise with list of favorite lessons
    */
   async getLessonFavorites(): Promise<LessonFavoritesListResponse> {
-    //console.log('Fetching lesson favorites from /favorites/lessons')
     const response =
       await apiClient.get<LessonFavoritesListResponse>('/favorites/lessons')
-    //console.log('Lesson favorites response:', response.data)
     return response.data
   }
 }

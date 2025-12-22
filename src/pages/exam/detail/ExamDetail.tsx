@@ -73,7 +73,6 @@ const ExamDetail: React.FC = () => {
             // (Redux is in-memory only, so it's cleared on page reload/navigation)
             try {
               const myPartRes = await examService.getMyParticipation(apiExam.id)
-              console.log('[ExamDetail] myPartRes:', myPartRes)
               const part = myPartRes
 
               if (

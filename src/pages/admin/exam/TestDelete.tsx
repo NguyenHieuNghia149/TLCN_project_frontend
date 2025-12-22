@@ -4,7 +4,6 @@ import { DeleteOutlined } from '@ant-design/icons'
 
 const TestDelete: React.FC = () => {
   const handleDelete = (id: string) => {
-    console.log('🔴 DELETE FUNCTION CALLED:', id)
     Modal.confirm({
       title: 'Test Delete Modal',
       content: `Are you sure you want to delete exam ${id}?`,
@@ -12,11 +11,10 @@ const TestDelete: React.FC = () => {
       okType: 'danger',
       cancelText: 'No',
       onOk: () => {
-        console.log('✅ User confirmed delete')
         alert('Delete confirmed!')
       },
       onCancel: () => {
-        console.log('❌ User cancelled')
+        // User cancelled
       },
     })
   }
@@ -29,7 +27,6 @@ const TestDelete: React.FC = () => {
         danger
         icon={<DeleteOutlined />}
         onClick={() => {
-          console.log('🟢 BUTTON CLICKED')
           alert('Button clicked!')
           handleDelete('test-exam-123')
         }}

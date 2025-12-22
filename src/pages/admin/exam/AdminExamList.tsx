@@ -104,7 +104,6 @@ const AdminExamList: React.FC = () => {
   }
 
   const handleDelete = (id: string) => {
-    console.log('Delete requested for:', id)
     modal.confirm({
       title: 'Are you sure you want to delete this exam?',
       content:
