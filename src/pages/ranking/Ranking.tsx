@@ -5,7 +5,7 @@ import { useRanking } from '../../hooks/api/useRanking'
 import { useAuth } from '../../hooks/api/useAuth'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import UserRankCard from '../../components/ranking/UserRankCard'
-import './ranking.css'
+import './Ranking.css'
 
 const Ranking: React.FC = () => {
   const [page, setPage] = useState(1)
