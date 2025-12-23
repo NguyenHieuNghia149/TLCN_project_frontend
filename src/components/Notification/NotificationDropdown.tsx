@@ -61,7 +61,7 @@ const NotificationDropdown: React.FC = () => {
     if (!user) return
 
     const socketUrl =
-      import.meta.env.REACT_APP_API_URL || 'http://localhost:3001'
+      import.meta.env.REACT_APP_API_URL || 'https://api.algoforge.site'
     const socket = io(socketUrl, {
       transports: ['websocket', 'polling'],
       withCredentials: true,

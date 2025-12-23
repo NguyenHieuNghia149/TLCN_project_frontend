@@ -496,7 +496,7 @@ const ExamChallengeDetail: React.FC = () => {
   const ensureSocket = () => {
     if (!socketRef.current) {
       const socketUrl =
-        import.meta.env.REACT_APP_API_URL || 'http://localhost:3001'
+        import.meta.env.REACT_APP_API_URL || 'https://api.algoforge.site'
       socketRef.current = io(socketUrl, {
         transports: ['websocket'],
         withCredentials: true,

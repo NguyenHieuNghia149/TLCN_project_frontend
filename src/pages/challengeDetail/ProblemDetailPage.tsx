@@ -335,7 +335,7 @@ export default function ProblemDetailPage({
     if (!socketRef.current) {
       // Connect to the backend root URL (not /api)
       const socketUrl =
-        import.meta.env.REACT_APP_API_URL || 'http://localhost:3001'
+        import.meta.env.REACT_APP_API_URL || 'https://api.algoforge.site'
       socketRef.current = io(socketUrl, {
         transports: ['websocket'],
         withCredentials: true,

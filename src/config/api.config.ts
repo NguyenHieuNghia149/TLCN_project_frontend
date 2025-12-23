@@ -1,5 +1,5 @@
 export const API_CONFIG = {
-  baseURL: import.meta.env.REACT_APP_API_URL || 'http://localhost:3001/api',
+  baseURL: import.meta.env.REACT_APP_API_URL || 'http://api.algoforge.site/api',
   timeout: 10000,
   withCredentials: true,
 } as const
