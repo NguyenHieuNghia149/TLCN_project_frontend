@@ -24,7 +24,10 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
     }
   }
 
-  const monacoRef = useRef<typeof import('monaco-editor') | null>(null)
+  const monacoRef = useRef<
+    | Parameters<NonNullable<React.ComponentProps<typeof Editor>['onMount']>>[1]
+    | null
+  >(null)
 
   useEffect(() => {
     if (monacoRef.current) {

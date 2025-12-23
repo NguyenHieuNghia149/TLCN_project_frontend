@@ -37,7 +37,7 @@ export const useInfiniteChallenges = (
 
       // Map ChallengeItem to Challenge format
       const mappedChallenges: Challenge[] = response.items.map(item => {
-        const difficulty = (item.difficult || 'easy')
+        const difficulty = (item.difficulty || 'easy')
           .toString()
           .toLowerCase() as Challenge['difficulty']
 
@@ -97,7 +97,7 @@ export const useInfiniteChallenges = (
 
           // Map ChallengeItem to Challenge format
           const mappedChallenges: Challenge[] = response.items.map(item => {
-            const difficulty = (item.difficult || 'easy')
+            const difficulty = (item.difficulty || 'easy')
               .toString()
               .toLowerCase() as Challenge['difficulty']
 

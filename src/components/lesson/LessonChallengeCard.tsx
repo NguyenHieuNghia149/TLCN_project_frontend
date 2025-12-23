@@ -60,9 +60,9 @@ const LessonChallengeCard: React.FC<Props> = ({
           </h3>
           <div className="mb-3 flex items-center gap-2">
             <span
-              className={`inline-block px-2 py-1 text-xs font-medium ${difficultyColor[challenge.difficult]} ${difficultyBgColor[challenge.difficult]} rounded`}
+              className={`inline-block px-2 py-1 text-xs font-medium ${difficultyColor[challenge.difficulty]} ${difficultyBgColor[challenge.difficulty]} rounded`}
             >
-              {challenge.difficult}
+              {challenge.difficulty}
             </span>
             {challenge.totalPoints > 0 && (
               <span className="text-xs text-gray-400">
