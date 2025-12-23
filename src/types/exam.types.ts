@@ -59,11 +59,51 @@ export interface ExamParticipation {
   expires?: string | number // Alias
   currentChallengeId?: string
   currentChallenge?: string // Alias
+  currentAnswers?: Record<string, { sourceCode?: string; language?: string }> // Session answers
+  answers?: Record<string, { sourceCode?: string; language?: string }> // Alias
   totalScore: number
   submittedAt?: string
   status?: string // Add status property
   createdAt: string
   updatedAt?: string
+}
+
+export interface ExamParticipationResponse {
+  success: boolean
+  data: ExamParticipation
+}
+
+export interface ExamChallengeData {
+  id: string
+  title: string
+  description?: string
+  content?: string
+  difficulty: 'easy' | 'medium' | 'hard'
+  topic: string
+  totalPoints: number
+  constraint: string
+  tags: string[]
+  orderIndex: number
+  testcases: Array<{
+    id: string
+    input: string
+    output: string
+    isPublic: boolean
+    point: number
+  }>
+  solution?: {
+    id: string
+    title: string
+    description: string
+    videoUrl?: string
+    imageUrl?: string
+  }
+  initialCode?: string
+}
+
+export interface ExamChallengeResponse {
+  success: boolean
+  data: ExamChallengeData
 }
 
 export interface ExamSubmission {
@@ -112,6 +152,18 @@ export interface ExamListResponse {
 export interface ExamSubmissionResponse {
   success: boolean
   data: ExamSubmission
+}
+
+export interface ExamSubmissionDetailsResponse {
+  success: boolean
+  data: {
+    totalScore: number
+    perProblem?: Array<{
+      problemId: string
+      obtained: number
+      maxPoints: number
+    }>
+  }
 }
 
 export interface ExamStatisticsResponse {

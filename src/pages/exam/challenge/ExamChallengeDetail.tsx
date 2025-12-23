@@ -81,18 +81,20 @@ const ExamChallengeDetail: React.FC = () => {
         reduxParticipationId
       )
       if (!details) return
-      if (details.perProblem) {
+      const totalScore = details.totalScore as number | undefined
+      const perProblem = details.perProblem as
+        | Array<{
+            problemId: string
+            obtained: number
+            maxPoints: number
+          }>
+        | undefined
+      if (perProblem) {
         setExam(prev => {
           if (!prev) return prev
           const updated = { ...prev }
           updated.challenges = updated.challenges.map(ch => {
-            const per = (
-              details.perProblem as Array<{
-                problemId: string
-                obtained: number
-                maxPoints: number
-              }>
-            )?.find(p => p.problemId === ch.id)
+            const per = perProblem.find(p => p.problemId === ch.id)
             return {
               ...ch,
               isSolved: per ? per.obtained === per.maxPoints : ch.isSolved,
@@ -101,9 +103,9 @@ const ExamChallengeDetail: React.FC = () => {
           return updated
         })
       }
-      setYourScore(details.totalScore ?? null)
-      if (details.perProblem) {
-        // const pts = (details.perProblem as Array<{ obtained?: number }>)?.reduce((s, p) => s + (p.obtained || 0), 0)
+      setYourScore(totalScore ?? null)
+      if (perProblem) {
+        // const pts = perProblem.reduce((s, p) => s + (p.obtained || 0), 0)
         // setYourPoints(pts)
       }
     } catch {
@@ -277,27 +279,49 @@ const ExamChallengeDetail: React.FC = () => {
             challengeId
           )
           if (response && response.data) {
-            const rawData = response.data
+            const rawData = response.data as Record<string, unknown>
             const formattedData = {
               problem: {
-                id: rawData.id,
-                title: rawData.title,
-                description: rawData.description || rawData.content, // Đề phòng backend dùng tên field khác
-                difficulty: rawData.difficulty, // Chú ý: backend dùng 'difficult' hay 'difficulty'? Check lại model
-                topic: rawData.topic,
-                totalPoints: rawData.totalPoints,
-                constraint: rawData.constraint,
-                tags: rawData.tags || [],
-                orderIndex: rawData.orderIndex,
-                // Map thêm các trường khác của problem nếu cần
+                id: rawData.id as string,
+                title: rawData.title as string,
+                description:
+                  (rawData.description as string) ||
+                  (rawData.content as string) ||
+                  '',
+                difficulty: rawData.difficulty as string as
+                  | 'easy'
+                  | 'medium'
+                  | 'hard',
+                topic: rawData.topic as string,
+                totalPoints: rawData.totalPoints as number,
+                constraint: rawData.constraint as string,
+                tags: (rawData.tags as string[]) || [],
+                orderIndex: rawData.orderIndex as number,
               },
-              testcases: rawData.testcases || [],
-              solution: rawData.solution,
+              testcases:
+                (rawData.testcases as Array<{
+                  id: string
+                  input: string
+                  output: string
+                  isPublic: boolean
+                  point: number
+                }>) || [],
+              solution: rawData.solution as
+                | {
+                    id: string
+                    title: string
+                    description: string
+                    videoUrl?: string
+                    imageUrl?: string
+                  }
+                | undefined,
             }
-            setProblemData(formattedData as ProblemDetailResponse['data']) // Cast as any hoặc sửa lại Type Definition cho đúng
+            setProblemData(
+              formattedData as unknown as ProblemDetailResponse['data']
+            )
 
             // Always start with initial code first
-            const initialCode = rawData.initialCode || DEFAULT_CODE
+            const initialCode = (rawData.initialCode as string) || DEFAULT_CODE
             setCode(initialCode)
 
             // Do NOT recover saved code here — saved code is restored via a separate effect that depends on reduxParticipationId.
@@ -338,11 +362,10 @@ const ExamChallengeDetail: React.FC = () => {
       }
 
       try {
-        const partRes = await examService.getParticipation(
+        const partData = await examService.getParticipation(
           examId,
           reduxParticipationId
         )
-        const partData = partRes?.data || partRes
         const answers = partData?.currentAnswers || partData?.answers || {}
         const saved = answers?.[challengeId || '']
         if (saved && saved.sourceCode) {
@@ -955,8 +978,7 @@ const ExamChallengeDetail: React.FC = () => {
       if (!participationId) {
         try {
           if (examId) {
-            const myPartRes = await examService.getMyParticipation(examId)
-            const part = myPartRes?.data || myPartRes
+            const part = await examService.getMyParticipation(examId)
             const partId = part?.id || part?.participationId
             const serverStart =
               part?.startedAt ||
@@ -1016,11 +1038,10 @@ const ExamChallengeDetail: React.FC = () => {
         // Try to recover session info from server if startAt missing
         try {
           if (examId && participationId) {
-            const partRes = await examService.getParticipation(
+            const partData = await examService.getParticipation(
               examId,
               participationId
             )
-            const partData = partRes?.data || partRes
             const serverStart =
               partData?.startedAt ||
               partData?.startAt ||
@@ -1033,7 +1054,10 @@ const ExamChallengeDetail: React.FC = () => {
                 dispatch(
                   setParticipation({
                     participationId: participationId ?? null,
-                    startAt: serverStart,
+                    startAt:
+                      typeof serverStart === 'number'
+                        ? serverStart
+                        : Date.parse(String(serverStart)),
                   })
                 )
               } catch (err) {
@@ -1046,7 +1070,7 @@ const ExamChallengeDetail: React.FC = () => {
               const asNumber = Number(serverStart)
               if (!Number.isNaN(asNumber) && isFinite(asNumber)) {
                 startAtMs = asNumber
-              } else {
+              } else if (typeof serverStart === 'string') {
                 const parsed = Date.parse(serverStart)
                 if (!Number.isNaN(parsed)) startAtMs = parsed
               }
