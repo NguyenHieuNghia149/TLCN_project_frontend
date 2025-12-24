@@ -29,7 +29,6 @@ interface CodeEditorSectionProps {
   onRun: () => void
   onSubmit: () => void
   onReset: () => void
-  autosaveStatus?: 'idle' | 'saving' | 'saved' | 'error'
 }
 
 const LANGUAGES = ['C++']
@@ -46,7 +45,6 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
   onRun,
   onSubmit,
   onReset,
-  autosaveStatus,
 }) => {
   const [copied, setCopied] = useState(false)
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false)
@@ -118,51 +116,6 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
         }}
       >
         <div className="flex items-center gap-2">
-          {/* Language Selector */}
-          {/* Autosave indicator (small subtle badge) */}
-          {autosaveStatus && (
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                marginRight: 4,
-                color: 'var(--muted-text)',
-                fontSize: 12,
-              }}
-            >
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 8,
-                  display: 'inline-block',
-                  background:
-                    autosaveStatus === 'saving'
-                      ? '#f59e0b'
-                      : autosaveStatus === 'saved'
-                        ? '#10b981'
-                        : autosaveStatus === 'error'
-                          ? '#ef4444'
-                          : 'transparent',
-                  boxShadow:
-                    autosaveStatus === 'saving'
-                      ? '0 0 6px rgba(245,158,11,0.3)'
-                      : 'none',
-                }}
-              />
-              <span>
-                {autosaveStatus === 'saving'
-                  ? 'Saving...'
-                  : autosaveStatus === 'saved'
-                    ? 'Saved'
-                    : autosaveStatus === 'error'
-                      ? 'Save failed'
-                      : ''}
-              </span>
-            </div>
-          )}
-          {/* Autosave status placeholder removed (was a leftover causing lint warnings) */}
           <div className="relative">
             <button
               onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}

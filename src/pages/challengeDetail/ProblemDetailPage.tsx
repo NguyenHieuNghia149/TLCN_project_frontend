@@ -7,7 +7,6 @@ import { ProblemDetailResponse } from '../../types/challenge.types'
 import ProblemHeader from '../../components/problem/ProblemHeader'
 import { useProblemNavigation } from '../../hooks/common/useProblemNavigation'
 import { submissionsService } from '@/services/api/submissions.service'
-import { examService } from '@/services/api/exam.service'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store/stores'
 import type {
@@ -17,7 +16,6 @@ import type {
 } from '@/types/submission.types'
 import type { TestCase, OutputState } from '@/types/editor.types'
 import { io, Socket } from 'socket.io-client'
-import useDebouncedCallback from '@/hooks/useDebouncedCallback'
 import { normalizeSubmissionStatus } from '@/utils/submissionStatus'
 
 // Types moved to src/types/editor.types.ts
@@ -615,69 +613,34 @@ export default function ProblemDetailPage({
     setCode(DEFAULT_CODE)
   }
 
-  // Autosave: when participating in an exam, sync code edits to server (debounced)
-  const [autosaveStatus, setAutosaveStatus] = useState<
-    'idle' | 'saving' | 'saved' | 'error'
-  >('idle')
-
-  const {
-    callback: debouncedSync,
-    flush: flushSync,
-    cancel: cancelSync,
-  } = useDebouncedCallback(
-    async (latestCode: string) => {
-      const problemId = problemData?.problem?.id
-      if (!participationIdToUse || !problemId) return
-      const answers = {
-        [problemId]: {
-          sourceCode: latestCode,
-          language: selectedLanguage,
-          updatedAt: Date.now(),
-        },
-      }
-      await examService.syncSession(participationIdToUse, answers)
-    },
-    2000,
-    {
-      onStart: () => setAutosaveStatus('saving'),
-      onSuccess: () => {
-        setAutosaveStatus('saved')
-        window.setTimeout(() => setAutosaveStatus('idle'), 2000)
-      },
-      onError: () => {
-        setAutosaveStatus('error')
-        window.setTimeout(() => setAutosaveStatus('idle'), 3000)
-      },
-    }
-  )
-
   const handleCodeChange = (next: string) => {
     setCode(next)
-    try {
-      debouncedSync(next)
-    } catch (err) {
-      // intentionally ignore autosave errors here
-      // (network errors are surfaced via onError handler)
-      void err
-    }
   }
 
+  // Save code to localStorage whenever it changes (for F5 persistence)
   useEffect(() => {
-    return () => {
-      try {
-        flushSync()
-      } catch (e) {
-        // ignore flush errors during unmount
-        void e
-      }
-      try {
-        cancelSync()
-      } catch (e) {
-        // ignore cancel errors during unmount
-        void e
-      }
+    if (!id || !code) return
+    try {
+      const storageKey = `problem_${id}_code`
+      localStorage.setItem(storageKey, code)
+    } catch (err) {
+      console.warn('Failed to save code to localStorage:', err)
     }
-  }, [flushSync, cancelSync])
+  }, [code, id])
+
+  // Restore code from localStorage on mount (for F5 recovery)
+  useEffect(() => {
+    if (!id) return
+    try {
+      const storageKey = `problem_${id}_code`
+      const savedCode = localStorage.getItem(storageKey)
+      if (savedCode && savedCode !== DEFAULT_CODE) {
+        setCode(savedCode)
+      }
+    } catch (err) {
+      console.warn('Failed to restore code from localStorage:', err)
+    }
+  }, [id])
 
   // Convert API test cases to the format expected by CodeEditorSection
   const testCases: TestCase[] =
@@ -766,7 +729,6 @@ export default function ProblemDetailPage({
           <CodeEditorSection
             code={code}
             onCodeChange={handleCodeChange}
-            autosaveStatus={autosaveStatus}
             selectedLanguage={selectedLanguage}
             onLanguageChange={setSelectedLanguage}
             testCases={testCases}
