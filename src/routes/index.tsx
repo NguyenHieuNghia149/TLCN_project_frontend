@@ -1,5 +1,5 @@
 import React from 'react'
-import { createBrowserRouter } from 'react-router-dom'
+import { createBrowserRouter, Navigate } from 'react-router-dom'
 import MainLayout from '@/layouts/MainLayout/MainLayout'
 import AdminLayout from '@/layouts/AdminLayout/AdminLayout'
 import { AdminThemeProvider } from '@/contexts/AdminThemeContext'
@@ -227,7 +227,7 @@ export const router = createBrowserRouter([
       },
       {
         index: true,
-        element: <HomePage />,
+        element: <Navigate to="/dashboard" replace />,
       },
       {
         path: 'dashboard/challenge/:challengeId',
