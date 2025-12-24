@@ -83,12 +83,16 @@ const persistSessionSnapshot = (
 ) => {
   if (typeof window === 'undefined') return
   try {
-    if (user && isAuthenticated) {
-      window.localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user))
+    if (isAuthenticated) {
+      // ✅ Only save authentication flag for UX (show loading on refresh)
+      // ❌ Do NOT save user data - security risk
       window.localStorage.setItem(STORAGE_KEYS.IS_AUTHENTICATED, 'true')
-    } else {
+      // Clean up old user data if exists (migration)
       window.localStorage.removeItem(STORAGE_KEYS.USER)
+    } else {
+      // Clear on logout
       window.localStorage.removeItem(STORAGE_KEYS.IS_AUTHENTICATED)
+      window.localStorage.removeItem(STORAGE_KEYS.USER)
     }
   } catch {
     // Ignore storage errors to keep auth flow running
@@ -103,13 +107,14 @@ const hydrateSessionState = (): SessionState => {
   try {
     const storedAuth =
       window.localStorage.getItem(STORAGE_KEYS.IS_AUTHENTICATED) === 'true'
-    const storedUser = window.localStorage.getItem(STORAGE_KEYS.USER)
 
-    if (storedAuth && storedUser) {
-      const user = JSON.parse(storedUser) as User
+    if (storedAuth) {
+      // ✅ Only restore authentication flag
+      // ❌ Do NOT restore user data from localStorage (security risk)
+      // Full user data will be fetched via initializeSession from API
       return {
-        user,
-        isAuthenticated: true,
+        user: null, // No user data from localStorage
+        isAuthenticated: true, // Flag to know we should fetch user
         // Keep loading spinner while we validate refresh token server-side
         isLoading: true,
       }
@@ -333,31 +338,26 @@ const authSlice = createSlice({
           return
         }
 
-        // For other errors (network, cookie not sent, etc.), try to re-hydrate from localStorage
-        // This allows user to stay "logged in" UI-wise while we retry refresh
-        // This is especially important when cookie path mismatch prevents cookie from being sent
+        // For other errors (network, cookie not sent, etc.)
+        // ❌ Do NOT re-hydrate from localStorage user data anymore
+        // If refresh failed, user must login again
         try {
           if (typeof window !== 'undefined') {
             const storedAuth =
               window.localStorage.getItem(STORAGE_KEYS.IS_AUTHENTICATED) ===
               'true'
-            const storedUser = window.localStorage.getItem(STORAGE_KEYS.USER)
 
-            if (storedAuth && storedUser) {
-              // Re-hydrate from localStorage - refresh token may have failed temporarily
-              // Keep user info and let them stay "logged in" until they navigate
-              // to a protected route that requires fresh auth
-              // Note: API calls may fail until refresh token succeeds, but UI will show logged in state
-              const user = JSON.parse(storedUser) as User
-              state.session.user = user
-              state.session.isAuthenticated = true
+            if (storedAuth) {
+              // Flag exists but refresh failed
+              // Clear everything - user needs to login again
+              state.session.user = null
+              state.session.isAuthenticated = false
               state.session.isLoading = false
               return
             }
           }
         } catch (error) {
-          // Log error for debugging
-          console.warn('Failed to re-hydrate from localStorage:', error)
+          console.warn('Failed to check auth flag:', error)
           // Fall through to clear state if hydration fails
         }
 
