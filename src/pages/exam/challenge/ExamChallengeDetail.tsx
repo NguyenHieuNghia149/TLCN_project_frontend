@@ -388,6 +388,31 @@ const ExamChallengeDetail: React.FC = () => {
     codeRef.current = code
   }, [code])
 
+  // Save code to localStorage whenever it changes (for F5 persistence)
+  useEffect(() => {
+    if (!examId || !challengeId || !code) return
+    try {
+      const storageKey = `exam_${examId}_challenge_${challengeId}_code`
+      localStorage.setItem(storageKey, code)
+    } catch (err) {
+      console.warn('Failed to save code to localStorage:', err)
+    }
+  }, [code, examId, challengeId])
+
+  // Restore code from localStorage on mount (for F5 recovery)
+  useEffect(() => {
+    if (!examId || !challengeId) return
+    try {
+      const storageKey = `exam_${examId}_challenge_${challengeId}_code`
+      const savedCode = localStorage.getItem(storageKey)
+      if (savedCode && savedCode !== DEFAULT_CODE) {
+        setCode(savedCode)
+      }
+    } catch (err) {
+      console.warn('Failed to restore code from localStorage:', err)
+    }
+  }, [examId, challengeId])
+
   // Save previous challenge's code when switching challenges
   useEffect(() => {
     const savePrevious = async () => {
