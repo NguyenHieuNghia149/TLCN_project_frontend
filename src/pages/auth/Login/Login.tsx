@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
 import { useDispatch, useSelector } from 'react-redux'
+import { App as AntdApp } from 'antd'
 import { AppDispatch, RootState } from '../../../store/stores'
 import {
   clearLoginError,
@@ -41,6 +42,7 @@ const Login: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const dispatch = useDispatch<AppDispatch>()
+  const { message } = AntdApp.useApp()
 
   const { isLoading: sessionLoading } = useSelector(
     (state: RootState) => state.auth.session
@@ -106,6 +108,7 @@ const Login: React.FC = () => {
         }
 
         await dispatch(loginUser(credentials)).unwrap()
+        message.success('Login successful!')
 
         const redirectTo = location.state?.from?.pathname || '/'
         navigate(redirectTo)
@@ -113,7 +116,7 @@ const Login: React.FC = () => {
         // Error handled by Redux
       }
     },
-    [dispatch, navigate, location.state]
+    [dispatch, navigate, location.state, message]
   )
 
   const handleFormSubmit = useCallback(
@@ -127,9 +130,11 @@ const Login: React.FC = () => {
 
   const handleGoogleSuccess = useCallback(
     (credential: string) => {
-      dispatch(loginWithGoogle(credential))
+      dispatch(loginWithGoogle(credential)).then(() => {
+        message.success('Login with Google successful!')
+      })
     },
-    [dispatch]
+    [dispatch, message]
   )
 
   const handleGoogleError = useCallback(() => {
@@ -137,11 +142,15 @@ const Login: React.FC = () => {
     googleAuthService.initGoogleAuth()
     googleAuthService
       .signInWithGoogle()
-      .then(credential => dispatch(loginWithGoogle(credential)))
+      .then(credential => {
+        dispatch(loginWithGoogle(credential)).then(() => {
+          message.success('Login with Google successful!')
+        })
+      })
       .catch(() => {
         // Error handled by Redux
       })
-  }, [dispatch])
+  }, [dispatch, message])
 
   return (
     <div className="login-page">
