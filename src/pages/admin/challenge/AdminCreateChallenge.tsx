@@ -164,7 +164,7 @@ const AdminCreateChallenge: React.FC = () => {
     async (challengeId: string) => {
       setLoading(true)
       try {
-        const data = await challengeService.getChallengeById(challengeId)
+        const data = await challengeService.getChallengeById(challengeId, true) // showAll=true for admin
         // Transform data for form
         const problem = data.data.problem || data.data // Handle potential different response structure
 
