@@ -16,4 +16,5 @@ export interface OutputState {
   results?: SandboxTestcaseResult[]
   processingTime?: number
   error?: string
+  isSubmit?: boolean // true for submit, false/undefined for run
 }

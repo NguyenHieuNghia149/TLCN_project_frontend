@@ -399,7 +399,7 @@ export default function ProblemDetailPage({
 
   const handleSubmit = async () => {
     if (!problemData?.problem.id) return
-    setOutput({ status: 'running', message: 'Submitting...' })
+    setOutput({ status: 'running', message: 'Submitting...', isSubmit: true })
     try {
       const payload: RunOrSubmitPayload = {
         sourceCode: code,
@@ -472,6 +472,7 @@ export default function ProblemDetailPage({
             passedTests: passed,
             totalTests: total,
             results: publicResults.length ? publicResults : prev.results,
+            isSubmit: true,
           }))
           if (isTerminal) {
             isCompletedRef.current = true
@@ -527,6 +528,7 @@ export default function ProblemDetailPage({
               passedTests: publicPassed,
               totalTests: publicTotal,
               results: publicResults,
+              isSubmit: true,
             })
             clearPoll()
             return true
@@ -551,6 +553,7 @@ export default function ProblemDetailPage({
               passedTests: publicPassed,
               totalTests: publicTotal,
               results: publicResults,
+              isSubmit: true,
             })
             return false
           }
@@ -561,6 +564,7 @@ export default function ProblemDetailPage({
               (e as { message?: string }).message ||
               'Failed to get submission status',
             error: (e as { message?: string }).message,
+            isSubmit: true,
           })
           clearPoll()
           return true
@@ -587,6 +591,7 @@ export default function ProblemDetailPage({
           (err as { message?: string }).message ||
           'Submit failed. Please try again.',
         error: (err as { message?: string }).message,
+        isSubmit: true,
       })
     }
   }
