@@ -23,6 +23,7 @@ import './ExamChallengeDetail.scss'
 import { examService } from '@/services/api/exam.service'
 import useAutosaveSession from '@/hooks/useAutosaveSession'
 import { useTheme } from '@/contexts/useTheme'
+import { normalizeSubmissionStatus } from '@/utils/submissionStatus'
 
 const DEFAULT_CODE = `
 #include <iostream>
@@ -680,6 +681,7 @@ const ExamChallengeDetail: React.FC = () => {
           passedTests: passedCount,
           totalTests: totalCount,
           results: publicResults.length ? publicResults : prev.results,
+          isSubmit: false,
         }))
 
         if (isTerminal) {
@@ -771,8 +773,14 @@ const ExamChallengeDetail: React.FC = () => {
           const publicResults = allResults.filter(
             r => r.isPublic !== false && testCases[r.index]?.isPublic !== false
           )
-          const passedCount = publicResults.filter(r => r.ok).length
-          const totalCount = publicResults.length
+
+          // Use ALL testcases count from backend for status consistency
+          // If backend doesn't provide summary, calculate from results
+          const allPassed =
+            update.result?.passed ?? allResults.filter(r => r.ok).length
+          const allTotal = update.result?.total ?? allResults.length
+          const uiStatus = normalizeSubmissionStatus(normalized)
+
           setOutput(prev => ({
             status: isTerminal
               ? normalized === 'accepted'
@@ -782,19 +790,15 @@ const ExamChallengeDetail: React.FC = () => {
             message: isTerminal
               ? normalized === 'accepted'
                 ? 'You have successfully completed this problem!'
-                : `Status: ${normalized}${
-                    typeof passedCount === 'number' &&
-                    typeof totalCount === 'number'
-                      ? ` • ${passedCount}/${totalCount}`
-                      : ''
-                  }`
-              : typeof passedCount === 'number' &&
-                  typeof totalCount === 'number'
-                ? `Running... ${passedCount}/${totalCount} passed`
+                : `Status: ${normalized}${typeof allPassed === 'number' && typeof allTotal === 'number' ? ` • ${allPassed}/${allTotal}` : ''}`
+              : typeof allPassed === 'number' && typeof allTotal === 'number'
+                ? `Running... ${allPassed}/${allTotal} passed`
                 : 'Running...',
-            passedTests: passedCount,
-            totalTests: totalCount,
+            passedTests: allPassed,
+            totalTests: allTotal,
             results: publicResults.length ? publicResults : prev.results,
+            isSubmit: true,
+            normalizedStatus: uiStatus,
           }))
           if (isTerminal) {
             isCompletedRef.current = true
@@ -847,17 +851,25 @@ const ExamChallengeDetail: React.FC = () => {
               r =>
                 r.isPublic !== false && testCases[r.index]?.isPublic !== false
             )
-            const passed = publicResults.filter(r => r.ok).length
-            const total = publicResults.length
+
+            // Use ALL testcases count from backend for status consistency
+            // If backend doesn't provide summary, calculate from results
+            const allPassed =
+              detail.result?.passed ?? allResults.filter(r => r.ok).length
+            const allTotal = detail.result?.total ?? allResults.length
+            const uiStatus = normalizeSubmissionStatus(normalized)
+
             setOutput({
               status: normalized === 'accepted' ? 'accepted' : 'rejected',
               message:
                 normalized === 'accepted'
                   ? 'You have successfully completed this problem!'
-                  : `Status: ${normalized}. Passed ${passed}/${total}`,
-              passedTests: passed,
-              totalTests: total,
+                  : `Status: ${normalized}. Passed ${allPassed}/${allTotal}`,
+              passedTests: allPassed,
+              totalTests: allTotal,
               results: publicResults,
+              isSubmit: true,
+              normalizedStatus: uiStatus,
             })
             clearPoll()
             try {
@@ -876,27 +888,38 @@ const ExamChallengeDetail: React.FC = () => {
               r =>
                 r.isPublic !== false && testCases[r.index]?.isPublic !== false
             )
-            const partialPassed = publicResults.filter(r => r.ok).length
-            const partialTotal = publicResults.length
+
+            // Use ALL testcases count from backend
+            // If backend doesn't provide summary, calculate from results
+            const allPassed =
+              detail.result?.passed ?? allResults.filter(r => r.ok).length
+            const allTotal = detail.result?.total ?? allResults.length
+            const uiStatus = normalizeSubmissionStatus(normalized)
+
             setOutput({
               status: 'running',
               message:
-                partialPassed !== undefined && partialTotal !== undefined
-                  ? `Running... ${partialPassed}/${partialTotal} passed`
+                allPassed !== undefined && allTotal !== undefined
+                  ? `Running... ${allPassed}/${allTotal} passed`
                   : 'Running...',
-              passedTests: partialPassed,
-              totalTests: partialTotal,
+              passedTests: allPassed,
+              totalTests: allTotal,
               results: publicResults,
+              isSubmit: true,
+              normalizedStatus: uiStatus,
             })
             return false
           }
         } catch (e) {
+          const uiStatus = normalizeSubmissionStatus('failed')
           setOutput({
             status: 'rejected',
             message:
               (e as { message?: string }).message ||
               'Failed to get submission status',
             error: (e as { message?: string }).message,
+            isSubmit: true,
+            normalizedStatus: uiStatus,
           })
           clearPoll()
           return true
