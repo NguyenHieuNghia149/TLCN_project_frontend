@@ -630,10 +630,7 @@ const Profile: React.FC = () => {
           <div className="recent-panel card">
             <div className="tabs">
               <button className="tab active">Recent AC</button>
-              <button className="tab">List</button>
-              <button className="tab">Solutions</button>
-              <button className="tab">Discuss</button>
-              <a className="view-all" href="#">
+              <a className="view-all" href="/dashboard/submissions">
                 View all submissions ›
               </a>
             </div>
