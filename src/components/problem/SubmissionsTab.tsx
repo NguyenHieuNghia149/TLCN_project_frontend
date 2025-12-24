@@ -302,11 +302,70 @@ const SubmissionsTab: React.FC<SubmissionsTabProps> = ({
                         Summary
                       </p>
                     </div>
-                    <div className="p-4 text-sm text-[var(--text-color)]">
-                      <span>
-                        Passed {sub?.result?.passed ?? 0}/
-                        {sub?.result?.total ?? 0}
-                      </span>
+                    <div className="p-6">
+                      {ui === 'accepted' ? (
+                        <>
+                          <div className="mb-4 text-center">
+                            <div className="text-2xl font-bold text-green-400">
+                              ✓ Accepted
+                            </div>
+                            <div className="mt-2 text-sm text-[var(--muted-text)]">
+                              Passed test cases: {sub?.result?.passed ?? 0} /{' '}
+                              {sub?.result?.total ?? 0}
+                            </div>
+                          </div>
+                          <div className="rounded border border-green-700 bg-green-900/20 p-4 text-center text-green-200">
+                            🎉 You have successfully completed this problem!
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="mb-4 text-center">
+                            <div
+                              className={`text-2xl font-bold ${statusColor}`}
+                            >
+                              {getStatusLabel(ui)}
+                            </div>
+                            <div className="mt-2 text-sm text-[var(--muted-text)]">
+                              Passed test cases: {sub?.result?.passed ?? 0} /{' '}
+                              {sub?.result?.total ?? 0}
+                            </div>
+                          </div>
+                          {sub?.result?.results?.some(
+                            (r: { ok: boolean; error?: string }) =>
+                              !r.ok && r.error
+                          ) && (
+                            <div className="space-y-2">
+                              <div className="text-sm font-semibold text-red-300">
+                                Errors:
+                              </div>
+                              {sub.result.results.map(
+                                (
+                                  r: { ok: boolean; error?: string },
+                                  idx: number
+                                ) => {
+                                  if (!r.ok && r.error) {
+                                    return (
+                                      <div
+                                        key={idx}
+                                        className="rounded border border-red-700 bg-red-900/20 p-3"
+                                      >
+                                        <div className="mb-1 text-xs text-red-300">
+                                          Test Case {idx + 1}:
+                                        </div>
+                                        <pre className="whitespace-pre-wrap font-mono text-xs text-red-200">
+                                          {r.error}
+                                        </pre>
+                                      </div>
+                                    )
+                                  }
+                                  return null
+                                }
+                              )}
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
                   <div className="overflow-hidden rounded border border-[var(--surface-border)] bg-[var(--code-bg)]">
