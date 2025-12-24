@@ -314,13 +314,15 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
                               return null
                             }
 
-                            const allPassed = output.results!.every(
-                              r => r.ok === true
-                            )
-                            const passedCount = output.results!.filter(
-                              r => r.ok === true
-                            ).length
-                            const totalCount = output.results!.length
+                            // Use backend-provided counts if available (more accurate)
+                            // Otherwise fallback to client-side calculation from visible results
+                            const passedCount =
+                              output.passedTests ??
+                              output.results!.filter(r => r.ok === true).length
+                            const totalCount =
+                              output.totalTests ?? output.results!.length
+
+                            const allPassed = passedCount === totalCount
 
                             if (allPassed) {
                               return (

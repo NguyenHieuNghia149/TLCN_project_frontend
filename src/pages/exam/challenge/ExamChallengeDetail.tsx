@@ -681,6 +681,7 @@ const ExamChallengeDetail: React.FC = () => {
           passedTests: passedCount,
           totalTests: totalCount,
           results: publicResults.length ? publicResults : prev.results,
+          isSubmit: false,
         }))
 
         if (isTerminal) {

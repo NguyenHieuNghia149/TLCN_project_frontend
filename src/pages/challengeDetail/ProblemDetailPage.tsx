@@ -207,6 +207,7 @@ export default function ProblemDetailPage({
           passedTests: passed,
           totalTests: total,
           results: publicResults.length ? publicResults : prev.results,
+          isSubmit: false,
         }))
 
         if (isTerminal) {
