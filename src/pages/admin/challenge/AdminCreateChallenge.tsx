@@ -78,7 +78,7 @@ const RichTextEditor: React.FC<{
   return (
     <Editor
       // apiKey="your-api-key" // Optional: Add your TinyMCE API key here to remove the warning
-      apiKey="1w6cv14vn9vxpte2rrukp3g2j77lllo2ths7s5j3qad698cx"
+      apiKey="mbktsx5e61er2k8coefqk7u51n3sf1m7z1r9qyqcpv01grpw"
       value={value}
       onEditorChange={onChange}
       onBlur={onBlur}
