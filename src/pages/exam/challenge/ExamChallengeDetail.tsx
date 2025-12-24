@@ -323,7 +323,20 @@ const ExamChallengeDetail: React.FC = () => {
 
             // Always start with initial code first
             const initialCode = (rawData.initialCode as string) || DEFAULT_CODE
-            setCode(initialCode)
+
+            // Check localStorage for saved code (F5 recovery)
+            try {
+              const storageKey = `exam_${examId}_challenge_${challengeId}_code`
+              const savedCode = localStorage.getItem(storageKey)
+              if (savedCode && savedCode !== DEFAULT_CODE) {
+                setCode(savedCode)
+              } else {
+                setCode(initialCode)
+              }
+            } catch (err) {
+              console.warn('Failed to restore code from localStorage:', err)
+              setCode(initialCode)
+            }
 
             // Do NOT recover saved code here — saved code is restored via a separate effect that depends on reduxParticipationId.
             // Do NOT persist current challenge id to localStorage for privacy/security.
@@ -398,20 +411,6 @@ const ExamChallengeDetail: React.FC = () => {
       console.warn('Failed to save code to localStorage:', err)
     }
   }, [code, examId, challengeId])
-
-  // Restore code from localStorage on mount (for F5 recovery)
-  useEffect(() => {
-    if (!examId || !challengeId) return
-    try {
-      const storageKey = `exam_${examId}_challenge_${challengeId}_code`
-      const savedCode = localStorage.getItem(storageKey)
-      if (savedCode && savedCode !== DEFAULT_CODE) {
-        setCode(savedCode)
-      }
-    } catch (err) {
-      console.warn('Failed to restore code from localStorage:', err)
-    }
-  }, [examId, challengeId])
 
   // Save previous challenge's code when switching challenges
   useEffect(() => {
