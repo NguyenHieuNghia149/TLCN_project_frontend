@@ -214,20 +214,49 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
                     )}
                   {/* Detail panel stacked sections */}
                   <div className="min-w-0 flex-1 overflow-auto bg-[var(--code-bg)] p-4">
-                    {/* Summary header */}
+                    {/* Summary header - Check actual results */}
                     <div className="mb-3 space-y-1">
-                      {output.status === 'accepted' ? (
-                        <div className="font-semibold text-green-400">
-                          ✓ Accepted
-                        </div>
-                      ) : output.status === 'rejected' ? (
-                        <div className="font-semibold text-red-400">
-                          ✗ Error
-                        </div>
-                      ) : null}
-                      <div className="text-sm text-[var(--text-color)]">
-                        {output.message}
-                      </div>
+                      {(() => {
+                        const hasResults =
+                          Array.isArray(output.results) &&
+                          output.results.length > 0
+
+                        if (!hasResults) {
+                          return null
+                        }
+
+                        const allPassed = output.results!.every(
+                          r => r.ok === true
+                        )
+                        const passedCount = output.results!.filter(
+                          r => r.ok === true
+                        ).length
+                        const totalCount = output.results!.length
+
+                        if (allPassed) {
+                          return (
+                            <>
+                              <div className="font-semibold text-green-400">
+                                ✓ All Test Cases Passed
+                              </div>
+                              <div className="text-sm text-[var(--muted-text)]">
+                                {passedCount}/{totalCount} test cases passed
+                              </div>
+                            </>
+                          )
+                        } else {
+                          return (
+                            <>
+                              <div className="font-semibold text-red-400">
+                                ✗ Some Test Cases Failed
+                              </div>
+                              <div className="text-sm text-[var(--muted-text)]">
+                                {passedCount}/{totalCount} test cases passed
+                              </div>
+                            </>
+                          )
+                        }
+                      })()}
                       {typeof output.processingTime === 'number' && (
                         <div className="text-xs text-[var(--muted-text)]">
                           Time: {output.processingTime} ms
@@ -253,11 +282,50 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
                                 {r.stderr && (
                                   <div>
                                     <div className="mb-1 text-sm font-semibold text-red-300">
-                                      Error
+                                      {(() => {
+                                        const stderr = r.stderr.toLowerCase()
+                                        if (
+                                          stderr.includes('time limit') ||
+                                          stderr.includes('timeout')
+                                        ) {
+                                          return '⏱ Time Limit Exceeded'
+                                        }
+                                        if (
+                                          stderr.includes('memory limit') ||
+                                          stderr.includes('out of memory')
+                                        ) {
+                                          return '💾 Memory Limit Exceeded'
+                                        }
+                                        if (
+                                          stderr.includes('runtime error') ||
+                                          stderr.includes(
+                                            'segmentation fault'
+                                          ) ||
+                                          stderr.includes('sigsegv')
+                                        ) {
+                                          return '⚠️ Runtime Error'
+                                        }
+                                        if (
+                                          stderr.includes('compilation error')
+                                        ) {
+                                          return '🔧 Compilation Error'
+                                        }
+                                        return '❌ Error'
+                                      })()}
                                     </div>
                                     <pre className="whitespace-pre-wrap rounded border border-red-600 bg-red-900/30 p-3 font-mono text-sm text-red-200">
                                       {r.stderr}
                                     </pre>
+                                  </div>
+                                )}
+                                {!r.ok && !r.stderr && (
+                                  <div>
+                                    <div className="mb-1 text-sm font-semibold text-yellow-300">
+                                      ❓ Wrong Answer
+                                    </div>
+                                    <div className="text-xs text-[var(--muted-text)]">
+                                      Output does not match expected output
+                                    </div>
                                   </div>
                                 )}
                                 <div>
