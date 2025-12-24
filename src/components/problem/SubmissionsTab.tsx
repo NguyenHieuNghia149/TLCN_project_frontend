@@ -331,39 +331,6 @@ const SubmissionsTab: React.FC<SubmissionsTabProps> = ({
                               {sub?.result?.total ?? 0}
                             </div>
                           </div>
-                          {sub?.result?.results?.some(
-                            (r: { ok: boolean; error?: string }) =>
-                              !r.ok && r.error
-                          ) && (
-                            <div className="space-y-2">
-                              <div className="text-sm font-semibold text-red-300">
-                                Errors:
-                              </div>
-                              {sub.result.results.map(
-                                (
-                                  r: { ok: boolean; error?: string },
-                                  idx: number
-                                ) => {
-                                  if (!r.ok && r.error) {
-                                    return (
-                                      <div
-                                        key={idx}
-                                        className="rounded border border-red-700 bg-red-900/20 p-3"
-                                      >
-                                        <div className="mb-1 text-xs text-red-300">
-                                          Test Case {idx + 1}:
-                                        </div>
-                                        <pre className="whitespace-pre-wrap font-mono text-xs text-red-200">
-                                          {r.error}
-                                        </pre>
-                                      </div>
-                                    )
-                                  }
-                                  return null
-                                }
-                              )}
-                            </div>
-                          )}
                         </>
                       )}
                     </div>
