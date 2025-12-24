@@ -1,4 +1,5 @@
 import type { SandboxTestcaseResult } from '@/types/submission.types'
+import type { SubmissionUiStatus } from '@/utils/submissionStatus'
 
 export interface TestCase {
   id: string
@@ -17,4 +18,5 @@ export interface OutputState {
   processingTime?: number
   error?: string
   isSubmit?: boolean // true for submit, false/undefined for run
+  normalizedStatus?: SubmissionUiStatus // normalized backend status
 }

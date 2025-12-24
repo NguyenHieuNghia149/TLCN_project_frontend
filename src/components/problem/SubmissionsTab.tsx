@@ -277,10 +277,7 @@ const SubmissionsTab: React.FC<SubmissionsTabProps> = ({
                 </div>
                 <div className="p-4" style={{ maxWidth: 800 }}>
                   <header className="mb-3 flex flex-col gap-2">
-                    <div className="flex w-full items-center justify-between">
-                      <h1 className={`${statusColor} text-xl font-semibold`}>
-                        {getStatusLabel(ui)}
-                      </h1>
+                    <div className="flex w-full items-center justify-end">
                       <p className="text-sm text-[var(--muted-text)]">
                         {submittedAt}
                       </p>

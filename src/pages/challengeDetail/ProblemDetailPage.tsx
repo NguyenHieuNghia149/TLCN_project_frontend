@@ -18,6 +18,7 @@ import type {
 import type { TestCase, OutputState } from '@/types/editor.types'
 import { io, Socket } from 'socket.io-client'
 import useDebouncedCallback from '@/hooks/useDebouncedCallback'
+import { normalizeSubmissionStatus } from '@/utils/submissionStatus'
 
 // Types moved to src/types/editor.types.ts
 
@@ -450,8 +451,12 @@ export default function ProblemDetailPage({
           const publicResults = allResults.filter(
             r => r.isPublic !== false && testCases[r.index]?.isPublic !== false
           )
-          const passed = publicResults.filter(r => r.ok).length
-          const total = publicResults.length
+
+          // For submit: Use backend status (all testcases)
+          const allPassed = update.result?.passed ?? 0
+          const allTotal = update.result?.total ?? allResults.length
+          const uiStatus = normalizeSubmissionStatus(normalized)
+
           setOutput(prev => ({
             status: isTerminal
               ? normalized === 'accepted'
@@ -461,18 +466,15 @@ export default function ProblemDetailPage({
             message: isTerminal
               ? normalized === 'accepted'
                 ? 'You have successfully completed this problem!'
-                : `Status: ${normalized}${
-                    typeof passed === 'number' && typeof total === 'number'
-                      ? ` • ${passed}/${total}`
-                      : ''
-                  }`
-              : typeof passed === 'number' && typeof total === 'number'
-                ? `Running... ${passed}/${total} passed`
+                : `Status: ${normalized}${typeof allPassed === 'number' && typeof allTotal === 'number' ? ` • ${allPassed}/${allTotal}` : ''}`
+              : typeof allPassed === 'number' && typeof allTotal === 'number'
+                ? `Running... ${allPassed}/${allTotal} passed`
                 : 'Running...',
-            passedTests: passed,
-            totalTests: total,
+            passedTests: allPassed,
+            totalTests: allTotal,
             results: publicResults.length ? publicResults : prev.results,
             isSubmit: true,
+            normalizedStatus: uiStatus,
           }))
           if (isTerminal) {
             isCompletedRef.current = true
@@ -508,56 +510,61 @@ export default function ProblemDetailPage({
             'failed',
           ]
           if (terminal.includes(normalized)) {
-            // Filter to only show public test cases
+            // Filter public test cases for display
             const allResults = coerceResults(detail.result?.results) || []
             const publicResults = allResults.filter(
               r =>
                 r.isPublic !== false && testCases[r.index]?.isPublic !== false
             )
 
-            // Recalculate summary based on public test cases only
-            const publicPassed = publicResults.filter(r => r.ok).length
-            const publicTotal = publicResults.length
+            // Use ALL testcases count from backend for status consistency
+            const allPassed = detail.result?.passed ?? 0
+            const allTotal = detail.result?.total ?? allResults.length
+            const uiStatus = normalizeSubmissionStatus(normalized)
 
             setOutput({
               status: normalized === 'accepted' ? 'accepted' : 'rejected',
               message:
                 normalized === 'accepted'
                   ? 'You have successfully completed this problem!'
-                  : `Status: ${normalized}. Passed ${publicPassed}/${publicTotal}`,
-              passedTests: publicPassed,
-              totalTests: publicTotal,
+                  : `Status: ${normalized}. Passed ${allPassed}/${allTotal}`,
+              passedTests: allPassed,
+              totalTests: allTotal,
               results: publicResults,
               isSubmit: true,
+              normalizedStatus: uiStatus,
             })
             clearPoll()
             return true
           } else {
-            // Filter to only show public test cases
+            // Filter public test cases for display
             const allResults = coerceResults(detail.result?.results) || []
             const publicResults = allResults.filter(
               r =>
                 r.isPublic !== false && testCases[r.index]?.isPublic !== false
             )
 
-            // Recalculate summary based on public test cases only
-            const publicPassed = publicResults.filter(r => r.ok).length
-            const publicTotal = publicResults.length
+            // Use ALL testcases count from backend
+            const allPassed = detail.result?.passed ?? 0
+            const allTotal = detail.result?.total ?? allResults.length
+            const uiStatus = normalizeSubmissionStatus(normalized)
 
             setOutput({
               status: 'running',
               message:
-                publicPassed !== undefined && publicTotal !== undefined
-                  ? `Running... ${publicPassed}/${publicTotal} passed`
+                allPassed !== undefined && allTotal !== undefined
+                  ? `Running... ${allPassed}/${allTotal} passed`
                   : 'Running...',
-              passedTests: publicPassed,
-              totalTests: publicTotal,
+              passedTests: allPassed,
+              totalTests: allTotal,
               results: publicResults,
               isSubmit: true,
+              normalizedStatus: uiStatus,
             })
             return false
           }
         } catch (e) {
+          const uiStatus = normalizeSubmissionStatus('failed')
           setOutput({
             status: 'rejected',
             message:
@@ -565,6 +572,7 @@ export default function ProblemDetailPage({
               'Failed to get submission status',
             error: (e as { message?: string }).message,
             isSubmit: true,
+            normalizedStatus: uiStatus,
           })
           clearPoll()
           return true
