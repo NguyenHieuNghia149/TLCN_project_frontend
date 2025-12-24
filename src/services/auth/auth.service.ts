@@ -131,7 +131,7 @@ export class AuthService {
     try {
       await apiClient.post('/auth/send-verification-email', { email })
     } catch (error) {
-      this.handleApiError(error, (error as ApiError).message)
+      this.handleApiError(error, 'Failed to send verification email')
     }
   }
 
