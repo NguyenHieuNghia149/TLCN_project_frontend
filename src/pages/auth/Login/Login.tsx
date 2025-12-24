@@ -108,7 +108,7 @@ const Login: React.FC = () => {
         }
 
         await dispatch(loginUser(credentials)).unwrap()
-        message.success('Đăng nhập thành công!')
+        message.success('Login successful!')
 
         const redirectTo = location.state?.from?.pathname || '/'
         navigate(redirectTo)
@@ -131,7 +131,7 @@ const Login: React.FC = () => {
   const handleGoogleSuccess = useCallback(
     (credential: string) => {
       dispatch(loginWithGoogle(credential)).then(() => {
-        message.success('Đăng nhập bằng Google thành công!')
+        message.success('Login with Google successful!')
       })
     },
     [dispatch, message]
@@ -144,7 +144,7 @@ const Login: React.FC = () => {
       .signInWithGoogle()
       .then(credential => {
         dispatch(loginWithGoogle(credential)).then(() => {
-          message.success('Đăng nhập bằng Google thành công!')
+          message.success('Login with Google successful!')
         })
       })
       .catch(() => {
