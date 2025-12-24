@@ -204,6 +204,8 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
                             output.totalTests ?? output.results!.length
 
                           // Use normalized status for label and color
+                          const isAccepted =
+                            output.normalizedStatus === 'accepted'
                           const statusLabel = output.normalizedStatus
                             ? getSubmissionStatusLabel(output.normalizedStatus)
                             : allPassed
@@ -215,18 +217,19 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
                               ? 'text-green-400'
                               : 'text-red-400'
 
-                          if (allPassed) {
+                          // Show success only if backend says accepted
+                          if (isAccepted) {
                             return (
                               <>
                                 <div
-                                  className={`mb-4 text-4xl font-bold ${statusColor}`}
+                                  className={`mb-3 text-2xl font-bold ${statusColor}`}
                                 >
                                   ✓ {statusLabel}
                                 </div>
-                                <div className="text-lg text-[var(--muted-text)]">
+                                <div className="text-base text-[var(--muted-text)]">
                                   Passed test cases: {passedCount}/{totalCount}
                                 </div>
-                                <div className="mt-6 rounded border border-green-700 bg-green-900/20 p-4 text-green-200">
+                                <div className="mt-4 rounded border border-green-700 bg-green-900/20 p-3 text-sm text-green-200">
                                   🎉 You have successfully completed this
                                   problem!
                                 </div>
@@ -236,15 +239,15 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
                             return (
                               <>
                                 <div
-                                  className={`mb-4 text-4xl font-bold ${statusColor}`}
+                                  className={`mb-3 text-2xl font-bold ${statusColor}`}
                                 >
                                   ✗ {statusLabel}
                                 </div>
-                                <div className="text-lg text-[var(--muted-text)]">
+                                <div className="text-base text-[var(--muted-text)]">
                                   Passed test cases: {passedCount}/{totalCount}
                                 </div>
                                 {output.error && (
-                                  <div className="mt-6 rounded border border-red-700 bg-red-900/20 p-4 text-left">
+                                  <div className="mt-4 rounded border border-red-700 bg-red-900/20 p-3 text-left">
                                     <div className="mb-2 text-sm font-semibold text-red-300">
                                       Error
                                     </div>
