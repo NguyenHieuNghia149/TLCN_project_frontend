@@ -68,6 +68,20 @@ export default function ProblemDetailPage({
         const response = await challengeService.getChallengeById(id)
         if (response.success) {
           setProblemData(response.data)
+
+          // Restore code from localStorage (F5 recovery)
+          try {
+            const storageKey = `problem_${id}_code`
+            const savedCode = localStorage.getItem(storageKey)
+            if (savedCode && savedCode !== DEFAULT_CODE) {
+              setCode(savedCode)
+            } else {
+              setCode(DEFAULT_CODE)
+            }
+          } catch (err) {
+            console.warn('Failed to restore code from localStorage:', err)
+            setCode(DEFAULT_CODE)
+          }
         } else {
           setError('Failed to load problem data')
         }
@@ -627,20 +641,6 @@ export default function ProblemDetailPage({
       console.warn('Failed to save code to localStorage:', err)
     }
   }, [code, id])
-
-  // Restore code from localStorage on mount (for F5 recovery)
-  useEffect(() => {
-    if (!id) return
-    try {
-      const storageKey = `problem_${id}_code`
-      const savedCode = localStorage.getItem(storageKey)
-      if (savedCode && savedCode !== DEFAULT_CODE) {
-        setCode(savedCode)
-      }
-    } catch (err) {
-      console.warn('Failed to restore code from localStorage:', err)
-    }
-  }, [id])
 
   // Convert API test cases to the format expected by CodeEditorSection
   const testCases: TestCase[] =
