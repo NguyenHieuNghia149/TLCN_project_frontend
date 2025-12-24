@@ -56,10 +56,6 @@ const ChallengeCard: React.FC<Props> = ({ challenge, onFavoriteToggle }) => {
             )}
             <span className="text-gray-500">{challenge.topic}</span>
           </div>
-          <p className="line-clamp-2 text-sm text-gray-400">
-            {/* {challenge.description} */}
-            This is a description of the challenge
-          </p>
         </div>
 
         <div className="ml-2 flex items-center gap-3">
