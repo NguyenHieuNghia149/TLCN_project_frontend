@@ -61,8 +61,11 @@ export class ChallengeService {
     return Array.isArray(tags) ? (tags as string[]) : []
   }
 
-  async getChallengeById(challengeId: string) {
-    const response = await apiClient.get(`/challenges/${challengeId}`)
+  async getChallengeById(challengeId: string, showAll = false) {
+    const params = showAll ? { showAll: 'true' } : {}
+    const response = await apiClient.get(`/challenges/${challengeId}`, {
+      params,
+    })
     return response.data
   }
 
