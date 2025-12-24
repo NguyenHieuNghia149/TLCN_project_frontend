@@ -2,6 +2,10 @@ import React, { useEffect, useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import TestCasePanel from '../problem/TestCasePanel'
 import type { TestCase, OutputState } from '@/types/editor.types'
+import {
+  getSubmissionStatusLabel,
+  getSubmissionStatusColor,
+} from '@/utils/submissionStatus'
 
 // Types moved to src/types/editor.types.ts
 
@@ -195,16 +199,29 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
                           const allPassed = output.results!.every(
                             r => r.ok === true
                           )
-                          const passedCount = output.results!.filter(
-                            r => r.ok === true
-                          ).length
-                          const totalCount = output.results!.length
+                          const passedCount = output.passedTests ?? 0
+                          const totalCount =
+                            output.totalTests ?? output.results!.length
+
+                          // Use normalized status for label and color
+                          const statusLabel = output.normalizedStatus
+                            ? getSubmissionStatusLabel(output.normalizedStatus)
+                            : allPassed
+                              ? 'Accepted'
+                              : 'Failed'
+                          const statusColor = output.normalizedStatus
+                            ? getSubmissionStatusColor(output.normalizedStatus)
+                            : allPassed
+                              ? 'text-green-400'
+                              : 'text-red-400'
 
                           if (allPassed) {
                             return (
                               <>
-                                <div className="mb-4 text-4xl font-bold text-green-400">
-                                  ✓ Accepted
+                                <div
+                                  className={`mb-4 text-4xl font-bold ${statusColor}`}
+                                >
+                                  ✓ {statusLabel}
                                 </div>
                                 <div className="text-lg text-[var(--muted-text)]">
                                   Passed test cases: {passedCount}/{totalCount}
@@ -218,8 +235,10 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
                           } else {
                             return (
                               <>
-                                <div className="mb-4 text-4xl font-bold text-red-400">
-                                  ✗ Failed
+                                <div
+                                  className={`mb-4 text-4xl font-bold ${statusColor}`}
+                                >
+                                  ✗ {statusLabel}
                                 </div>
                                 <div className="text-lg text-[var(--muted-text)]">
                                   Passed test cases: {passedCount}/{totalCount}
