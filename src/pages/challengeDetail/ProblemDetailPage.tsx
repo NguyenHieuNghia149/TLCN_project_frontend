@@ -453,7 +453,9 @@ export default function ProblemDetailPage({
           )
 
           // For submit: Use backend status (all testcases)
-          const allPassed = update.result?.passed ?? 0
+          // If backend doesn't provide summary, calculate from results
+          const allPassed =
+            update.result?.passed ?? allResults.filter(r => r.ok).length
           const allTotal = update.result?.total ?? allResults.length
           const uiStatus = normalizeSubmissionStatus(normalized)
 
@@ -518,7 +520,9 @@ export default function ProblemDetailPage({
             )
 
             // Use ALL testcases count from backend for status consistency
-            const allPassed = detail.result?.passed ?? 0
+            // If backend doesn't provide summary, calculate from results
+            const allPassed =
+              detail.result?.passed ?? allResults.filter(r => r.ok).length
             const allTotal = detail.result?.total ?? allResults.length
             const uiStatus = normalizeSubmissionStatus(normalized)
 
@@ -545,7 +549,9 @@ export default function ProblemDetailPage({
             )
 
             // Use ALL testcases count from backend
-            const allPassed = detail.result?.passed ?? 0
+            // If backend doesn't provide summary, calculate from results
+            const allPassed =
+              detail.result?.passed ?? allResults.filter(r => r.ok).length
             const allTotal = detail.result?.total ?? allResults.length
             const uiStatus = normalizeSubmissionStatus(normalized)
 
