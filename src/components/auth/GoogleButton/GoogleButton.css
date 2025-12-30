@@ -19,7 +19,17 @@
   width: 1px;
   height: 1px;
   opacity: 0;
+  overflow: hidden;
+  z-index: -1;
+  /* Ensure it doesn't block clicks on other elements, BUT verify if programmatic clicks work */
   pointer-events: none;
+}
+
+/* Ensure the children (the actual button) are technically clickable if we target them directly? 
+   Actually, pointer-events: none on parent usually inherits. 
+   Let's force children to be auto just in case we need to click them. */
+.google-button-native--hidden > * {
+  pointer-events: auto;
 }
 
 /* Override Google's default button styles */
