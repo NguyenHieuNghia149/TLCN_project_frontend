@@ -126,7 +126,7 @@ const TopicLessonsPage: React.FC = () => {
       <div className="topic-lessons-container">
         <button
           onClick={handleGoBack}
-          className="mb-4 flex items-center gap-2 text-gray-400 transition-colors hover:text-white"
+          className="mb-4 flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
         >
           <FiArrowLeft />
           Back to Lessons
@@ -191,7 +191,7 @@ const TopicLessonsPage: React.FC = () => {
                       className={
                         favoritesMap[lesson.id]
                           ? 'text-yellow-400'
-                          : 'text-gray-500'
+                          : 'text-muted-foreground'
                       }
                     >
                       <Star
