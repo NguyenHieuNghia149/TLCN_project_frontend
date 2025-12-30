@@ -708,6 +708,40 @@
   }
 }
 
+/* Light Mode Overrides */
+:is(.light) .login-page {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+}
+
+:is(.light) .login-card {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.9),
+    rgba(248, 250, 252, 0.95)
+  );
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(148, 163, 184, 0.2);
+}
+
+:is(.light) .login-card__left {
+  background:
+    radial-gradient(
+      1000px 600px at -10% -20%,
+      rgba(124, 58, 237, 0.12),
+      transparent 60%
+    ),
+    radial-gradient(
+      1000px 600px at 120% 120%,
+      rgba(37, 99, 235, 0.12),
+      transparent 60%
+    );
+}
+
+:is(.light) .login-card__right {
+  background: rgba(255, 255, 255, 0.8);
+}
+
 /* Modern Dark Mode Styling */
 @media (prefers-color-scheme: dark) {
   .login-page {
