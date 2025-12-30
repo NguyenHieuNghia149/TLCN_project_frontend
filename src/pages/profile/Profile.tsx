@@ -124,7 +124,7 @@ const Profile: React.FC = () => {
       monthStarts.push({
         name: months[i],
         weekIndex: Math.max(0, weekIndex),
-        position: Math.max(0, weekIndex) * 14, // 11px cell + 3px gap
+        position: Math.max(0, weekIndex) * 18, // 14px cell + 4px gap
       })
     }
 

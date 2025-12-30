@@ -320,7 +320,7 @@
   .contribution-week {
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 4px;
   }
 
   /* Contribution Colors - CSS Variables for easy theming */
@@ -343,8 +343,8 @@
 
   /* Contribution Grid Styles */
   .contribution-cell {
-    width: 11px;
-    height: 11px;
+    width: 14px;
+    height: 14px;
     border-radius: 2px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -352,8 +352,8 @@
   }
 
   .contribution-cell--empty {
-    width: 11px;
-    height: 11px;
+    width: 14px;
+    height: 14px;
     border-radius: 2px;
     background-color: transparent;
     opacity: 0;
@@ -385,8 +385,8 @@
 
   /* Legend Box matches cells */
   .legend-box {
-    width: 11px;
-    height: 11px;
+    width: 14px;
+    height: 14px;
     border-radius: 2px;
     display: inline-block;
   }
