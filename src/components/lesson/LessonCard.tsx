@@ -51,16 +51,18 @@ const LessonCard: React.FC<Props> = ({ lesson, onFavoriteToggle }) => {
   }
 
   return (
-    <div className="rounded-xl border border-gray-800 bg-[#1f202a] p-5 transition-colors hover:border-gray-700 hover:bg-[#373741]">
+    <div className="rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/50 hover:bg-accent/10">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
-          <h3 className="mb-1 text-lg font-semibold">{lesson.title}</h3>
+          <h3 className="mb-1 text-lg font-semibold text-foreground">
+            {lesson.title}
+          </h3>
           <div className="mb-3 flex items-center gap-3 text-[12px]">
             <span className="text-blue-400">
               {lesson.topicName || 'General'}
             </span>
           </div>
-          <p className="line-clamp-2 text-sm text-gray-400">
+          <p className="line-clamp-2 text-sm text-muted-foreground">
             {truncateContent(lesson.content ?? '')}
           </p>
         </div>
@@ -71,9 +73,13 @@ const LessonCard: React.FC<Props> = ({ lesson, onFavoriteToggle }) => {
             disabled={isToggling}
             aria-label={isFavorite ? 'Unfavorite' : 'Favorite'}
             title={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
-            className="rounded p-1.5 transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded p-1.5 transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <span className={isFavorite ? 'text-yellow-400' : 'text-gray-500'}>
+            <span
+              className={
+                isFavorite ? 'text-yellow-400' : 'text-muted-foreground'
+              }
+            >
               <Star className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
             </span>
           </button>
