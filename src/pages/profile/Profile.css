@@ -320,11 +320,20 @@
   .contribution-week {
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 4px;
   }
 
   /* Contribution Colors - CSS Variables for easy theming */
   :root {
+    --color-level-0: #ebedf0;
+    --color-level-1: #9be9a8;
+    --color-level-2: #40c463;
+    --color-level-3: #30a14e;
+    --color-level-4: #216e39;
+  }
+
+  /* Light Mode Color Variables */
+  :is(.light) {
     --color-level-0: #ebedf0;
     --color-level-1: #9be9a8;
     --color-level-2: #40c463;
@@ -343,8 +352,8 @@
 
   /* Contribution Grid Styles */
   .contribution-cell {
-    width: 11px;
-    height: 11px;
+    width: 14px;
+    height: 14px;
     border-radius: 2px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -352,8 +361,8 @@
   }
 
   .contribution-cell--empty {
-    width: 11px;
-    height: 11px;
+    width: 14px;
+    height: 14px;
     border-radius: 2px;
     background-color: transparent;
     opacity: 0;
@@ -383,10 +392,31 @@
     z-index: 10;
   }
 
+  /* Contribution Legend */
+  .contribution-legend {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+    font-size: 0.75rem;
+    color: #9ca3af;
+  }
+
+  .legend-text {
+    font-weight: 500;
+  }
+
+  .legend-items {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
   /* Legend Box matches cells */
   .legend-box {
-    width: 11px;
-    height: 11px;
+    width: 14px;
+    height: 14px;
     border-radius: 2px;
     display: inline-block;
   }
@@ -406,38 +436,34 @@
     background-color: var(--color-level-4);
   }
 
-  /* Dark Mode Overrides (GitHub Dark) */
+  /* Dark Mode Overrides - Removed to use CSS variables instead
   @media (prefers-color-scheme: dark) {
-    /* Level 0 - Empty */
     .contribution-cell[data-level='0'],
     .legend-box[data-level='0'] {
       background-color: #161b22;
     }
 
-    /* Level 1 */
     .contribution-cell[data-level='1'],
     .legend-box[data-level='1'] {
       background-color: #0e4429;
     }
 
-    /* Level 2 */
     .contribution-cell[data-level='2'],
     .legend-box[data-level='2'] {
       background-color: #006d32;
     }
 
-    /* Level 3 */
     .contribution-cell[data-level='3'],
     .legend-box[data-level='3'] {
       background-color: #26a641;
     }
 
-    /* Level 4 */
     .contribution-cell[data-level='4'],
     .legend-box[data-level='4'] {
       background-color: #39d353;
     }
   }
+  */
 
   /* Manual Dark Mode Override (.dark class) */
   :is(.dark) .contribution-cell[data-level='0'],

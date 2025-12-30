@@ -89,9 +89,12 @@ const Profile: React.FC = () => {
     const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
     startDate.setDate(startDate.getDate() - daysToMonday)
 
-    const monthStarts = []
+    const monthStarts: Array<{
+      name: string
+      weekIndex: number
+      position: number
+    }> = []
     const months = [
-      'Dec',
       'Jan',
       'Feb',
       'Mar',
@@ -109,12 +112,7 @@ const Profile: React.FC = () => {
     // Calculate which week each month starts
     for (let i = 0; i < months.length; i++) {
       const monthDate = new Date(today)
-      if (i === 0) {
-        // December of previous year
-        monthDate.setFullYear(monthDate.getFullYear() - 1, 11, 1)
-      } else {
-        monthDate.setFullYear(today.getFullYear(), i - 1, 1)
-      }
+      monthDate.setFullYear(today.getFullYear(), i, 1)
 
       // Calculate days between start date and this month start
       const diffTime = monthDate.getTime() - startDate.getTime()
@@ -124,11 +122,18 @@ const Profile: React.FC = () => {
       monthStarts.push({
         name: months[i],
         weekIndex: Math.max(0, weekIndex),
-        position: Math.max(0, weekIndex) * 14, // 11px cell + 3px gap
+        position: Math.max(0, weekIndex) * 18, // 14px cell + 4px gap
       })
     }
 
-    return monthStarts
+    // Filter out overlapping labels (minimum 4 weeks apart)
+    const filteredMonths = monthStarts.filter((month, index) => {
+      if (index === 0) return true
+      const prevPosition = monthStarts[index - 1].position
+      return month.position - prevPosition >= 72 // Minimum 4 weeks (4 * 18px)
+    })
+
+    return filteredMonths
   }
 
   // Calculate the grid dimensions
