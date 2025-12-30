@@ -328,8 +328,8 @@ const AdminCreateChallenge: React.FC = () => {
     }
 
     return (
-      <div className="flex h-screen flex-col border-gray-700 bg-gray-900">
-        <div className="flex items-center justify-between border-b border-gray-700 bg-gray-800 p-4">
+      <div className="flex h-screen flex-col border-border bg-background">
+        <div className="flex items-center justify-between border-b border-border bg-card p-4">
           <Button
             onClick={() => setPreviewMode(false)}
             className="text-white hover:text-blue-400"
@@ -356,19 +356,19 @@ const AdminCreateChallenge: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6 transition-colors duration-300 dark:bg-gray-950">
+    <div className="min-h-screen bg-background p-6 transition-colors duration-300">
       {/* {contextHolder} */}
       <div className="mb-4 flex items-center gap-4">
         <Button
           icon={<ArrowLeftOutlined />}
           onClick={() => navigate('/admin/challenges')}
         />
-        <h1 className="text-2xl font-bold text-gray-900 transition-colors duration-300 dark:text-white">
+        <h1 className="text-2xl font-bold text-foreground transition-colors duration-300">
           {id ? 'Edit Challenge' : 'Create Challenge'}
         </h1>
       </div>
 
-      <Card className="bg-white transition-colors duration-300 dark:border-gray-700 dark:bg-gray-800">
+      <Card className="border-border bg-card transition-colors duration-300">
         <Form
           form={form}
           layout="vertical"
@@ -506,7 +506,7 @@ const AdminCreateChallenge: React.FC = () => {
                         onClick={() => remove(name)}
                       />
                     }
-                    className="border-gray-200 bg-white shadow-sm transition-colors duration-300 dark:border-gray-700 dark:bg-gray-800"
+                    className="border-border bg-card shadow-sm transition-colors duration-300"
                   >
                     <Space direction="vertical" style={{ width: '100%' }}>
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -584,7 +584,7 @@ const AdminCreateChallenge: React.FC = () => {
           </Form.List>
 
           <Divider orientation="left">Reference Solution</Divider>
-          <div className="mb-4 rounded border bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900">
+          <div className="mb-4 rounded border border-border bg-muted/50 p-4">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Form.Item
                 name={['solution', 'title']}
@@ -629,7 +629,7 @@ const AdminCreateChallenge: React.FC = () => {
                         onClick={() => remove(name)}
                       />
                     }
-                    className="border-blue-100 bg-white transition-colors duration-300 dark:border-gray-700 dark:bg-gray-800"
+                    className="border-border bg-card transition-colors duration-300"
                   >
                     <Space direction="vertical" style={{ width: '100%' }}>
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

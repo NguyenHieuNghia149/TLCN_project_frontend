@@ -154,7 +154,9 @@ const Profile: React.FC = () => {
 
   // Get color based on contribution count
   const getContributionColor = (count: number): string => {
-    if (count === 0) return '#161b22'
+    // We can use CSS variables or specific hexes that work for dark mode.
+    // Ideally these should adapt. For now, let's keep green shades but ensure empty is dynamic.
+    if (count === 0) return 'var(--muted)' // adapted from #161b22
     if (count === 1) return '#0e4429'
     if (count === 2) return '#006d32'
     if (count === 3) return '#26a641'
@@ -467,7 +469,7 @@ const Profile: React.FC = () => {
                         left: `${month.position}px`,
                         fontSize: '12px',
                         fontWeight: '500',
-                        color: '#666',
+                        color: 'var(--muted-foreground)',
                         whiteSpace: 'nowrap',
                       }}
                     >
@@ -503,7 +505,7 @@ const Profile: React.FC = () => {
                           height: '14px',
                           fontSize: '11px',
                           fontWeight: '500',
-                          color: '#666',
+                          color: 'var(--muted-foreground)',
                           display: 'flex',
                           alignItems: 'center',
                           paddingRight: '4px',
@@ -599,7 +601,7 @@ const Profile: React.FC = () => {
                   <div
                     className="legend-box"
                     title="No contributions"
-                    style={{ backgroundColor: '#161b22' }}
+                    style={{ backgroundColor: 'var(--muted)' }}
                   />
                   <div
                     className="legend-box"
@@ -699,7 +701,7 @@ const Profile: React.FC = () => {
             {updateError && (
               <div
                 className="error-message"
-                style={{ color: '#ef4444', marginBottom: '1rem' }}
+                style={{ color: 'var(--destructive)', marginBottom: '1rem' }}
               >
                 {updateError}
               </div>

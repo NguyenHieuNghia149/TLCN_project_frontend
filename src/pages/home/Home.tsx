@@ -119,15 +119,15 @@ const ContinuePracticeCard: React.FC<ContinuePracticeCardProps> = ({
 
   return (
     <div
-      className="continue-practice-card group relative h-[208px] cursor-pointer rounded-xl p-6 pr-16 transition-all duration-300 hover:bg-gray-600"
+      className="continue-practice-card group relative h-[208px] cursor-pointer rounded-xl border border-border bg-card p-6 pr-16 transition-all duration-300 hover:bg-secondary"
       onClick={onClick}
     >
       <div className="continue-practice-card-content">
         <div className="mb-6 flex items-center gap-3">
-          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white">
+          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-card">
             {icon}
           </div>
-          <h3 className="font-semibold text-white">{title}</h3>
+          <h3 className="font-semibold text-foreground">{title}</h3>
         </div>
 
         {/* Progress bar */}
@@ -142,7 +142,7 @@ const ContinuePracticeCard: React.FC<ContinuePracticeCardProps> = ({
 
         {/* Progress text */}
 
-        <div className="continue-practice-card-percentage flex items-center gap-2">
+        <div className="continue-practice-card-percentage flex items-center gap-2 text-muted-foreground">
           <p>{percentage}%</p>
           <p className="continue-practice-card-subtitle">
             ({progress}/{total} {subtitle})
@@ -272,14 +272,14 @@ const HomePage: React.FC = () => {
   }, [])
 
   return (
-    <div className="home-page min-h-full text-white">
+    <div className="home-page min-h-full bg-background text-foreground">
       <div className="mx-auto max-w-7xl p-6">
         {/* Continue Practicing Section - Updated Design */}
         {isAuthenticated &&
           !isLoadingProgress &&
           (recentTopicProgress || recentLessonProgress) && (
             <div className="mb-12 mt-12">
-              <h2 className="mb-6 text-2xl font-semibold text-white">
+              <h2 className="mb-6 text-2xl font-semibold text-foreground">
                 Continue Practicing
               </h2>
               <div className="grid gap-6 md:grid-cols-2">
@@ -320,7 +320,7 @@ const HomePage: React.FC = () => {
         <div className="mb-12 mt-12">
           <div className="mb-6 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <h2 className="text-xl font-semibold text-white">
+              <h2 className="text-xl font-semibold text-foreground">
                 Programming Fundamentals
               </h2>
               <span className="rounded-full bg-gradient-to-r from-blue-500 to-purple-600 px-3 py-1 text-xs font-medium text-white">
@@ -334,20 +334,20 @@ const HomePage: React.FC = () => {
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            <div className="programming-card group relative overflow-hidden rounded-xl border border-gray-700 p-6 transition-all duration-300">
+            <div className="programming-card group relative overflow-hidden rounded-xl border border-border bg-card p-6 transition-all duration-300">
               <div className="relative z-10">
                 <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-green-500/10 transition-colors group-hover:bg-green-500/20">
                   <Code2 className="text-green-400" size={24} />
                 </div>
-                <h3 className="mb-2 text-lg font-semibold text-white">
+                <h3 className="mb-2 text-lg font-semibold text-foreground">
                   Programming Basics
                 </h3>
-                <p className="mb-4 text-sm text-gray-400">
+                <p className="mb-4 text-sm text-muted-foreground">
                   Learn fundamental programming concepts and problem-solving
                   techniques
                 </p>
 
-                <div className="mb-4 flex items-center gap-2 text-sm text-gray-400">
+                <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
                   <Clock size={16} />
                   <span>8 hours • 25 lessons</span>
                 </div>
@@ -358,20 +358,20 @@ const HomePage: React.FC = () => {
               </div>
             </div>
 
-            <div className="programming-card group relative overflow-hidden rounded-xl border border-gray-700 p-6 transition-all duration-300">
+            <div className="programming-card group relative overflow-hidden rounded-xl border border-border bg-card p-6 transition-all duration-300">
               <div className="relative z-10">
                 <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-blue-500/10 transition-colors group-hover:bg-blue-500/20">
                   <BarChart3 className="text-blue-400" size={24} />
                 </div>
-                <h3 className="mb-2 text-lg font-semibold text-white">
+                <h3 className="mb-2 text-lg font-semibold text-foreground">
                   Data Structures
                 </h3>
-                <p className="mb-4 text-sm text-gray-400">
+                <p className="mb-4 text-sm text-muted-foreground">
                   Master arrays, linked lists, stacks, queues and tree
                   structures
                 </p>
 
-                <div className="mb-4 flex items-center gap-2 text-sm text-gray-400">
+                <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
                   <Clock size={16} />
                   <span>12 hours • 32 lessons</span>
                 </div>
@@ -385,19 +385,19 @@ const HomePage: React.FC = () => {
               </div>
             </div>
 
-            <div className="programming-card group relative overflow-hidden rounded-xl border border-gray-700 p-6 transition-all duration-300">
+            <div className="programming-card group relative overflow-hidden rounded-xl border border-border bg-card p-6 transition-all duration-300">
               <div className="relative z-10">
                 <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-purple-500/10 transition-colors group-hover:bg-purple-500/20">
                   <Hash className="text-purple-400" size={24} />
                 </div>
-                <h3 className="mb-2 text-lg font-semibold text-white">
+                <h3 className="mb-2 text-lg font-semibold text-foreground">
                   Algorithms
                 </h3>
-                <p className="mb-4 text-sm text-gray-400">
+                <p className="mb-4 text-sm text-muted-foreground">
                   Learn sorting, searching algorithms and complexity analysis
                 </p>
 
-                <div className="mb-4 flex items-center gap-2 text-sm text-gray-400">
+                <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
                   <Clock size={16} />
                   <span>15 hours • 28 lessons</span>
                 </div>
@@ -411,19 +411,19 @@ const HomePage: React.FC = () => {
               </div>
             </div>
 
-            <div className="programming-card group relative overflow-hidden rounded-xl border border-gray-700 p-6 transition-all duration-300">
+            <div className="programming-card group relative overflow-hidden rounded-xl border border-border bg-card p-6 transition-all duration-300">
               <div className="relative z-10">
                 <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-orange-500/10 transition-colors group-hover:bg-orange-500/20">
                   <Layers className="text-orange-400" size={24} />
                 </div>
-                <h3 className="mb-2 text-lg font-semibold text-white">
+                <h3 className="mb-2 text-lg font-semibold text-foreground">
                   OOP Concepts
                 </h3>
-                <p className="mb-4 text-sm text-gray-400">
+                <p className="mb-4 text-sm text-muted-foreground">
                   Object-oriented programming principles and design patterns
                 </p>
 
-                <div className="mb-4 flex items-center gap-2 text-sm text-gray-400">
+                <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
                   <Clock size={16} />
                   <span>10 hours • 20 lessons</span>
                 </div>
@@ -439,23 +439,23 @@ const HomePage: React.FC = () => {
           </div>
 
           {/* Course Progress Overview */}
-          <div className="mt-6 rounded-xl border border-gray-700/50 bg-gradient-to-r from-gray-800/50 to-gray-900/50 p-6">
+          <div className="mt-6 rounded-xl border border-border bg-card/50 p-6">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">
+              <h3 className="text-lg font-semibold text-foreground">
                 Your Learning Path
               </h3>
               <div className="text-sm text-gray-400">
                 1 / 4 courses completed
               </div>
             </div>
-            <div className="h-2 w-full rounded-full bg-gray-700">
+            <div className="h-2 w-full rounded-full bg-secondary">
               <div className="h-2 w-1/4 rounded-full bg-gradient-to-r from-green-500 to-blue-500 transition-all duration-500"></div>
             </div>
             <div className="mt-3 flex justify-between text-sm">
               <span className="font-medium text-green-400">
                 Programming Basics ✓
               </span>
-              <span className="text-gray-400">
+              <span className="text-muted-foreground">
                 Complete all courses to unlock advanced topics
               </span>
             </div>
@@ -464,7 +464,7 @@ const HomePage: React.FC = () => {
 
         {/* Practice Skills */}
         <div className="mb-12 mt-12">
-          <h2 className="mb-6 text-xl font-semibold text-white">
+          <h2 className="mb-6 text-xl font-semibold text-foreground">
             Practice Skills
           </h2>
 

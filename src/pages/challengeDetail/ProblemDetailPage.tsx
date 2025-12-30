@@ -654,7 +654,7 @@ export default function ProblemDetailPage({
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-950 text-gray-100">
+      <div className="flex h-screen items-center justify-center bg-background text-foreground">
         <div className="text-center">
           <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-green-500"></div>
           <p>Loading problem...</p>
@@ -665,7 +665,7 @@ export default function ProblemDetailPage({
 
   if (error) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-950 text-gray-100">
+      <div className="flex h-screen items-center justify-center bg-background text-foreground">
         <div className="text-center">
           <p className="mb-4 text-red-400">{error}</p>
           <button
@@ -680,7 +680,7 @@ export default function ProblemDetailPage({
   }
 
   return (
-    <div className="flex h-screen flex-col bg-gray-950 text-gray-100">
+    <div className="flex h-screen flex-col bg-background text-foreground">
       {/* Problem Header */}
       <ProblemHeader
         onPrev={goPrev}
@@ -697,7 +697,7 @@ export default function ProblemDetailPage({
         className="flex min-h-0 flex-1 flex-col lg:flex-row"
       >
         <div
-          className="flex h-full min-h-0 min-w-[200px] flex-col overflow-hidden border-b border-gray-800 lg:border-b-0 lg:border-r"
+          className="flex h-full min-h-0 min-w-[200px] flex-col overflow-hidden border-b border-border lg:border-b-0 lg:border-r"
           style={{
             flexBasis: `${problemPanelWidth}%`,
             maxWidth: `${problemPanelWidth}%`,
@@ -710,7 +710,7 @@ export default function ProblemDetailPage({
           />
         </div>
         <div
-          className="hidden w-0.5 cursor-col-resize select-none bg-gray-800 lg:block"
+          className="hidden w-0.5 cursor-col-resize select-none bg-border lg:block"
           onMouseDown={startDraggingSplit}
           onTouchStart={startDraggingSplit}
           onDoubleClick={resetSplit}
