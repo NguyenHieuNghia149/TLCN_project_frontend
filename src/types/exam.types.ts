@@ -199,6 +199,7 @@ export interface ExamState {
   currentSubmission: ExamSubmission | null
   // current participation/session info (optional during migration)
   currentParticipationId?: string | null
+  currentParticipationExamId?: string | null // NEW: Scope participation to specific exam
   currentParticipationStartAt?: number | string | null
   currentParticipationExpiresAt?: number | string | null
   // optional: which challenge the user is currently on (for resume)
