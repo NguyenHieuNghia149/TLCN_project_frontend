@@ -4,8 +4,8 @@
 
 .topic-lessons-page {
   min-height: 100vh;
-  background: #0a0a0a;
-  color: #ffffff;
+  background: rgb(var(--background));
+  color: rgb(var(--foreground));
 }
 
 .topic-lessons-container {
@@ -23,7 +23,7 @@
 .topic-lessons-title {
   font-size: 3rem;
   font-weight: 800;
-  color: #ffffff;
+  color: rgb(var(--foreground));
   margin-bottom: 1rem;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
@@ -33,7 +33,7 @@
 
 .topic-lessons-subtitle {
   font-size: 1.125rem;
-  color: #9ca3af;
+  color: rgb(var(--muted-foreground));
   max-width: 600px;
   margin: 0 auto;
   line-height: 1.6;
@@ -47,8 +47,8 @@
 }
 
 .topic-lesson-card {
-  background: rgba(17, 24, 39, 0.6);
-  border: 1px solid rgba(55, 65, 81, 0.3);
+  background: rgb(var(--card) / 0.8);
+  border: 1px solid rgb(var(--border));
   border-radius: 16px;
   overflow: hidden;
   transition: all 0.3s ease;
@@ -60,8 +60,8 @@
 
 .topic-lesson-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(102, 126, 234, 0.5);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  border-color: rgb(var(--primary) / 0.5);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
 }
 
 .topic-lesson-image {
@@ -84,8 +84,8 @@
   inset: 0;
   background: linear-gradient(
     135deg,
-    rgba(102, 126, 234, 0.6) 0%,
-    rgba(118, 75, 162, 0.6) 100%
+    rgb(var(--primary) / 0.2) 0%,
+    rgb(var(--primary) / 0.4) 100%
   );
 }
 
@@ -100,7 +100,7 @@
 .topic-lesson-title {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #ffffff;
+  color: rgb(var(--foreground));
   margin-bottom: 0.75rem;
   line-height: 1.4;
   overflow: hidden;
@@ -113,7 +113,7 @@
 }
 
 .topic-lesson-description {
-  color: #9ca3af;
+  color: rgb(var(--muted-foreground));
   font-size: 0.875rem;
   line-height: 1.6;
   margin-bottom: 1rem;
@@ -142,9 +142,9 @@
   justify-content: center;
   gap: 0.5rem;
   padding: 0.625rem 1rem;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  color: #ffffff;
-  border: 1px solid #3b82f6;
+  background: rgb(var(--primary));
+  color: rgb(var(--primary-foreground));
+  border: 1px solid rgb(var(--primary));
   border-radius: 8px;
   font-size: 0.875rem;
   font-weight: 500;
@@ -153,9 +153,9 @@
 }
 
 .topic-lesson-button:hover {
-  background: #2563eb;
+  background: rgb(var(--primary) / 0.9);
   border-color: transparent;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
 }
 
 .topic-lesson-favorite-button {
@@ -171,7 +171,7 @@
 }
 
 .topic-lesson-favorite-button:hover {
-  background: rgba(107, 114, 128, 0.3);
+  background: rgb(var(--muted));
 }
 
 .topic-lesson-favorite-button:disabled {

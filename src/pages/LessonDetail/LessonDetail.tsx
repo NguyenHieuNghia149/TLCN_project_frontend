@@ -210,7 +210,7 @@ const LessonDetail: React.FC = () => {
         <header className="lesson-header">
           <button
             onClick={handleGoBack}
-            className="mb-4 flex items-center gap-2 text-gray-400 transition-colors hover:text-white"
+            className="mb-4 flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
           >
             <FiArrowLeft />
             Back to Lessons
@@ -219,7 +219,7 @@ const LessonDetail: React.FC = () => {
           <div className="lesson-metadata">
             {lesson.topicName && (
               <div className="metadata-item">
-                <span className="text-sm text-gray-400">
+                <span className="text-sm text-muted-foreground">
                   Topic: {lesson.topicName}
                 </span>
               </div>
@@ -337,7 +337,7 @@ const LessonDetail: React.FC = () => {
         {/* Challenge Section */}
         {lesson.topicId && (
           <div className="lesson-challenges-section py-8">
-            <h2 className="mb-6 text-2xl font-bold text-white">
+            <h2 className="mb-6 text-2xl font-bold text-foreground">
               Practice Challenges
             </h2>
 
@@ -355,7 +355,7 @@ const LessonDetail: React.FC = () => {
                 ))}
               </div>
             ) : (
-              <div className="rounded-lg border border-gray-700 bg-[#2a2d3a] p-6 text-center text-gray-400">
+              <div className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
                 <p>No challenges available for this topic yet.</p>
               </div>
             )}
@@ -370,7 +370,7 @@ const LessonDetail: React.FC = () => {
                     `/dashboard/challenge/${lesson.topicId}${categoryParam}`
                   )
                 }}
-                className="mt-6 w-full rounded-lg border border-blue-500 bg-blue-500/10 px-6 py-3 font-medium text-blue-400 transition-colors hover:bg-blue-500/20"
+                className="mt-6 w-full rounded-lg border border-primary bg-primary/10 px-6 py-3 font-medium text-primary transition-colors hover:bg-primary/20"
               >
                 View All Challenges for This Topic
               </button>

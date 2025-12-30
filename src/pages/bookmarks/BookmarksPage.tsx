@@ -196,12 +196,12 @@ const BookmarksPage: React.FC = () => {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#121418] text-gray-100">
+      <div className="min-h-screen bg-background text-foreground">
         <div className="mx-auto max-w-7xl px-6 py-8">
-          <div className="rounded-lg border border-gray-800 bg-[#1f202a] p-8 text-center">
-            <Bookmark className="mx-auto mb-4 h-12 w-12 text-gray-500" />
+          <div className="rounded-lg border border-border bg-card p-8 text-center">
+            <Bookmark className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
             <h2 className="mb-2 text-xl font-semibold">Login Required</h2>
-            <p className="mb-4 text-gray-400">
+            <p className="mb-4 text-muted-foreground">
               Please login to view your bookmarks
             </p>
             <button
@@ -217,9 +217,9 @@ const BookmarksPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#121418] text-gray-100">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
-      <header className="border-b border-gray-800 bg-[#1f202a]">
+      <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div>
             <Breadcrumb
@@ -294,12 +294,12 @@ const BookmarksPage: React.FC = () => {
               <section>
                 <h2 className="mb-4 text-2xl font-bold">Problems</h2>
                 {filtered.length === 0 ? (
-                  <div className="rounded-lg border border-gray-800 bg-[#1f202a] p-8 text-center">
-                    <Bookmark className="mx-auto mb-4 h-12 w-12 text-gray-500" />
+                  <div className="rounded-lg border border-border bg-card p-8 text-center">
+                    <Bookmark className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
                     <h3 className="mb-2 text-lg font-semibold">
                       No problem bookmarks yet
                     </h3>
-                    <p className="mb-4 text-gray-400">
+                    <p className="mb-4 text-muted-foreground">
                       Start bookmarking challenges to see them here
                     </p>
                     <button
@@ -326,12 +326,12 @@ const BookmarksPage: React.FC = () => {
               <section>
                 <h2 className="mb-4 text-2xl font-bold">Lessons</h2>
                 {filteredLessons.length === 0 ? (
-                  <div className="rounded-lg border border-gray-800 bg-[#1f202a] p-8 text-center">
-                    <Bookmark className="mx-auto mb-4 h-12 w-12 text-gray-500" />
+                  <div className="rounded-lg border border-border bg-card p-8 text-center">
+                    <Bookmark className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
                     <h3 className="mb-2 text-lg font-semibold">
                       No lesson bookmarks yet
                     </h3>
-                    <p className="mb-4 text-gray-400">
+                    <p className="mb-4 text-muted-foreground">
                       Start bookmarking lessons to see them here
                     </p>
                     <button
@@ -378,7 +378,7 @@ const BookmarksPage: React.FC = () => {
                       type="checkbox"
                       checked={difficulties.includes('easy')}
                       onChange={() => toggleDifficulty('easy')}
-                      className="h-4 w-4 rounded border-gray-700 bg-gray-800 text-green-500 focus:ring-0 focus:ring-offset-0"
+                      className="h-4 w-4 rounded border-border bg-input text-green-500 focus:ring-0 focus:ring-offset-0"
                     />
                     <span className="text-sm">Easy</span>
                   </label>
@@ -428,7 +428,7 @@ const BookmarksPage: React.FC = () => {
                           type="checkbox"
                           checked={topics.includes(topic)}
                           onChange={() => toggleTopic(topic)}
-                          className="h-4 w-4 rounded border-gray-700 bg-gray-800 text-blue-500 focus:ring-0 focus:ring-offset-0"
+                          className="h-4 w-4 rounded border-border bg-input text-blue-500 focus:ring-0 focus:ring-offset-0"
                         />
                         <span className="text-sm">{topic}</span>
                       </label>
