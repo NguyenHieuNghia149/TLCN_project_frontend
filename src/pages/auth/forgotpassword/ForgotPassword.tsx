@@ -295,30 +295,10 @@ const ForgotPassword: React.FC = () => {
                 </p>
               </div>
 
-              {error && (
-                <div
-                  className="fp-form__error"
-                  style={{
-                    background: 'rgba(239,68,68,0.1)',
-                    borderColor: 'rgba(239,68,68,0.35)',
-                    color: '#fecaca',
-                  }}
-                >
-                  {error}
-                </div>
-              )}
+              {error && <div className="fp-form__error">{error}</div>}
 
               {successMessage && (
-                <div
-                  className="fp-form__error"
-                  style={{
-                    background: 'rgba(34,197,94,0.1)',
-                    borderColor: 'rgba(34,197,94,0.35)',
-                    color: '#bbf7d0',
-                  }}
-                >
-                  {successMessage}
-                </div>
+                <div className="fp-form__success">{successMessage}</div>
               )}
 
               {/* Step 1: Email Input */}

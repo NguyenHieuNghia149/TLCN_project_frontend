@@ -22,7 +22,6 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
       icon,
       rightButton,
       className = '',
-      tone = 'light',
       labelClassName = '',
       ...props
     },
@@ -31,36 +30,22 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     const inputId =
       props.id || `input-${Math.random().toString(36).substr(2, 9)}`
 
-    const darkClasses =
-      ' !bg-slate-800 !text-slate-100 placeholder:!text-slate-400 !border-slate-700 focus:!border-indigo-500 focus:!ring-2 focus:!ring-indigo-500/30 '
-
     return (
       <div className="input-wrapper">
         {label && (
-          <label
-            htmlFor={inputId}
-            className={`input-label ${tone === 'dark' ? 'text-slate-200' : ''} ${labelClassName}`}
-          >
+          <label htmlFor={inputId} className={`input-label ${labelClassName}`}>
             {label}
             {required && <span className="input-required">*</span>}
           </label>
         )}
 
         <div className="input-container">
-          {icon && (
-            <div
-              className={`input-icon ${tone === 'dark' ? 'text-slate-400' : ''}`}
-            >
-              {icon}
-            </div>
-          )}
+          {icon && <div className="input-icon">{icon}</div>}
 
           <input
             ref={ref}
             id={inputId}
-            className={`input-field ${error ? 'input-error' : ''} ${icon ? 'input-with-icon' : ''} ${
-              tone === 'dark' ? darkClasses : ''
-            } ${className}`}
+            className={`input-field ${error ? 'input-error' : ''} ${icon ? 'input-with-icon' : ''} ${className}`}
             aria-invalid={!!error}
             aria-describedby={
               error
@@ -80,7 +65,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         {error && (
           <div
             id={`${inputId}-error`}
-            className={`input-message input-message-error ${tone === 'dark' ? 'text-red-400' : ''}`}
+            className="input-message input-message-error"
             role="alert"
           >
             {error}
@@ -90,7 +75,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         {success && !error && (
           <div
             id={`${inputId}-success`}
-            className={`input-message input-message-success ${tone === 'dark' ? 'text-emerald-400' : ''}`}
+            className="input-message input-message-success"
           >
             {success}
           </div>
