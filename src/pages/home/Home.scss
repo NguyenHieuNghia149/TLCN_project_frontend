@@ -1,5 +1,5 @@
 .home-page {
-  background-color: #121418;
+  background-color: rgb(var(--background));
   min-height: 100%;
   width: 100%;
   padding-top: 0;
@@ -7,7 +7,7 @@
 }
 
 .continue-practice-card {
-  background-color: #1f202a;
+  background-color: rgb(var(--card));
 }
 
 .continue-practice-card-content {
@@ -21,13 +21,13 @@
 .continue-practice-card h3 {
   font-size: 20px;
   line-height: 2rem;
-  color: #ffffff;
+  color: rgb(var(--foreground));
 }
 
 .continue-practice-card-percentage {
   font-size: 16px;
   line-height: 1.5rem;
-  color: #ffffff;
+  color: rgb(var(--foreground));
   font-weight: 700;
   font-family: 'Satoshi', sans-serif;
 }
@@ -41,11 +41,11 @@
 .continue-practice-card-arrowBtn {
   margin-right: 40px;
   border-radius: 10px;
-  border: 1px solid #4a4b53;
+  border: 1px solid rgb(var(--border));
 }
 
 .programming-card {
-  background-color: #1f202a;
+  background-color: rgb(var(--card));
   transition:
     background-color 0.2s ease,
     border-color 0.2s ease,
@@ -54,18 +54,18 @@
 }
 
 .programming-card:hover {
-  background-color: #232533;
-  border-color: #4b5563; /* gray-600 */
+  background-color: rgb(var(--accent));
+  border-color: rgb(var(--border)); /* gray-600 */
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   transform: translateY(-2px);
 }
 
 /* Practice Skills card */
 .practice-skill-card {
-  background: #1f202a;
+  background: rgb(var(--card));
   border-radius: 16px;
   padding: 32px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgb(var(--border));
   width: 306px;
   height: 80px;
 }
@@ -81,7 +81,7 @@
 }
 
 .practice-skill-card__title {
-  color: #ffffff;
+  color: rgb(var(--foreground));
   font-weight: 700;
   font-size: 16px;
   line-height: 1.5rem;

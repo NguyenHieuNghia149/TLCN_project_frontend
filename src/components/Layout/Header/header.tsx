@@ -57,8 +57,8 @@ const Header: React.FC = () => {
           <div className="nav-section-header max-[550]: flex items-center">
             <Link to="/dashboard" className="flex items-center space-x-2">
               <span className="text-2xl font-bold">
-                <span className="text-white">Algo</span>
-                <span className="text-[#20d761]">Forge</span>
+                <span className="text-foreground">Algo</span>
+                <span className="text-primary">Forge</span>
               </span>
             </Link>
 
@@ -86,24 +86,25 @@ const Header: React.FC = () => {
             {/* Search Bar */}
             <div className="relative">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                <Search className="h-5 w-5 text-gray-400" />
+                <Search className="h-5 w-5 text-muted-foreground" />
               </div>
               <input
                 type="text"
                 placeholder="Search"
-                className="block h-9 w-60 rounded-lg border border-gray-600 bg-transparent py-2.5 pl-10 pr-3 text-sm text-white placeholder-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-white"
+                className="block h-9 w-60 rounded-lg border border-border bg-transparent py-2.5 pl-10 pr-3 text-sm text-foreground placeholder-muted-foreground focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
 
             {/* Utility Icons - Only show when authenticated; hide during loading to avoid flicker */}
             {!isLoading && isAuthenticated && (
               <div className="flex items-center space-x-3">
-                <button className="nav-icon text-white transition-colors hover:text-white">
+                <button className="nav-icon text-foreground transition-colors hover:text-foreground">
                   <MessageCircle className="h-5 w-5" />
                 </button>
                 <NotificationDropdown />
+                <NotificationDropdown />
                 <button
-                  className="nav-icon text-white transition-colors hover:text-white"
+                  className="nav-icon text-foreground transition-colors hover:text-foreground"
                   onClick={toggleTheme}
                   aria-label="Toggle color theme"
                 >
@@ -113,7 +114,7 @@ const Header: React.FC = () => {
                     <Moon className="h-5 w-5" />
                   )}
                 </button>
-                <button className="nav-icon text-white transition-colors hover:text-white">
+                <button className="nav-icon text-foreground transition-colors hover:text-foreground">
                   <Grid className="h-5 w-5" />
                 </button>
               </div>
@@ -124,13 +125,13 @@ const Header: React.FC = () => {
               <div className="flex items-center space-x-4">
                 <button
                   onClick={() => navigate('/login')}
-                  className="rounded-lg border-gray-400 bg-transparent px-4 py-2 text-sm font-semibold text-white hover:border-transparent hover:bg-gray-400"
+                  className="rounded-lg border-border bg-transparent px-4 py-2 text-sm font-semibold text-foreground hover:border-transparent hover:bg-accent"
                 >
                   Log In
                 </button>
                 <button
                   onClick={() => navigate('/register')}
-                  className="rounded-lg bg-[#20d761] px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-green-300"
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
                 >
                   Sign up
                 </button>
@@ -154,7 +155,7 @@ const Header: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-center justify-center">
-                    <ChevronDown className="h-3 w-3 text-gray-300" />
+                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
                   </div>
                 </button>
 
