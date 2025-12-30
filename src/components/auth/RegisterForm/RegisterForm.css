@@ -23,9 +23,13 @@
 .register-form__title {
   font-size: 2rem;
   font-weight: 700;
-  color: #f8fafc;
+  color: rgb(var(--foreground));
   margin: 0 0 0.5rem 0;
-  background: linear-gradient(135deg, #fff 0%, #e9d5ff 100%);
+  background: linear-gradient(
+    135deg,
+    rgb(var(--foreground)) 0%,
+    rgb(var(--primary)) 100%
+  );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -33,7 +37,7 @@
 
 .register-form__subtitle {
   font-size: 1rem;
-  color: #94a3b8;
+  color: rgb(var(--muted-foreground));
   margin: 0;
 }
 
@@ -44,9 +48,9 @@
 }
 
 .password-toggle {
-  background: rgba(124, 58, 237, 0.12);
-  border: 1px solid rgba(124, 58, 237, 0.28);
-  color: #c4b5fd;
+  background: rgb(var(--primary) / 0.12);
+  border: 1px solid rgb(var(--primary) / 0.28);
+  color: rgb(var(--primary));
   padding: 0.25rem 0.75rem;
   border-radius: 0.375rem;
   font-size: 0.813rem;
@@ -56,8 +60,8 @@
 }
 
 .password-toggle:hover {
-  background: rgba(124, 58, 237, 0.2);
-  color: #e9d5ff;
+  background: rgb(var(--primary) / 0.2);
+  color: rgb(var(--primary));
 }
 
 @media (max-width: 640px) {

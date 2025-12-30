@@ -6,8 +6,8 @@
 @layer components {
   .profile-page {
     min-height: 100vh;
-    background: #0a0a0a;
-    color: #ffffff;
+    background: rgb(var(--background));
+    color: rgb(var(--foreground));
     padding: 2rem 1rem;
   }
 
@@ -20,21 +20,21 @@
   }
 
   .card {
-    background: rgba(17, 24, 39, 0.6);
-    border: 1px solid rgba(55, 65, 81, 0.3);
+    background: rgb(var(--card));
+    border: 1px solid rgb(var(--border));
     border-radius: 16px;
     backdrop-filter: blur(10px);
     transition: all 0.3s ease;
   }
 
   .card:hover {
-    border-color: rgba(102, 126, 234, 0.5);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    border-color: rgb(var(--primary) / 0.5);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   }
 
   .muted {
     @apply text-sm;
-    color: #9ca3af;
+    color: rgb(var(--muted-foreground));
   }
 
   /* Sidebar */
@@ -65,7 +65,7 @@
   }
   .profile-email {
     font-size: 0.75rem;
-    color: #9ca3af;
+    color: rgb(var(--muted-foreground));
     word-wrap: break-word;
     overflow-wrap: break-word;
     overflow: hidden;
@@ -76,17 +76,17 @@
     height: 64px;
     border-radius: 12px;
     object-fit: cover;
-    border: 2px solid rgba(102, 126, 234, 0.3);
+    border: 2px solid rgb(var(--primary) / 0.3);
   }
   .profile-name {
     font-weight: 600;
-    color: #ffffff;
+    color: rgb(var(--foreground));
     word-wrap: break-word;
     overflow-wrap: break-word;
   }
   .profile-rank {
     font-size: 0.75rem;
-    color: #9ca3af;
+    color: rgb(var(--muted-foreground));
   }
   .edit-btn {
     display: flex;
@@ -94,20 +94,21 @@
     justify-content: center;
     width: 100%;
     box-sizing: border-box;
-    border: 1px solid rgba(55, 65, 81, 0.5);
+    border: 1px solid rgb(var(--border));
     border-radius: 8px;
     padding: 0.5rem 1rem;
     font-size: 0.875rem;
     font-weight: 500;
-    color: #ffffff;
-    background: rgba(31, 41, 55, 0.5);
+    color: rgb(var(--foreground));
+    background: rgb(var(--muted));
     transition: all 0.2s ease;
     cursor: pointer;
     margin-bottom: 16px;
   }
   .edit-btn:hover {
-    background: rgba(102, 126, 234, 0.2);
-    border-color: rgba(102, 126, 234, 0.5);
+    background: rgb(var(--primary) / 0.1);
+    border-color: rgb(var(--primary) / 0.5);
+    color: rgb(var(--primary));
   }
 
   .section {
@@ -117,7 +118,7 @@
     margin-bottom: 0.5rem;
     font-size: 0.875rem;
     font-weight: 600;
-    color: #ffffff;
+    color: rgb(var(--foreground));
   }
   .kv {
     display: grid;
@@ -129,16 +130,16 @@
     gap: 4px;
   }
   .row-label {
-    color: #9ca3af;
+    color: rgb(var(--muted-foreground));
   }
   .row-value {
     font-weight: 600;
-    color: #ffffff;
+    color: rgb(var(--foreground));
   }
   .row-note {
     grid-column: 1 / -1;
     font-size: 0.75rem;
-    color: #6b7280;
+    color: rgb(var(--muted-foreground));
   }
 
   .skills-list {
@@ -150,7 +151,7 @@
     grid-template-columns: 10px 1fr auto;
     gap: 8px;
     align-items: center;
-    color: #ffffff;
+    color: rgb(var(--foreground));
   }
   .skill .dot {
     width: 6px;
@@ -189,13 +190,13 @@
     place-items: center;
     background: radial-gradient(
       circle at 50% 50%,
-      rgba(102, 126, 234, 0.2),
+      rgb(var(--primary) / 0.2),
       transparent 60%
     );
     font-size: 2rem;
     font-weight: 700;
-    color: #ffffff;
-    box-shadow: 0 0 40px rgba(102, 126, 234, 0.2);
+    color: rgb(var(--foreground));
+    box-shadow: 0 0 40px rgb(var(--primary) / 0.2);
   }
   .legend {
     display: grid;
@@ -205,7 +206,7 @@
     display: flex;
     justify-content: space-between;
     font-size: 0.875rem;
-    color: #ffffff;
+    color: rgb(var(--foreground));
   }
   .legend-row.easy span {
     color: #10b981;
@@ -220,7 +221,7 @@
     margin-top: 0.5rem;
     text-align: center;
     font-size: 0.875rem;
-    color: #9ca3af;
+    color: rgb(var(--muted-foreground));
   }
 
   .badges-card {
@@ -235,7 +236,7 @@
   }
   .badges-title {
     font-weight: 600;
-    color: #ffffff;
+    color: rgb(var(--foreground));
   }
   .badges-count {
     font-weight: 700;
@@ -243,7 +244,7 @@
   }
   .locked-badge {
     font-size: 0.875rem;
-    color: #9ca3af;
+    color: rgb(var(--muted-foreground));
   }
 
   .heatmap {
@@ -254,7 +255,7 @@
     align-items: baseline;
     justify-content: space-between;
     margin-bottom: 1.5rem;
-    color: #ffffff;
+    color: rgb(var(--foreground));
     font-weight: 600;
   }
 
@@ -489,7 +490,7 @@
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.7);
+    background: rgb(0 0 0 / 0.7);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -502,15 +503,15 @@
     width: 100%;
     max-width: 560px;
     max-height: 90vh; /* Giới hạn chiều cao tối đa là 90% chiều cao viewport */
-    background: rgba(17, 24, 39, 0.95);
+    background: rgb(var(--card));
     border-radius: 16px;
-    border: 1px solid rgba(55, 65, 81, 0.5);
+    border: 1px solid rgb(var(--border));
     padding: 24px;
     box-shadow: 0 20px 28px rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(10px);
     overflow-y: auto; /* Thêm thanh cuộn dọc khi nội dung vượt quá */
     scrollbar-width: thin; /* Thanh cuộn mỏng cho Firefox */
-    scrollbar-color: rgba(102, 126, 234, 0.5) transparent; /* Màu thanh cuộn cho Firefox */
+    scrollbar-color: rgb(var(--primary) / 0.5) transparent; /* Màu thanh cuộn cho Firefox */
   }
 
   /* Tùy chỉnh thanh cuộn cho Chrome/Safari */
@@ -523,18 +524,18 @@
   }
 
   .modal::-webkit-scrollbar-thumb {
-    background-color: rgba(102, 126, 234, 0.5);
+    background-color: rgb(var(--primary) / 0.5);
     border-radius: 3px;
   }
 
   .modal::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(102, 126, 234, 0.7);
+    background-color: rgb(var(--primary) / 0.7);
   }
 
   .modal h3 {
     font-size: 1.25rem;
     font-weight: 600;
-    color: #ffffff;
+    color: rgb(var(--foreground));
     margin-bottom: 20px;
   }
 
@@ -554,27 +555,27 @@
   .form-grid label span {
     font-size: 0.875rem;
     font-weight: 500;
-    color: #9ca3af;
+    color: rgb(var(--muted-foreground));
   }
 
   .form-grid input,
   .form-grid select {
-    border: 1px solid rgba(55, 65, 81, 0.5);
+    border: 1px solid rgb(var(--border));
     border-radius: 8px;
     padding: 10px 12px;
     outline: none;
     transition:
       border-color 0.15s ease,
       box-shadow 0.15s ease;
-    background: rgba(31, 41, 55, 0.5);
-    color: #e5e7eb;
+    background: rgb(var(--input));
+    color: rgb(var(--foreground));
     font-size: 0.875rem;
   }
 
   .form-grid input:focus,
   .form-grid select:focus {
-    border-color: rgba(102, 126, 234, 0.8);
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.25);
+    border-color: rgb(var(--primary) / 0.8);
+    box-shadow: 0 0 0 3px rgb(var(--primary) / 0.25);
   }
 
   .modal__actions {
@@ -583,15 +584,15 @@
     gap: 12px;
     margin-top: 24px;
     padding-top: 20px;
-    border-top: 1px solid rgba(55, 65, 81, 0.3);
+    border-top: 1px solid rgb(var(--border));
   }
 
   .modal__actions .btn {
     padding: 10px 20px;
     border-radius: 8px;
-    border: 1px solid rgba(55, 65, 81, 0.5);
-    background: rgba(31, 41, 55, 0.5);
-    color: #e5e7eb;
+    border: 1px solid rgb(var(--border));
+    background: rgb(var(--muted));
+    color: rgb(var(--foreground));
     font-size: 0.875rem;
     font-weight: 500;
     cursor: pointer;
@@ -599,20 +600,20 @@
   }
 
   .modal__actions .btn:hover:not(:disabled) {
-    background: rgba(55, 65, 81, 0.7);
-    border-color: rgba(102, 126, 234, 0.5);
+    background: rgb(var(--muted) / 0.8);
+    border-color: rgb(var(--primary) / 0.5);
   }
 
   .modal__actions .btn--primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: rgb(var(--primary));
     border-color: transparent;
-    color: #ffffff;
+    color: rgb(var(--primary-foreground));
   }
 
   .modal__actions .btn--primary:hover:not(:disabled) {
     opacity: 0.9;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 4px 12px rgb(var(--primary) / 0.4);
   }
 
   .modal__actions .btn:disabled {
@@ -623,9 +624,10 @@
   .error-message {
     padding: 12px;
     border-radius: 8px;
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: rgb(var(--destructive) / 0.1);
+    border: 1px solid rgb(var(--destructive) / 0.3);
     font-size: 0.875rem;
+    color: rgb(var(--destructive));
   }
 
   /* Submissions List */
@@ -639,14 +641,14 @@
   .submission-item {
     padding: 12px 16px;
     border-radius: 8px;
-    background: rgba(30, 41, 59, 0.4);
-    border: 1px solid rgba(55, 65, 81, 0.3);
+    background: rgb(var(--card));
+    border: 1px solid rgb(var(--border));
     transition: all 0.2s ease;
   }
 
   .submission-item:hover {
-    background: rgba(30, 41, 59, 0.6);
-    border-color: rgba(102, 126, 234, 0.4);
+    background: rgb(var(--accent) / 0.5);
+    border-color: rgb(var(--primary) / 0.4);
   }
 
   .submission-header {
@@ -658,7 +660,7 @@
 
   .problem-title {
     font-weight: 500;
-    color: #e5e7eb;
+    color: rgb(var(--foreground));
     flex: 1;
     word-break: break-word;
   }
@@ -673,45 +675,45 @@
   }
 
   .submission-badge.accepted {
-    background: rgba(16, 185, 129, 0.1);
+    background: rgb(16 185 129 / 0.1);
     color: #10b981;
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    border: 1px solid rgb(16 185 129 / 0.3);
   }
 
   .submission-badge.pending {
-    background: rgba(245, 158, 11, 0.1);
+    background: rgb(245 158 11 / 0.1);
     color: #f59e0b;
-    border: 1px solid rgba(245, 158, 11, 0.3);
+    border: 1px solid rgb(245 158 11 / 0.3);
   }
 
   .submission-badge.rejected {
-    background: rgba(239, 68, 68, 0.1);
+    background: rgb(239 68 68 / 0.1);
     color: #ef4444;
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    border: 1px solid rgb(239 68 68 / 0.3);
   }
 
   .submission-details {
     display: flex;
     gap: 12px;
     font-size: 0.875rem;
-    color: #9ca3af;
+    color: rgb(var(--muted-foreground));
     flex-wrap: wrap;
   }
 
   .language-tag {
     padding: 2px 6px;
     border-radius: 3px;
-    background: rgba(102, 126, 234, 0.1);
-    color: #667eea;
+    background: rgb(var(--primary) / 0.1);
+    color: rgb(var(--primary));
     font-weight: 500;
   }
 
   .submission-time {
-    color: #9ca3af;
+    color: rgb(var(--muted-foreground));
   }
 
   .execution-time {
-    color: #9ca3af;
+    color: rgb(var(--muted-foreground));
   }
 
   @media (max-width: 640px) {
