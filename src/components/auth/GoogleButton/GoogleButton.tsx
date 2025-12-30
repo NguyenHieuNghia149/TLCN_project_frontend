@@ -166,70 +166,44 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
         <button
           ref={customButtonRef}
           className={`google-button google-button--${variant} google-button--${theme}`}
-          onClick={async () => {
+          onClick={() => {
             try {
-              console.log('Google button clicked, checking readiness...')
-              // Wait for Google API and native button to be ready
-              await new Promise<void>((resolve, reject) => {
-                // If loaded, strict check if native button has content
-                if (window.google?.accounts?.id && isGoogleLoaded) {
-                  // We removed the strict hasChildNodes() check because renderButton is async/opaque
-                  // and sometimes valid even if DOM isn't fully populated instantly.
-                  resolve()
-                  return
-                }
+              console.log('Google button clicked. Ready state:', isGoogleLoaded)
 
-                const maxWait = 5000
-                const startTime = Date.now()
-                const checkInterval = setInterval(() => {
-                  if (window.google?.accounts?.id && isGoogleLoaded) {
-                    clearInterval(checkInterval)
-                    resolve()
-                  } else if (Date.now() - startTime > maxWait) {
-                    clearInterval(checkInterval)
-                    reject(new Error('Google Button not ready (timeout)'))
-                  }
-                }, 100)
-              })
+              if (!isGoogleLoaded) {
+                console.warn('Google Auth not yet loaded')
+                return
+              }
 
-              // Trigger click on the native Google button
+              // Direct synchronous click to preserve User Activation for popups
               if (buttonRef.current) {
-                console.log('Attempting to click native button...')
-                // Try to find the specific clickable iframe/div Google renders
                 const nativeButton = buttonRef.current.querySelector(
                   'div[role="button"]'
                 ) as HTMLElement
 
-                // Fallback: Just click the first child if it exists, or the container's specialized wrapper
-                // Google renders an iframe wrapped in a div.
                 const firstChild = buttonRef.current
                   .firstElementChild as HTMLElement
 
                 if (nativeButton) {
+                  console.log('Clicking native button (div[role=button])')
                   nativeButton.click()
                 } else if (firstChild) {
+                  console.log('Clicking native button (firstChild)')
                   firstChild.click()
                 } else {
                   console.error(
-                    'Native Google button structure not found',
-                    buttonRef.current.innerHTML
+                    'Native Google button structure not found during click'
                   )
-                  throw new Error(
-                    'Native Google button not found. Please refresh the page.'
+                  onError?.(
+                    new Error('Google button not ready. Please refresh.')
                   )
                 }
               } else {
-                throw new Error('Button container not found')
+                console.error('Button container ref missing')
               }
             } catch (err) {
-              console.error('Google Sign-In Error:', err)
-              const error =
-                err instanceof Error
-                  ? err
-                  : new Error(
-                      'Google sign-in failed. Please check your configuration and Google Cloud Console settings.'
-                    )
-              onError?.(error)
+              console.error('Google Sign-In Click Error:', err)
+              onError?.(err as Error)
             }
           }}
           disabled={disabled || !isGoogleLoaded}
