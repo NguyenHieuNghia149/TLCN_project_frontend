@@ -41,7 +41,6 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
 
     const checkAndInit = () => {
       if (buttonRef.current && window.google?.accounts?.id) {
-        setIsGoogleLoaded(true)
         if (intervalRef.current) clearInterval(intervalRef.current)
 
         try {
@@ -70,6 +69,9 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
             width: width || buttonRef.current.offsetWidth || 300,
             logo_alignment,
           })
+
+          // Mark as loaded ONLY after successful init and render
+          setIsGoogleLoaded(true)
         } catch (err) {
           setIsGoogleLoaded(false)
           onError?.(err as Error)
@@ -166,14 +168,13 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
           className={`google-button google-button--${variant} google-button--${theme}`}
           onClick={async () => {
             try {
+              console.log('Google button clicked, checking readiness...')
               // Wait for Google API and native button to be ready
               await new Promise<void>((resolve, reject) => {
                 // If loaded, strict check if native button has content
-                if (
-                  window.google?.accounts?.id &&
-                  isGoogleLoaded &&
-                  buttonRef.current?.hasChildNodes()
-                ) {
+                if (window.google?.accounts?.id && isGoogleLoaded) {
+                  // We removed the strict hasChildNodes() check because renderButton is async/opaque
+                  // and sometimes valid even if DOM isn't fully populated instantly.
                   resolve()
                   return
                 }
@@ -181,42 +182,38 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
                 const maxWait = 5000
                 const startTime = Date.now()
                 const checkInterval = setInterval(() => {
-                  if (
-                    window.google?.accounts?.id &&
-                    isGoogleLoaded &&
-                    buttonRef.current?.hasChildNodes()
-                  ) {
+                  if (window.google?.accounts?.id && isGoogleLoaded) {
                     clearInterval(checkInterval)
                     resolve()
                   } else if (Date.now() - startTime > maxWait) {
                     clearInterval(checkInterval)
-                    // If simply no child nodes but loaded, try forced re-render logic or just reject
-                    reject(new Error('Google Button not ready (DOM missing)'))
+                    reject(new Error('Google Button not ready (timeout)'))
                   }
                 }, 100)
               })
 
               // Trigger click on the native Google button
               if (buttonRef.current) {
+                console.log('Attempting to click native button...')
                 // Try to find the specific clickable iframe/div Google renders
                 const nativeButton = buttonRef.current.querySelector(
                   'div[role="button"]'
                 ) as HTMLElement
 
-                // Fallback to searching deeper or for iframe
-                const iframe = buttonRef.current.querySelector('iframe')
+                // Fallback: Just click the first child if it exists, or the container's specialized wrapper
+                // Google renders an iframe wrapped in a div.
+                const firstChild = buttonRef.current
+                  .firstElementChild as HTMLElement
 
                 if (nativeButton) {
                   nativeButton.click()
-                } else if (iframe) {
-                  // If iframe exists but no role=button div found (rare), try to find clickable inside or click container
-                  // Note: You can't click internal iframe elements due to cross-origin,
-                  // but usually the wrapper div is clickable.
-                  // Let's try to click the first child div of container
-                  const wrapper = buttonRef.current
-                    .firstElementChild as HTMLElement
-                  if (wrapper) wrapper.click()
+                } else if (firstChild) {
+                  firstChild.click()
                 } else {
+                  console.error(
+                    'Native Google button structure not found',
+                    buttonRef.current.innerHTML
+                  )
                   throw new Error(
                     'Native Google button not found. Please refresh the page.'
                   )
@@ -225,6 +222,7 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
                 throw new Error('Button container not found')
               }
             } catch (err) {
+              console.error('Google Sign-In Error:', err)
               const error =
                 err instanceof Error
                   ? err
