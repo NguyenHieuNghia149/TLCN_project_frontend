@@ -124,7 +124,7 @@ const Profile: React.FC = () => {
       monthStarts.push({
         name: months[i],
         weekIndex: Math.max(0, weekIndex),
-        position: Math.max(0, weekIndex) * 16, // 14px cell + 2px gap
+        position: Math.max(0, weekIndex) * 14, // 11px cell + 3px gap
       })
     }
 
@@ -483,7 +483,8 @@ const Profile: React.FC = () => {
                     style={{
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '2px',
+                      gap: '3px',
+                      marginTop: '2px',
                       width: '35px',
                       flexShrink: 0,
                     }}
@@ -500,7 +501,7 @@ const Profile: React.FC = () => {
                       <div
                         key={`day-label-${day.index}`}
                         style={{
-                          height: '10px',
+                          height: '11px',
                           fontSize: '11px',
                           fontWeight: '500',
                           color: 'var(--muted-foreground)',
@@ -566,11 +567,6 @@ const Profile: React.FC = () => {
                                 <div
                                   key={`cell-${weekIdx}-${dayOfWeekIdx}`}
                                   className="contribution-cell--empty"
-                                  style={{
-                                    width: '10px',
-                                    height: '10px',
-                                    flexShrink: 0,
-                                  }}
                                 />
                               ) : (
                                 <div
@@ -580,11 +576,6 @@ const Profile: React.FC = () => {
                                     contributionCount
                                   )}
                                   title={tooltipText}
-                                  style={{
-                                    width: '10px',
-                                    height: '10px',
-                                    flexShrink: 0,
-                                  }}
                                 />
                               )
                             }

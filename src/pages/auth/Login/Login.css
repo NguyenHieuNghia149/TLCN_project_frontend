@@ -669,135 +669,16 @@
   }
 }
 
-/* Dark Mode Support (Premium Aesthetic) */
+/* Dark Mode Support (if needed) */
 @media (prefers-color-scheme: dark) {
-  /* Override global background with Deep Space Gradient */
-  .login-page {
-    background: linear-gradient(180deg, #020617 0%, #0f172a 100%);
-  }
-
-  /* Make background blobs more vibrant/visible against dark bg */
-  .login-page__blob--one {
-    background: linear-gradient(135deg, #7c3aed, #6d28d9); /* Purple/Violet */
-    opacity: 0.4;
-  }
-
-  .login-page__blob--two {
-    background: linear-gradient(135deg, #2563eb, #1e40af); /* Blue */
-    opacity: 0.4;
-  }
-
-  /* Glassmorphism Card for Dark Mode */
-  .login-card {
-    background: rgba(15, 23, 42, 0.6); /* Slate-900 with opacity */
-    backdrop-filter: blur(20px);
-    border-color: rgba(148, 163, 184, 0.1); /* Subtle border */
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); /* Stronger shadow */
-  }
-
-  /* Left side gradient adjustments */
-  .login-card__left {
-    background:
-      radial-gradient(
-        1000px 600px at -10% -20%,
-        rgba(124, 58, 237, 0.1),
-        transparent 60%
-      ),
-      radial-gradient(
-        1000px 600px at 120% 120%,
-        rgba(37, 99, 235, 0.1),
-        transparent 60%
-      );
-  }
-
-  .login-card__right {
-    background: transparent; /* Let the card background show through */
-  }
-
-  /* Form Elements */
-  .input-group input {
-    background: rgba(2, 6, 23, 0.5); /* Darker input bg */
-    border-color: rgba(148, 163, 184, 0.2);
-    color: #f8fafc;
-  }
-
-  .input-group input:focus {
-    background: rgba(2, 6, 23, 0.8);
-    border-color: rgb(var(--primary));
-  }
-
-  .login-form__header h2,
-  .login-hero__title {
-    color: #f8fafc; /* Ensure bright white text */
-  }
-
-  .login-form__header p,
-  .login-hero__desc {
-    color: #94a3b8; /* Slate-400 */
-  }
-
   .login-divider__line {
     background: linear-gradient(
       90deg,
       transparent 0%,
-      rgba(148, 163, 184, 0.2) 50%,
+      rgba(148, 163, 184, 0.15) 50%,
       transparent 100%
     );
   }
-}
-
-/* Force these styles if .dark class is present on body/html (for manual toggle) */
-:is(.dark) .login-page {
-  background: linear-gradient(180deg, #020617 0%, #0f172a 100%);
-}
-
-:is(.dark) .login-page__blob--one {
-  background: linear-gradient(135deg, #7c3aed, #6d28d9);
-  opacity: 0.4;
-}
-
-:is(.dark) .login-page__blob--two {
-  background: linear-gradient(135deg, #2563eb, #1e40af);
-  opacity: 0.4;
-}
-
-:is(.dark) .login-card {
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(20px);
-  border-color: rgba(148, 163, 184, 0.1);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-}
-
-:is(.dark) .login-card__right {
-  background: transparent;
-}
-
-:is(.dark) .login-card__left {
-  background:
-    radial-gradient(
-      1000px 600px at -10% -20%,
-      rgba(124, 58, 237, 0.1),
-      transparent 60%
-    ),
-    radial-gradient(
-      1000px 600px at 120% 120%,
-      rgba(37, 99, 235, 0.1),
-      transparent 60%
-    );
-}
-
-:is(.dark) .input-group input {
-  background: rgba(2, 6, 23, 0.5);
-  border-color: rgba(148, 163, 184, 0.2);
-  color: #f8fafc;
-}
-
-:is(.dark) .input-group input::placeholder {
-  color: rgba(148, 163, 184, 0.5);
-}
-
-:is(.dark) .input-group input:focus {
-  background: rgba(2, 6, 23, 0.8);
 }
 
 /* Animation for form elements */
