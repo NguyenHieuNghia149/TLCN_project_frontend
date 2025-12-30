@@ -186,3 +186,29 @@
     font-size: 1.25rem;
   }
 }
+
+/* Modern Dark Mode Styling */
+@media (prefers-color-scheme: dark) {
+  .otp-input {
+    background: rgba(26, 35, 50, 0.8);
+    border-color: rgba(148, 163, 184, 0.2);
+  }
+
+  .otp-input:focus {
+    background: rgba(26, 35, 50, 1);
+    border-color: rgb(var(--primary));
+    box-shadow: 0 0 0 3px rgba(var(--primary), 0.1);
+  }
+}
+
+/* Force dark mode styles when .dark class is present */
+:is(.dark) .otp-input {
+  background: rgba(26, 35, 50, 0.8);
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+:is(.dark) .otp-input:focus {
+  background: rgba(26, 35, 50, 1);
+  border-color: rgb(var(--primary));
+  box-shadow: 0 0 0 3px rgba(var(--primary), 0.1);
+}
