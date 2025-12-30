@@ -1,123 +1,117 @@
-/* @import 'tailwindcss/base';
-@import 'tailwindcss/components';
-@import 'tailwindcss/utilities'; */
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: light;
-  --background-color: #f8fafc;
-  --text-color: #0f172a;
-  --card-color: #ffffff;
-  /* Exam / editor tokens */
-  --exam-panel-bg: #ffffff;
-  --exam-toolbar-bg: #f3f4f6;
-  --editor-bg: #ffffff;
-  --muted-text: #6b7280;
-  --accent: #20d761;
-  --surface-border: #e5e7eb;
-  --focus-ring: rgba(32, 215, 97, 0.18);
-}
+@layer base {
+  :root {
+    /* Color Palette - Light Mode Default */
+    --background: 248 250 252; /* #f8fafc */
+    --foreground: 15 23 42; /* #0f172a */
 
-/* Support both dark class and data-theme attribute */
-.dark,
-[data-theme='dark'] {
-  color-scheme: dark;
-  --background-color: #121418;
-  --text-color: #f8fafc;
-  --card-color: #1f202a;
-  --exam-panel-bg: #0b0c10;
-  --exam-toolbar-bg: #0f1720;
-  --editor-bg: #0b0c10;
-  --muted-text: #9ca3af;
-  --accent: #20d761;
-  --surface-border: #27272a;
-  --focus-ring: rgba(32, 215, 97, 0.12);
-}
+    --card: 255 255 255; /* #ffffff */
+    --card-foreground: 15 23 42;
 
-.light,
-[data-theme='light'] {
-  color-scheme: light;
-  --background-color: #f8fafc;
-  --text-color: #0f172a;
-  --card-color: #ffffff;
+    --popover: 255 255 255;
+    --popover-foreground: 15 23 42;
+
+    --primary: 32 215 97; /* #20d761 */
+    --primary-foreground: 255 255 255;
+
+    --secondary: 241 245 249; /* #f1f5f9 */
+    --secondary-foreground: 15 23 42;
+
+    --muted: 241 245 249; /* #f1f5f9 */
+    --muted-foreground: 100 116 139; /* #64748b */
+
+    --accent: 241 245 249; /* #f1f5f9 */
+    --accent-foreground: 15 23 42;
+
+    --destructive: 239 68 68;
+    --destructive-foreground: 248 250 252;
+
+    --border: 226 232 240; /* #e2e8f0 */
+    --input: 226 232 240;
+    --ring: 32 215 97;
+
+    --radius: 0.5rem;
+
+    /* Custom App Specific */
+    --exam-panel-bg: 255 255 255;
+    --exam-toolbar-bg: 243 244 246; /* #f3f4f6 */
+    --editor-bg: 255 255 255;
+  }
+
+  .dark,
+  [data-theme='dark'] {
+    /* Color Palette - Dark Mode */
+    --background: 18 20 24; /* #121418 */
+    --foreground: 248 250 252; /* #f8fafc */
+
+    --card: 31 32 42; /* #1f202a */
+    --card-foreground: 248 250 252;
+
+    --popover: 18 20 24;
+    --popover-foreground: 248 250 252;
+
+    --primary: 32 215 97;
+    --primary-foreground: 255 255 255;
+
+    --secondary: 30 41 59; /* #1e293b */
+    --secondary-foreground: 248 250 252;
+
+    --muted: 30 41 59;
+    --muted-foreground: 148 163 184; /* #94a3b8 */
+
+    --accent: 30 41 59;
+    --accent-foreground: 248 250 252;
+
+    --destructive: 127 29 29;
+    --destructive-foreground: 248 250 252;
+
+    --border: 39 39 42; /* #27272a */
+    --input: 39 39 42;
+    --ring: 32 215 97;
+
+    /* Custom App Specific */
+    --exam-panel-bg: 11 12 16; /* #0b0c10 */
+    --exam-toolbar-bg: 15 23 32; /* #0f1720 */
+    --editor-bg: 11 12 16;
+  }
 }
 
 @layer base {
-  html {
-    @apply scroll-smooth;
+  * {
+    @apply border-border;
   }
-
   body {
-    @apply bg-white text-gray-900 dark:bg-gray-900 dark:text-white;
-    margin: 0;
-    min-height: 100vh;
-    background-color: var(--background-color);
-    color: var(--text-color);
-    transition:
-      background-color 200ms ease,
-      color 200ms ease;
-  }
-
-  html,
-  body,
-  #root {
-    height: 100%;
-    width: 100%;
+    @apply bg-background text-foreground transition-colors duration-200;
   }
 }
 
 @layer components {
-  .btn {
-    @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors duration-200;
-  }
+  /* Legacy class support mapping to new variables */
 
   .btn-primary {
-    @apply btn bg-primary-600 text-white hover:bg-primary-700;
+    @apply inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90;
   }
 
   .card {
-    @apply rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800;
+    @apply rounded-lg border border-border bg-card text-card-foreground shadow-sm;
   }
 
-  /* Exam / Editor specific styles */
+  /* Exam Panels */
   .exam-panel {
-    @apply flex flex-1 flex-col overflow-hidden rounded-md;
-    background-color: var(--exam-panel-bg);
-    color: var(--text-color);
-    border: 1px solid var(--surface-border);
-    transition:
-      background-color 180ms ease,
-      color 180ms ease,
-      border-color 180ms ease;
+    @apply flex flex-1 flex-col overflow-hidden rounded-md border border-border;
+    background-color: rgb(var(--exam-panel-bg));
   }
 
   .exam-toolbar {
-    @apply flex items-center justify-between px-3 py-2;
-    background-color: var(--exam-toolbar-bg);
-    border-bottom: 1px solid var(--surface-border);
+    @apply flex items-center justify-between border-b border-border px-3 py-2;
+    background-color: rgb(var(--exam-toolbar-bg));
   }
 
   .editor-area {
     @apply flex-1 overflow-hidden p-3;
-    background-color: var(--editor-bg);
-  }
-
-  .resize-handle {
-    height: 6px;
-    cursor: row-resize;
-    background-color: transparent;
-  }
-
-  .testcase-panel {
-    @apply flex flex-1 flex-col overflow-auto rounded-md p-3;
-    background-color: var(--exam-panel-bg);
-    border: 1px solid var(--surface-border);
-  }
-
-  .muted {
-    color: var(--muted-text);
+    background-color: rgb(var(--editor-bg));
   }
 }

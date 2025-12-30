@@ -119,9 +119,9 @@ const ChallengePage: React.FC = () => {
   }, [user, rankingPoint])
 
   return (
-    <div className="min-h-screen bg-[#121418] text-gray-100">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
-      <header className="border-b border-gray-800 bg-[#1f202a]">
+      <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div>
             <Breadcrumb
@@ -135,7 +135,7 @@ const ChallengePage: React.FC = () => {
           <div className="text-right">
             {isAuthenticated && user ? (
               <div className="flex flex-col items-end gap-2">
-                <div className="text-xs text-gray-400">
+                <div className="text-xs text-muted-foreground">
                   Keep going—every challenge boosts your position.
                 </div>
                 <div className="flex items-center gap-2">
@@ -149,7 +149,7 @@ const ChallengePage: React.FC = () => {
                         <div className="text-[10px] font-medium uppercase tracking-wider text-emerald-400/80">
                           Rank
                         </div>
-                        <div className="text-lg font-bold leading-none text-white">
+                        <div className="text-lg font-bold leading-none text-foreground">
                           {rankDisplay}
                         </div>
                       </div>
@@ -166,7 +166,7 @@ const ChallengePage: React.FC = () => {
                         <div className="text-[10px] font-medium uppercase tracking-wider text-amber-400/80">
                           Points
                         </div>
-                        <div className="text-lg font-bold leading-none text-white">
+                        <div className="text-lg font-bold leading-none text-foreground">
                           {rankingPointDisplay}
                         </div>
                       </div>
@@ -175,8 +175,8 @@ const ChallengePage: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-end gap-0.5 text-xs text-gray-400">
-                <span className="font-medium text-gray-300">
+              <div className="flex flex-col items-end gap-0.5 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">
                   Track your competitive progress.
                 </span>
                 <span>
@@ -196,10 +196,12 @@ const ChallengePage: React.FC = () => {
               <ChallengeCard key={challenge.id} challenge={challenge} />
             ))}
             {loading && (
-              <p className="py-4 text-center text-gray-500">Loading more...</p>
+              <p className="py-4 text-center text-muted-foreground">
+                Loading more...
+              </p>
             )}
             {!hasMore && (
-              <p className="py-4 text-center text-gray-500">
+              <p className="py-4 text-center text-muted-foreground">
                 No more challenges...
               </p>
             )}
@@ -213,7 +215,7 @@ const ChallengePage: React.FC = () => {
             </div>
 
             <div className="rounded-lg bg-transparent p-4">
-              <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-gray-400">
+              <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-muted-foreground">
                 Status
               </h3>
               <div className="space-y-3">
@@ -222,7 +224,7 @@ const ChallengePage: React.FC = () => {
                     type="checkbox"
                     checked={showSolved}
                     onChange={e => setShowSolved(e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-700 bg-gray-800 text-green-500 focus:ring-0 focus:ring-offset-0"
+                    className="h-4 w-4 rounded border-border bg-input text-green-500 focus:ring-0 focus:ring-offset-0"
                   />
                   <span className="text-sm">Solved</span>
                 </label>
@@ -239,7 +241,7 @@ const ChallengePage: React.FC = () => {
             </div>
 
             <div className="rounded-lg bg-transparent p-4">
-              <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-gray-400">
+              <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-muted-foreground">
                 Difficulty
               </h3>
               <div className="space-y-3">
@@ -274,7 +276,7 @@ const ChallengePage: React.FC = () => {
             </div>
 
             <div className="rounded-lg bg-transparent p-4">
-              <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-gray-400">
+              <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-muted-foreground">
                 Subdomains
               </h3>
               <div className="space-y-3">
@@ -295,14 +297,14 @@ const ChallengePage: React.FC = () => {
                               : [...prev, tag]
                           )
                         }
-                        className="h-4 w-4 rounded border-gray-700 bg-gray-800 text-green-500 focus:ring-0 focus:ring-offset-0"
+                        className="h-4 w-4 rounded border-border bg-input text-green-500 focus:ring-0 focus:ring-offset-0"
                       />
                       <span className="text-sm capitalize">{tag}</span>
                     </label>
                   )
                 })}
                 {availableTags.length === 0 && (
-                  <p className="text-sm text-gray-500">No tags</p>
+                  <p className="text-sm text-muted-foreground">No tags</p>
                 )}
               </div>
             </div>

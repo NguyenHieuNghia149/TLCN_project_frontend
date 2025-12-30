@@ -299,13 +299,7 @@ const ExamDetail: React.FC = () => {
   // const isInstructor = canManageExam(user, exam.createdBy)
 
   return (
-    <div
-      className="min-h-screen"
-      style={{
-        backgroundColor: 'var(--background-color)',
-        color: 'var(--text-color)',
-      }}
-    >
+    <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-6xl space-y-8 px-4 py-10">
         <div className="flex flex-wrap items-center gap-4">
           <Button
@@ -346,10 +340,7 @@ const ExamDetail: React.FC = () => {
           </p>
           <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h1
-                className="text-2xl font-semibold"
-                style={{ color: 'var(--text-color)' }}
-              >
+              <h1 className="text-2xl font-semibold text-foreground">
                 {exam.title}
               </h1>
               <p className="muted mt-2 text-sm">
@@ -375,22 +366,13 @@ const ExamDetail: React.FC = () => {
           </div>
         </section>
 
-        <section
-          className="rounded-lg border p-6"
-          style={{
-            borderColor: 'var(--surface-border)',
-            backgroundColor: 'var(--exam-panel-bg)',
-          }}
-        >
+        <section className="rounded-lg border border-border bg-card p-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="muted text-xs uppercase tracking-wider">
                 Exam playlist
               </p>
-              <h2
-                className="mt-2 text-lg font-semibold"
-                style={{ color: 'var(--text-color)' }}
-              >
+              <h2 className="mt-2 text-lg font-semibold text-foreground">
                 Challenges overview
               </h2>
             </div>
@@ -429,10 +411,7 @@ const ExamDetail: React.FC = () => {
                 style={{ borderColor: 'var(--surface-border)' }}
               >
                 <Lock size={36} style={{ color: '#10b981' }} />
-                <h3
-                  className="mt-4 text-lg font-semibold"
-                  style={{ color: 'var(--text-color)' }}
-                >
+                <h3 className="mt-4 text-lg font-semibold text-foreground">
                   Resume your session
                 </h3>
                 <p className="muted mt-2 text-sm">
@@ -459,10 +438,7 @@ const ExamDetail: React.FC = () => {
                 style={{ borderColor: 'var(--surface-border)' }}
               >
                 <Lock size={36} style={{ color: '#f59e0b' }} />
-                <h3
-                  className="mt-4 text-lg font-semibold"
-                  style={{ color: 'var(--text-color)' }}
-                >
+                <h3 className="mt-4 text-lg font-semibold text-foreground">
                   Enter password to preview challenges
                 </h3>
                 <p className="muted mt-2 text-sm">

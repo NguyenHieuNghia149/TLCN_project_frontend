@@ -119,7 +119,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
               { token: 'function', foreground: 'DCDCAA' },
             ],
             colors: {
-              'editor.background': '#1a1a1a',
+              'editor.background': '#0b0c10', // var(--editor-bg)
               'editor.foreground': '#d4d4d4',
               'editorLineNumber.foreground': '#858585',
               'editorLineNumber.activeForeground': '#d4d4d4',
