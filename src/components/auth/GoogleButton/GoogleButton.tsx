@@ -158,7 +158,10 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
       <div
         ref={buttonRef}
         className={`google-button-native ${variant !== 'default' ? 'google-button-native--hidden' : ''}`}
-        style={{ opacity: isGoogleLoaded && variant === 'default' ? 1 : 0 }}
+        // If variant is default, we show it fully. If hidden (overlay), we let CSS handle opacity (0.01)
+        style={{
+          display: variant === 'default' && !isGoogleLoaded ? 'none' : 'flex',
+        }}
       />
 
       {/* Custom Modern Button */}
@@ -166,48 +169,10 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
         <button
           ref={customButtonRef}
           className={`google-button google-button--${variant} google-button--${theme}`}
-          onClick={() => {
-            try {
-              console.log('Google button clicked. Ready state:', isGoogleLoaded)
-
-              if (!isGoogleLoaded) {
-                console.warn('Google Auth not yet loaded')
-                return
-              }
-
-              // Direct synchronous click to preserve User Activation for popups
-              if (buttonRef.current) {
-                const nativeButton = buttonRef.current.querySelector(
-                  'div[role="button"]'
-                ) as HTMLElement
-
-                const firstChild = buttonRef.current
-                  .firstElementChild as HTMLElement
-
-                if (nativeButton) {
-                  console.log('Clicking native button (div[role=button])')
-                  nativeButton.click()
-                } else if (firstChild) {
-                  console.log('Clicking native button (firstChild)')
-                  firstChild.click()
-                } else {
-                  console.error(
-                    'Native Google button structure not found during click'
-                  )
-                  onError?.(
-                    new Error('Google button not ready. Please refresh.')
-                  )
-                }
-              } else {
-                console.error('Button container ref missing')
-              }
-            } catch (err) {
-              console.error('Google Sign-In Click Error:', err)
-              onError?.(err as Error)
-            }
-          }}
           disabled={disabled || !isGoogleLoaded}
           type="button"
+          // No onClick needed - The native button overlay captures the click!
+          tabIndex={-1} // Remove from tab order since native button handles it
         >
           <div className="google-button__icon">
             <GoogleIcon />

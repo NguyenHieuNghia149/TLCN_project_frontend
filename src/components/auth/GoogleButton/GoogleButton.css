@@ -3,9 +3,11 @@
 .google-button-container {
   width: 100%;
   position: relative;
+  /* Ensure container dictates size */
+  min-height: 48px;
 }
 
-/* Native Google Button Wrapper */
+/* Native Google Button Wrapper - OVERLAY STRATEGY */
 .google-button-native {
   width: 100%;
   display: flex;
@@ -16,31 +18,24 @@
 
 .google-button-native--hidden {
   position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.01; /* Not 0, to avoid some browser optimizations skipping it */
+  z-index: 10; /* Above custom button */
   overflow: hidden;
-  z-index: -1;
-  /* Ensure it doesn't block clicks on other elements, BUT verify if programmatic clicks work */
-  pointer-events: none;
+  pointer-events: auto; /* Catch clicks */
 }
 
-/* Ensure the children (the actual button) are technically clickable if we target them directly? 
-   Actually, pointer-events: none on parent usually inherits. 
-   Let's force children to be auto just in case we need to click them. */
-.google-button-native--hidden > * {
-  pointer-events: auto;
-}
-
-/* Override Google's default button styles */
-.google-button-native > div {
+/* Ensure the children (the actual button) fill the space */
+.google-button-native--hidden > div,
+.google-button-native--hidden iframe {
   width: 100% !important;
-}
-
-.google-button-native iframe {
-  width: 100% !important;
-  height: 48px !important;
-  border-radius: 10px !important;
+  height: 100% !important;
+  /* Scale up slightly to ensure coverage if exact sizing fails */
+  transform: scale(1.05);
+  cursor: pointer;
 }
 
 /* Custom Google Button - Base Styles */
