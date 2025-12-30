@@ -742,6 +742,48 @@
   background: rgba(255, 255, 255, 0.8);
 }
 
+:is(.light) .login-hero {
+  color: #1e293b;
+}
+
+:is(.light) .login-hero__title {
+  color: #0f172a;
+}
+
+:is(.light) .login-hero__desc {
+  color: #475569;
+}
+
+:is(.light) .login-form__header h2 {
+  color: #0f172a;
+}
+
+:is(.light) .login-form__header p {
+  color: #64748b;
+}
+
+:is(.light) .form-field label {
+  color: #334155;
+}
+
+:is(.light) .input-group input {
+  color: #1e293b;
+  background: rgba(248, 250, 252, 0.8);
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+:is(.light) .input-group input::placeholder {
+  color: #94a3b8;
+}
+
+:is(.light) .checkbox {
+  color: #475569;
+}
+
+:is(.light) .form-footer {
+  color: #64748b;
+}
+
 /* Modern Dark Mode Styling */
 @media (prefers-color-scheme: dark) {
   .login-page {
