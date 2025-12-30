@@ -353,7 +353,7 @@
 /* Modern Dark Mode Styling */
 @media (prefers-color-scheme: dark) {
   .register-background {
-    background: linear-gradient(135deg, #0a0e1a 0%, #0f1420 100%);
+    background: #0a0a0f;
   }
 
   .register-card {
@@ -370,13 +370,13 @@
   .register-hero {
     background: linear-gradient(
       135deg,
-      rgba(26, 31, 55, 0.6) 0%,
-      rgba(15, 23, 41, 0.6) 100%
+      rgba(13, 71, 83, 0.9) 0%,
+      rgba(26, 35, 80, 0.9) 100%
     );
   }
 
   .register-form-section {
-    background: rgba(20, 27, 45, 0.8);
+    background: rgba(15, 15, 20, 0.95);
   }
 
   .code-window {
@@ -392,7 +392,7 @@
 
 /* Force dark mode styles when .dark class is present */
 :is(.dark) .register-background {
-  background: linear-gradient(135deg, #0a0e1a 0%, #0f1420 100%);
+  background: #0a0a0f;
 }
 
 :is(.dark) .register-card {
@@ -409,13 +409,13 @@
 :is(.dark) .register-hero {
   background: linear-gradient(
     135deg,
-    rgba(26, 31, 55, 0.6) 0%,
-    rgba(15, 23, 41, 0.6) 100%
+    rgba(13, 71, 83, 0.9) 0%,
+    rgba(26, 35, 80, 0.9) 100%
   );
 }
 
 :is(.dark) .register-form-section {
-  background: rgba(20, 27, 45, 0.8);
+  background: rgba(15, 15, 20, 0.95);
 }
 
 :is(.dark) .code-window {

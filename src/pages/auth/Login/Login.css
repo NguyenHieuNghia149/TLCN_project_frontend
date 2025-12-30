@@ -710,7 +710,7 @@
 /* Modern Dark Mode Styling */
 @media (prefers-color-scheme: dark) {
   .login-page {
-    background: linear-gradient(135deg, #0a0e1a 0%, #0f1420 100%);
+    background: #0a0a0f;
   }
 
   .login-page__blob--one {
@@ -743,13 +743,13 @@
   .login-card__left {
     background: linear-gradient(
       135deg,
-      rgba(26, 31, 55, 0.6) 0%,
-      rgba(15, 23, 41, 0.6) 100%
+      rgba(13, 71, 83, 0.9) 0%,
+      rgba(26, 35, 80, 0.9) 100%
     );
   }
 
   .login-card__right {
-    background: rgba(20, 27, 45, 0.8);
+    background: rgba(15, 15, 20, 0.95);
   }
 
   .input-group input {
@@ -774,7 +774,7 @@
 
 /* Force dark mode styles when .dark class is present */
 :is(.dark) .login-page {
-  background: linear-gradient(135deg, #0a0e1a 0%, #0f1420 100%);
+  background: #0a0a0f;
 }
 
 :is(.dark) .login-page__blob--one {
@@ -807,13 +807,13 @@
 :is(.dark) .login-card__left {
   background: linear-gradient(
     135deg,
-    rgba(26, 31, 55, 0.6) 0%,
-    rgba(15, 23, 41, 0.6) 100%
+    rgba(13, 71, 83, 0.9) 0%,
+    rgba(26, 35, 80, 0.9) 100%
   );
 }
 
 :is(.dark) .login-card__right {
-  background: rgba(20, 27, 45, 0.8);
+  background: rgba(15, 15, 20, 0.95);
 }
 
 :is(.dark) .input-group input {
