@@ -11,7 +11,8 @@
     height: 100%;
     margin: 0;
     padding: 0;
-    background: #0a0a0a;
+    background-color: rgb(var(--background));
+    color: rgb(var(--foreground));
     overflow-x: hidden;
     font-family:
       'Inter',
@@ -26,8 +27,8 @@
 /* Lessons Page Styles */
 .lessons-page {
   min-height: 100vh;
-  background: #0a0a0a;
-  color: #ffffff;
+  background-color: rgb(var(--background));
+  color: rgb(var(--foreground));
 }
 
 .lessons-container {
@@ -44,7 +45,7 @@
 .lessons-title {
   font-size: 3rem;
   font-weight: 800;
-  color: #ffffff;
+  color: rgb(var(--foreground));
   margin-bottom: 1rem;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
@@ -54,7 +55,7 @@
 
 .lessons-subtitle {
   font-size: 1.25rem;
-  color: #9ca3af;
+  color: rgb(var(--muted-foreground));
   max-width: 600px;
   margin: 0 auto;
   line-height: 1.6;
@@ -68,8 +69,8 @@
 }
 
 .tabs-list {
-  background: rgba(17, 24, 39, 0.8);
-  border: 1px solid rgba(55, 65, 81, 0.3);
+  background: rgb(var(--card) / 0.8);
+  border: 1px solid rgb(var(--border));
   border-radius: 12px;
   padding: 4px;
   backdrop-filter: blur(10px);
@@ -83,21 +84,21 @@
   border-radius: 8px;
   font-weight: 500;
   transition: all 0.2s ease;
-  color: #9ca3af;
+  color: rgb(var(--muted-foreground));
   background: transparent;
   border: none;
   cursor: pointer;
 }
 
 .tab-trigger:hover {
-  color: #ffffff;
-  background: rgba(55, 65, 81, 0.3);
+  color: rgb(var(--foreground));
+  background: rgb(var(--accent) / 0.5);
 }
 
 .tab-trigger[data-state='active'] {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #ffffff;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  background: rgb(var(--primary));
+  color: rgb(var(--primary-foreground));
+  box-shadow: 0 4px 12px rgba(32, 215, 151, 0.3);
 }
 
 .tab-icon {
@@ -128,13 +129,13 @@
 .category-title {
   font-size: 2.5rem;
   font-weight: 700;
-  color: #ffffff;
+  color: rgb(var(--foreground));
   margin-bottom: 0.5rem;
 }
 
 .category-subtitle {
   font-size: 1.125rem;
-  color: #9ca3af;
+  color: rgb(var(--muted-foreground));
   line-height: 1.6;
 }
 
@@ -145,7 +146,7 @@
   padding: 0;
   background: none;
   border: none;
-  color: #667eea;
+  color: rgb(var(--primary));
   font-size: 0.95rem;
   font-weight: 500;
   cursor: pointer;
@@ -157,7 +158,7 @@
 }
 
 .see-more-link:hover {
-  color: #764ba2;
+  color: rgb(var(--primary) / 0.8);
   transform: translateX(4px);
 }
 
@@ -184,25 +185,26 @@
   top: 50%;
   transform: translateY(-50%);
   z-index: 10;
-  background: rgba(102, 126, 234, 0.9);
-  color: white;
+  background: rgb(var(--primary) / 0.9);
+  color: rgb(var(--primary-foreground));
   border: none;
   width: 48px;
   height: 48px;
   border-radius: 50%;
+  border: 1px solid rgb(var(--border));
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.3s ease;
   backdrop-filter: blur(10px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .scroll-button:hover {
-  background: rgba(102, 126, 234, 1);
+  background: rgb(var(--primary));
   transform: translateY(-50%) scale(1.1);
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 .scroll-button-left {
@@ -214,8 +216,8 @@
 }
 
 .course-card {
-  background: rgba(17, 24, 39, 0.6);
-  border: 1px solid rgba(55, 65, 81, 0.3);
+  background: rgb(var(--card) / 0.8);
+  border: 1px solid rgb(var(--border));
   border-radius: 16px;
   overflow: hidden;
   transition: all 0.3s ease;
@@ -229,8 +231,8 @@
 
 .course-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(102, 126, 234, 0.5);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  border-color: rgb(var(--primary) / 0.5);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 }
 
 .course-image {
@@ -253,8 +255,8 @@
   inset: 0;
   background: linear-gradient(
     135deg,
-    rgba(102, 126, 234, 0.8) 0%,
-    rgba(118, 75, 162, 0.8) 100%
+    rgb(var(--primary) / 0.2) 0%,
+    rgb(var(--primary) / 0.4) 100%
   );
 }
 
@@ -296,6 +298,7 @@
   color: #ffffff;
   font-size: 0.875rem;
   font-weight: 500;
+  z-index: 1;
 }
 
 .course-favorite-button {
@@ -314,6 +317,7 @@
   cursor: pointer;
   transition: all 0.3s ease;
   backdrop-filter: blur(10px);
+  z-index: 10;
 }
 
 .course-favorite-button:hover {
@@ -333,7 +337,7 @@
 .course-title {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #ffffff;
+  color: rgb(var(--foreground));
   margin-bottom: 0.75rem;
   line-height: 1.4;
   overflow: hidden;
@@ -345,7 +349,7 @@
 }
 
 .course-description {
-  color: #9ca3af;
+  color: rgb(var(--muted-foreground));
   font-size: 0.875rem;
   line-height: 1.6;
   margin-bottom: 1rem;
@@ -371,8 +375,8 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #ffffff;
+  background: rgb(var(--primary));
+  color: rgb(var(--primary-foreground));
   border: none;
   border-radius: 8px;
   font-size: 0.875rem;
@@ -383,7 +387,8 @@
 
 .course-button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  opacity: 0.9;
 }
 
 /* Lessons Placeholder */
@@ -395,13 +400,13 @@
 .lessons-placeholder-title {
   font-size: 2rem;
   font-weight: 700;
-  color: #ffffff;
+  color: rgb(var(--foreground));
   margin-bottom: 1rem;
 }
 
 .lessons-placeholder-subtitle {
   font-size: 1.125rem;
-  color: #9ca3af;
+  color: rgb(var(--muted-foreground));
   margin-bottom: 2rem;
   max-width: 500px;
   margin-left: auto;
@@ -409,8 +414,8 @@
 }
 
 .lessons-placeholder-card {
-  background: rgba(17, 24, 39, 0.6);
-  border: 1px solid rgba(55, 65, 81, 0.3);
+  background: rgb(var(--card) / 0.6);
+  border: 1px solid rgb(var(--border) / 0.3);
   border-radius: 12px;
   padding: 3rem;
   backdrop-filter: blur(10px);
@@ -419,7 +424,7 @@
 }
 
 .lessons-placeholder-text {
-  color: #6b7280;
+  color: rgb(var(--muted-foreground));
   font-size: 1rem;
 }
 
