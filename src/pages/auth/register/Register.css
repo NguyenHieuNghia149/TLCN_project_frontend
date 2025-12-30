@@ -349,3 +349,81 @@
     font-size: 1rem;
   }
 }
+
+/* Modern Dark Mode Styling */
+@media (prefers-color-scheme: dark) {
+  .register-background {
+    background: linear-gradient(135deg, #0a0e1a 0%, #0f1420 100%);
+  }
+
+  .register-card {
+    background: linear-gradient(
+      135deg,
+      rgba(26, 31, 55, 0.95) 0%,
+      rgba(20, 27, 45, 0.95) 100%
+    );
+    box-shadow:
+      0 25px 50px -12px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(148, 163, 184, 0.1);
+  }
+
+  .register-hero {
+    background: linear-gradient(
+      135deg,
+      rgba(26, 31, 55, 0.6) 0%,
+      rgba(15, 23, 41, 0.6) 100%
+    );
+  }
+
+  .register-form-section {
+    background: rgba(20, 27, 45, 0.8);
+  }
+
+  .code-window {
+    background: rgba(15, 20, 32, 0.9);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+  }
+
+  .code-window__header {
+    background: rgba(26, 31, 55, 0.6);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  }
+}
+
+/* Force dark mode styles when .dark class is present */
+:is(.dark) .register-background {
+  background: linear-gradient(135deg, #0a0e1a 0%, #0f1420 100%);
+}
+
+:is(.dark) .register-card {
+  background: linear-gradient(
+    135deg,
+    rgba(26, 31, 55, 0.95) 0%,
+    rgba(20, 27, 45, 0.95) 100%
+  );
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(148, 163, 184, 0.1);
+}
+
+:is(.dark) .register-hero {
+  background: linear-gradient(
+    135deg,
+    rgba(26, 31, 55, 0.6) 0%,
+    rgba(15, 23, 41, 0.6) 100%
+  );
+}
+
+:is(.dark) .register-form-section {
+  background: rgba(20, 27, 45, 0.8);
+}
+
+:is(.dark) .code-window {
+  background: rgba(15, 20, 32, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+:is(.dark) .code-window__header {
+  background: rgba(26, 31, 55, 0.6);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
