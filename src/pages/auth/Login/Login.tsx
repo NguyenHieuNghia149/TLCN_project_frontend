@@ -207,8 +207,7 @@ const Login: React.FC = () => {
                   onSuccess={handleGoogleSuccess}
                   onError={handleGoogleError}
                   text="continue_with"
-                  variant="minimal"
-                  theme="filled_black"
+                  variant="modern"
                   size="large"
                   disabled={loginLoading || sessionLoading}
                 />
