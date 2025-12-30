@@ -34,6 +34,9 @@ const ExamDetail: React.FC = () => {
   const reduxParticipationId = useSelector(
     (s: RootState) => s.exam?.currentParticipationId
   )
+  const reduxParticipationExamId = useSelector(
+    (s: RootState) => s.exam?.currentParticipationExamId
+  )
   const reduxStartAt = useSelector(
     (s: RootState) => s.exam?.currentParticipationStartAt
   )
@@ -132,6 +135,7 @@ const ExamDetail: React.FC = () => {
                     dispatch(
                       setParticipation({
                         participationId: partId,
+                        examId: apiExam.id, // Set exam scope
                         startAt: startAtValue,
                         expiresAt: serverExpires ?? null,
                         currentChallengeId,
@@ -213,6 +217,7 @@ const ExamDetail: React.FC = () => {
           dispatch(
             setParticipation({
               participationId,
+              examId: exam.id,
               startAt: startAtValue,
               expiresAt: expiresAtRaw ?? null,
             })
@@ -415,8 +420,10 @@ const ExamDetail: React.FC = () => {
               </Button>
             </div>
           ) : !isVerified ? (
-            // If user has a resumed session available, show a Continue CTA instead of password verify
-            reduxParticipationId && remainingSeconds > 0 ? (
+            // If user has a resumed session available AND IT BELONGS TO THIS EXAM, show a Continue CTA
+            reduxParticipationId &&
+            reduxParticipationExamId === exam.id &&
+            remainingSeconds > 0 ? (
               <div
                 className="mt-6 flex flex-col items-center justify-center rounded-md border-dashed p-6 text-center"
                 style={{ borderColor: 'var(--surface-border)' }}
