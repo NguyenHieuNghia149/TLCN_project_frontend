@@ -233,7 +233,7 @@ const BookmarksPage: React.FC = () => {
           <div className="text-right">
             {isAuthenticated && user ? (
               <div className="flex flex-col items-end gap-2">
-                <div className="text-xs text-gray-400">
+                <div className="text-xs text-muted-foreground">
                   Keep going—every challenge boosts your position.
                 </div>
                 <div className="flex items-center gap-2">
@@ -241,13 +241,13 @@ const BookmarksPage: React.FC = () => {
                   <div className="group relative overflow-hidden rounded-lg border border-emerald-500/30 bg-gradient-to-br from-emerald-500/5 to-transparent px-3 py-2 transition-all duration-300 hover:border-emerald-400/50 hover:shadow-md hover:shadow-emerald-500/20">
                     <div className="flex items-center gap-2">
                       <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 transition-transform duration-300 group-hover:scale-110">
-                        <Trophy className="h-4 w-4 text-emerald-400" />
+                        <Trophy className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                       </div>
                       <div>
-                        <div className="text-[10px] font-medium uppercase tracking-wider text-emerald-400/80">
+                        <div className="text-[10px] font-medium uppercase tracking-wider text-emerald-600/80 dark:text-emerald-400/80">
                           Rank
                         </div>
-                        <div className="text-lg font-bold leading-none text-white">
+                        <div className="text-lg font-bold leading-none text-foreground">
                           {rankDisplay}
                         </div>
                       </div>
@@ -258,13 +258,13 @@ const BookmarksPage: React.FC = () => {
                   <div className="group relative overflow-hidden rounded-lg border border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-transparent px-3 py-2 transition-all duration-300 hover:border-amber-400/50 hover:shadow-md hover:shadow-amber-500/20">
                     <div className="flex items-center gap-2">
                       <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-600/10 transition-transform duration-300 group-hover:scale-110">
-                        <Sparkles className="h-4 w-4 text-amber-400" />
+                        <Sparkles className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                       </div>
                       <div>
-                        <div className="text-[10px] font-medium uppercase tracking-wider text-amber-400/80">
+                        <div className="text-[10px] font-medium uppercase tracking-wider text-amber-600/80 dark:text-amber-400/80">
                           Points
                         </div>
-                        <div className="text-lg font-bold leading-none text-white">
+                        <div className="text-lg font-bold leading-none text-foreground">
                           {rankingPointDisplay}
                         </div>
                       </div>
@@ -387,7 +387,7 @@ const BookmarksPage: React.FC = () => {
                       type="checkbox"
                       checked={difficulties.includes('medium')}
                       onChange={() => toggleDifficulty('medium')}
-                      className="h-4 w-4 rounded border-gray-700 bg-gray-800 text-green-500 focus:ring-0 focus:ring-offset-0"
+                      className="h-4 w-4 rounded border-border bg-input text-green-500 focus:ring-0 focus:ring-offset-0"
                     />
                     <span className="text-sm">Medium</span>
                   </label>
@@ -396,7 +396,7 @@ const BookmarksPage: React.FC = () => {
                       type="checkbox"
                       checked={difficulties.includes('hard')}
                       onChange={() => toggleDifficulty('hard')}
-                      className="h-4 w-4 rounded border-gray-700 bg-gray-800 text-green-500 focus:ring-0 focus:ring-offset-0"
+                      className="h-4 w-4 rounded border-border bg-input text-green-500 focus:ring-0 focus:ring-offset-0"
                     />
                     <span className="text-sm">Hard</span>
                   </label>
