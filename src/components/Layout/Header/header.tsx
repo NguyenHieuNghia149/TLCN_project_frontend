@@ -102,7 +102,7 @@ const Header: React.FC = () => {
                   <MessageCircle className="h-5 w-5" />
                 </button>
                 <NotificationDropdown />
-                <NotificationDropdown />
+
                 <button
                   className="nav-icon text-foreground transition-colors hover:text-foreground"
                   onClick={toggleTheme}

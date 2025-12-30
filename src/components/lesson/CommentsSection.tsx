@@ -175,7 +175,7 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
     return (
       <div
         key={comment.id}
-        className="rounded-lg border border-gray-700 bg-[#252730] p-4 transition-colors hover:border-gray-600"
+        className="rounded-lg border border-border bg-card p-4 transition-colors hover:border-border/80"
       >
         {/* User Info */}
         <div className="mb-3 flex items-center justify-between">
@@ -187,17 +187,17 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
                 className="h-8 w-8 rounded-full object-cover"
               />
             ) : (
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600">
-                <span className="text-xs font-semibold text-white">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary">
+                <span className="text-xs font-semibold text-primary-foreground">
                   {getUserNameFromUser(user).charAt(0).toUpperCase()}
                 </span>
               </div>
             )}
             <div>
-              <p className="font-medium text-white">
+              <p className="font-medium text-foreground">
                 {getUserNameFromUser(user)}
               </p>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-muted-foreground">
                 {formatDate(comment.createdAt)}
               </p>
             </div>
@@ -209,7 +209,7 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
               {auth.user?.id === comment.userId && (
                 <button
                   onClick={() => handleEdit(comment.id, comment.content)}
-                  className="rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-700 hover:text-yellow-400"
+                  className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-yellow-400"
                   title="Edit"
                   disabled={editingId !== null}
                 >
@@ -218,7 +218,7 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
               )}
               <button
                 onClick={() => handleDelete(comment.id)}
-                className="rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-700 hover:text-red-400"
+                className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
                 title="Delete"
                 disabled={editingId !== null}
               >
@@ -232,7 +232,7 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
         {isEditing ? (
           <div className="space-y-3">
             <textarea
-              className="w-full rounded-lg border border-blue-500 bg-[#1a1b23] px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-lg border border-primary bg-input px-3 py-2 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               rows={2}
               value={editingContent}
               onChange={e => setEditingContent(e.target.value)}
@@ -240,14 +240,14 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setEditingId(null)}
-                className="rounded px-3 py-1 text-sm text-gray-400 transition-colors hover:bg-gray-700"
+                className="rounded px-3 py-1 text-sm text-muted-foreground transition-colors hover:bg-muted"
                 disabled={submitting}
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleSaveEdit(comment.id)}
-                className="rounded bg-blue-600 px-3 py-1 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                className="rounded bg-primary px-3 py-1 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                 disabled={submitting || !editingContent.trim()}
               >
                 Save
@@ -255,7 +255,9 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
             </div>
           </div>
         ) : (
-          <p className="whitespace-pre-wrap text-gray-200">{comment.content}</p>
+          <p className="whitespace-pre-wrap text-foreground">
+            {comment.content}
+          </p>
         )}
 
         {/* Reply Button */}
@@ -264,7 +266,7 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
             {replyingTo !== comment.id ? (
               <button
                 onClick={() => setReplyingTo(comment.id)}
-                className="inline-flex items-center gap-1 text-sm text-blue-400 transition-colors hover:text-blue-300"
+                className="inline-flex items-center gap-1 text-sm text-primary transition-colors hover:text-primary/80"
               >
                 <ReplyIcon className="h-4 w-4" />
                 Reply
@@ -272,7 +274,7 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
             ) : (
               <button
                 onClick={() => setReplyingTo(null)}
-                className="inline-flex items-center gap-1 text-sm text-gray-400 transition-colors hover:text-gray-300"
+                className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
               >
                 Cancel
               </button>
@@ -282,10 +284,10 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
 
         {/* Replies */}
         {!parentId && commentReplies.length > 0 && (
-          <div className="mt-4 space-y-3 border-t border-gray-700 pt-4">
+          <div className="mt-4 space-y-3 border-t border-border pt-4">
             <button
               onClick={() => toggleReplies(comment.id)}
-              className="flex items-center gap-2 text-sm text-gray-400 transition-colors hover:text-gray-300"
+              className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               {expandedReplies.has(comment.id) ? (
                 <>
@@ -303,7 +305,7 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
             </button>
 
             {expandedReplies.has(comment.id) && (
-              <div className="space-y-3 border-l-2 border-gray-700 pl-4">
+              <div className="space-y-3 border-l-2 border-border pl-4">
                 {commentReplies.map(reply =>
                   renderCommentItem(reply, comment.id)
                 )}
@@ -316,10 +318,10 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
         {replyingTo === comment.id && (
           <form
             onSubmit={e => handleReply(e, comment.id)}
-            className="mt-4 space-y-3 border-t border-gray-700 pt-4"
+            className="mt-4 space-y-3 border-t border-border pt-4"
           >
             <textarea
-              className="w-full rounded-lg border border-gray-700 bg-[#1a1b23] px-3 py-2 text-white placeholder-gray-500 transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-lg border border-border bg-input px-3 py-2 text-foreground placeholder-muted-foreground transition-colors focus:border-primary focus:outline-none focus:ring-1 focus:ring-ring"
               rows={2}
               value={replyContent}
               onChange={e => setReplyContent(e.target.value)}
@@ -330,14 +332,14 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
               <button
                 type="button"
                 onClick={() => setReplyingTo(null)}
-                className="rounded px-3 py-1 text-sm text-gray-400 transition-colors hover:bg-gray-700"
+                className="rounded px-3 py-1 text-sm text-muted-foreground transition-colors hover:bg-muted"
                 disabled={submitting}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="inline-flex items-center gap-2 rounded bg-blue-600 px-3 py-1 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded bg-primary px-3 py-1 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                 disabled={submitting || !replyContent.trim()}
               >
                 <Send className="h-3 w-3" />
@@ -351,11 +353,11 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
   }
 
   return (
-    <section className="mt-10 rounded-lg border border-gray-800 bg-[#1a1b23] p-6">
+    <section className="mt-10 rounded-lg border border-border bg-card p-6 shadow-sm">
       {/* Header */}
       <div className="mb-6 flex items-center gap-3">
-        <MessageCircle className="h-5 w-5 text-blue-400" />
-        <h3 className="text-xl font-semibold text-white">
+        <MessageCircle className="h-5 w-5 text-primary" />
+        <h3 className="text-xl font-semibold text-foreground">
           Comments (
           {comments.reduce(
             (acc, c) => acc + 1 + (c as CommentWithReplies).replies.length,
@@ -369,7 +371,7 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
       {auth.isAuthenticated ? (
         <form onSubmit={handleSubmit} className="mb-6">
           <textarea
-            className="w-full rounded-lg border border-gray-700 bg-[#252730] px-4 py-3 text-white placeholder-gray-500 transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded-lg border border-border bg-input px-4 py-3 text-foreground placeholder-muted-foreground transition-colors focus:border-primary focus:outline-none focus:ring-1 focus:ring-ring"
             rows={3}
             value={content}
             onChange={e => setContent(e.target.value)}
@@ -378,7 +380,7 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
           />
           <div className="mt-3 flex justify-end">
             <button
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
               type="submit"
               disabled={submitting || !content.trim()}
             >
@@ -388,9 +390,9 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
           </div>
         </form>
       ) : (
-        <div className="mb-6 rounded-lg border border-gray-700 bg-[#252730] p-4 text-center">
-          <p className="text-gray-400">
-            <a href="/login" className="text-blue-400 hover:underline">
+        <div className="mb-6 rounded-lg border border-border bg-muted/50 p-4 text-center">
+          <p className="text-muted-foreground">
+            <a href="/login" className="text-primary hover:underline">
               Log in
             </a>{' '}
             to post comments.
@@ -401,12 +403,12 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
       {/* Comments List */}
       {loading ? (
         <div className="py-8 text-center">
-          <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
+          <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
         </div>
       ) : comments.length === 0 ? (
-        <div className="rounded-lg border border-gray-700 bg-[#252730] p-8 text-center">
-          <MessageCircle className="mx-auto h-8 w-8 text-gray-600 opacity-50" />
-          <p className="mt-2 text-gray-500">
+        <div className="rounded-lg border border-border bg-muted/30 p-8 text-center">
+          <MessageCircle className="mx-auto h-8 w-8 text-muted-foreground opacity-50" />
+          <p className="mt-2 text-muted-foreground">
             No comments yet. Be the first to comment!
           </p>
         </div>

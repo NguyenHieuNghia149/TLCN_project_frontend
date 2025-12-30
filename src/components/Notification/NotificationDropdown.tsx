@@ -33,7 +33,7 @@ const NotificationDropdown: React.FC = () => {
   }, [])
 
   // Fetch initial notifications
-  const fetchNotifications = async () => {
+  const fetchNotifications = React.useCallback(async () => {
     if (!user) return
     try {
       const data = await notificationService.getMyNotifications(20, 0)
@@ -48,13 +48,13 @@ const NotificationDropdown: React.FC = () => {
     } catch (error) {
       console.error('Error fetching notifications:', error)
     }
-  }
+  }, [user])
 
   useEffect(() => {
     if (user) {
       fetchNotifications()
     }
-  }, [user])
+  }, [user, fetchNotifications])
 
   // WebSocket connection
   useEffect(() => {
@@ -133,11 +133,11 @@ const NotificationDropdown: React.FC = () => {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="nav-icon relative text-white transition-colors hover:text-gray-300 focus:outline-none"
+        className="nav-icon relative text-foreground transition-colors hover:text-muted-foreground focus:outline-none"
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-1 ring-black">
+          <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-1 ring-background">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -150,53 +150,53 @@ const NotificationDropdown: React.FC = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="absolute right-0 z-50 mt-2 w-80 origin-top-right overflow-hidden rounded-xl border border-gray-700 bg-[#1e1e1e] shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none"
+            className="absolute right-0 z-50 mt-2 w-80 origin-top-right overflow-hidden rounded-xl border border-border bg-card shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none"
           >
-            <div className="flex items-center justify-between border-b border-gray-700 px-4 py-3">
-              <h3 className="text-sm font-semibold text-white">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <h3 className="text-sm font-semibold text-foreground">
                 Notifications
               </h3>
               {unreadCount > 0 && (
                 <button
                   onClick={handleMarkAllRead}
-                  className="text-xs font-medium text-[#20d761] hover:text-green-400 focus:outline-none"
+                  className="text-xs font-medium text-green-500 hover:text-green-600 focus:outline-none"
                 >
                   Mark all as read
                 </button>
               )}
             </div>
 
-            <div className="scrollbar-thin scrollbar-thumb-gray-600 max-h-[400px] overflow-y-auto">
+            <div className="scrollbar-thin scrollbar-thumb-muted max-h-[400px] overflow-y-auto">
               {notifications.length === 0 ? (
-                <div className="flex h-32 flex-col items-center justify-center text-gray-400">
+                <div className="flex h-32 flex-col items-center justify-center text-muted-foreground">
                   <Bell className="mb-2 h-8 w-8 opacity-20" />
                   <span className="text-sm">No notifications</span>
                 </div>
               ) : (
-                <ul className="divide-y divide-gray-700">
+                <ul className="divide-y divide-border">
                   {notifications.map(notification => (
                     <li
                       key={notification.id}
                       onClick={() => handleNotificationClick(notification)}
-                      className={`group relative cursor-pointer px-4 py-3 transition-colors hover:bg-gray-800 ${
-                        !notification.isRead ? 'bg-[#2a2a2a]' : ''
+                      className={`group relative cursor-pointer px-4 py-3 transition-colors hover:bg-accent ${
+                        !notification.isRead ? 'bg-accent/50' : ''
                       }`}
                     >
                       <div className="flex items-start space-x-3">
                         <div
-                          className={`mt-1 h-2 w-2 flex-shrink-0 rounded-full ${!notification.isRead ? 'bg-[#20d761]' : 'bg-transparent'}`}
+                          className={`mt-1 h-2 w-2 flex-shrink-0 rounded-full ${!notification.isRead ? 'bg-green-500' : 'bg-transparent'}`}
                         />
                         <div className="min-w-0 flex-1">
                           <p
-                            className={`text-sm ${!notification.isRead ? 'font-semibold text-white' : 'text-gray-300'}`}
+                            className={`text-sm ${!notification.isRead ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}
                           >
                             {notification.title}
                           </p>
-                          <p className="mt-0.5 line-clamp-2 text-xs text-gray-400">
+                          <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
                             {notification.message}
                           </p>
                           <div className="mt-1 flex items-center justify-between">
-                            <span className="text-[10px] text-gray-500">
+                            <span className="text-[10px] text-muted-foreground">
                               {formatDistanceToNow(
                                 new Date(notification.createdAt),
                                 { addSuffix: true }
@@ -211,7 +211,7 @@ const NotificationDropdown: React.FC = () => {
                               onClick={e =>
                                 handleMarkAsRead(notification.id, e)
                               }
-                              className="rounded-full p-1 text-gray-400 hover:bg-gray-700 hover:text-[#20d761]"
+                              className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-green-500"
                               title="Mark as read"
                             >
                               <Check className="h-3 w-3" />
@@ -225,10 +225,10 @@ const NotificationDropdown: React.FC = () => {
               )}
             </div>
 
-            <div className="border-t border-gray-700 bg-[#252525] px-4 py-2 text-center">
+            <div className="border-t border-border bg-card/50 px-4 py-2 text-center">
               <button
                 onClick={() => setIsOpen(false)}
-                className="text-xs text-gray-400 hover:text-white"
+                className="text-xs text-muted-foreground hover:text-foreground"
               >
                 Close
               </button>
