@@ -320,62 +320,90 @@
   .contribution-week {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
+  }
+
+  /* Contribution Colors - CSS Variables for easy theming */
+  :root {
+    --color-level-0: #ebedf0;
+    --color-level-1: #9be9a8;
+    --color-level-2: #40c463;
+    --color-level-3: #30a14e;
+    --color-level-4: #216e39;
+  }
+
+  /* Dark Mode Variables - using .dark class */
+  :is(.dark) {
+    --color-level-0: #161b22;
+    --color-level-1: #0e4429;
+    --color-level-2: #006d32;
+    --color-level-3: #26a641;
+    --color-level-4: #39d353;
   }
 
   /* Contribution Grid Styles */
   .contribution-cell {
+    width: 11px;
+    height: 11px;
     border-radius: 2px;
     cursor: pointer;
     transition: all 0.2s ease;
-    /* Default (Light Mode) GitHub Colors */
-    background-color: #ebedf0; /* level 0 */
+    background-color: var(--color-level-0);
+  }
+
+  .contribution-cell--empty {
+    width: 11px;
+    height: 11px;
+    border-radius: 2px;
+    background-color: transparent;
+    opacity: 0;
   }
 
   /* Levels */
   .contribution-cell[data-level='0'] {
-    background-color: #ebedf0;
+    background-color: var(--color-level-0);
   }
   .contribution-cell[data-level='1'] {
-    background-color: #9be9a8;
+    background-color: var(--color-level-1);
   }
   .contribution-cell[data-level='2'] {
-    background-color: #40c463;
+    background-color: var(--color-level-2);
   }
   .contribution-cell[data-level='3'] {
-    background-color: #30a14e;
+    background-color: var(--color-level-3);
   }
   .contribution-cell[data-level='4'] {
-    background-color: #216e39;
+    background-color: var(--color-level-4);
   }
 
   /* Hover effect */
   .contribution-cell:hover {
-    transform: scale(1.1);
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    transform: scale(1.2);
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
+    z-index: 10;
   }
 
   /* Legend Box matches cells */
   .legend-box {
-    width: 10px;
-    height: 10px;
+    width: 11px;
+    height: 11px;
     border-radius: 2px;
     display: inline-block;
   }
   .legend-box[data-level='0'] {
-    background-color: #ebedf0;
+    background-color: var(--color-level-0);
   }
   .legend-box[data-level='1'] {
-    background-color: #9be9a8;
+    background-color: var(--color-level-1);
   }
   .legend-box[data-level='2'] {
-    background-color: #40c463;
+    background-color: var(--color-level-2);
   }
   .legend-box[data-level='3'] {
-    background-color: #30a14e;
+    background-color: var(--color-level-3);
   }
   .legend-box[data-level='4'] {
-    background-color: #216e39;
+    background-color: var(--color-level-4);
   }
 
   /* Dark Mode Overrides (GitHub Dark) */
@@ -443,7 +471,8 @@
     }
 
     .contribution-cell,
-    .legend-box {
+    .legend-box,
+    .contribution-cell--empty {
       width: 10px;
       height: 10px;
     }
