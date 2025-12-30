@@ -35,9 +35,14 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
 
     googleAuthService.initGoogleAuth()
 
-    const timer = setTimeout(() => {
+    const intervalRef = { current: null as NodeJS.Timeout | null }
+    let attempts = 0
+    const maxAttempts = 50 // 5 seconds total
+
+    const checkAndInit = () => {
       if (buttonRef.current && window.google?.accounts?.id) {
         setIsGoogleLoaded(true)
+        if (intervalRef.current) clearInterval(intervalRef.current)
 
         try {
           const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
@@ -69,10 +74,24 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
           setIsGoogleLoaded(false)
           onError?.(err as Error)
         }
+      } else {
+        attempts++
+        if (attempts >= maxAttempts) {
+          if (intervalRef.current) clearInterval(intervalRef.current)
+          console.warn('Google Sign-In script failed to load within timeout.')
+        }
       }
-    }, 500) // Increased delay to ensure Google API is loaded
+    }
 
-    return () => clearTimeout(timer)
+    // Check immediately first
+    checkAndInit()
+
+    // Then poll
+    intervalRef.current = setInterval(checkAndInit, 100)
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
   }, [onSuccess, onError, text, theme, size, width, logo_alignment, disabled])
 
   const getButtonText = () => {
