@@ -198,9 +198,9 @@ const Index = () => {
                   type="checkbox"
                   checked={showFavorites}
                   onChange={e => setShowFavorites(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-700 bg-gray-800 text-yellow-500 focus:ring-0 focus:ring-offset-0"
+                  className="h-4 w-4 rounded border-border bg-input text-yellow-500 focus:ring-0 focus:ring-offset-0"
                 />
-                <span className="text-sm text-gray-300">
+                <span className="text-sm text-muted-foreground">
                   Show Favorites Only
                 </span>
               </label>
@@ -208,12 +208,12 @@ const Index = () => {
 
             {Object.keys(filteredLessons).length === 0 ? (
               <div className="py-8 text-center">
-                <h2 className="mb-2 text-xl font-semibold text-gray-600">
+                <h2 className="mb-2 text-xl font-semibold text-muted-foreground">
                   {showFavorites
                     ? 'No Favorite Lessons'
                     : 'No Lessons Available'}
                 </h2>
-                <p className="text-gray-500">
+                <p className="text-muted-foreground">
                   {showFavorites
                     ? "You haven't favorited any lessons yet."
                     : 'There are no lessons in the database yet.'}
