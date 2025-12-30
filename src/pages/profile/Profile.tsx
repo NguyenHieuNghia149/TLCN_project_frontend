@@ -152,15 +152,13 @@ const Profile: React.FC = () => {
     return { startDate, totalDays, weeksNeeded }
   }
 
-  // Get color based on contribution count
-  const getContributionColor = (count: number): string => {
-    // We can use CSS variables or specific hexes that work for dark mode.
-    // Ideally these should adapt. For now, let's keep green shades but ensure empty is dynamic.
-    if (count === 0) return 'var(--muted)' // adapted from #161b22
-    if (count === 1) return '#0e4429'
-    if (count === 2) return '#006d32'
-    if (count === 3) return '#26a641'
-    return '#39d353'
+  // Determine contribution level (0-4)
+  const getContributionLevel = (count: number): number => {
+    if (count === 0) return 0
+    if (count <= 1) return 1
+    if (count <= 2) return 2
+    if (count <= 4) return 3
+    return 4
   }
 
   // Format date for tooltip
@@ -502,7 +500,7 @@ const Profile: React.FC = () => {
                       <div
                         key={`day-label-${day.index}`}
                         style={{
-                          height: '14px',
+                          height: '10px',
                           fontSize: '11px',
                           fontWeight: '500',
                           color: 'var(--muted-foreground)',
@@ -523,7 +521,7 @@ const Profile: React.FC = () => {
                     style={{
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '2px',
+                      gap: '3px' /* Increased gap for better definition */,
                     }}
                   >
                     {/* Generate 7 rows for 7 days of week (Mon-Sun) */}
@@ -535,7 +533,7 @@ const Profile: React.FC = () => {
                       return (
                         <div
                           key={`row-${dayOfWeekIdx}`}
-                          style={{ display: 'flex', gap: '2px' }}
+                          style={{ display: 'flex', gap: '3px' }}
                         >
                           {/* Generate weeks up to today */}
                           {Array.from({ length: weeksNeeded }).map(
@@ -564,25 +562,29 @@ const Profile: React.FC = () => {
                                   )
                                 : ''
 
-                              return (
+                              return isAfterToday ? (
                                 <div
                                   key={`cell-${weekIdx}-${dayOfWeekIdx}`}
+                                  className="contribution-cell--empty"
                                   style={{
-                                    width: '14px',
-                                    height: '14px',
-                                    backgroundColor: isAfterToday
-                                      ? 'transparent'
-                                      : getContributionColor(contributionCount),
-                                    borderRadius: '2px',
+                                    width: '10px',
+                                    height: '10px',
                                     flexShrink: 0,
-                                    cursor: !isAfterToday
-                                      ? 'pointer'
-                                      : 'default',
-                                    border: isAfterToday
-                                      ? '1px solid rgba(255,255,255,0.1)'
-                                      : 'none',
                                   }}
+                                />
+                              ) : (
+                                <div
+                                  key={`cell-${weekIdx}-${dayOfWeekIdx}`}
+                                  className="contribution-cell"
+                                  data-level={getContributionLevel(
+                                    contributionCount
+                                  )}
                                   title={tooltipText}
+                                  style={{
+                                    width: '10px',
+                                    height: '10px',
+                                    flexShrink: 0,
+                                  }}
                                 />
                               )
                             }
@@ -600,28 +602,28 @@ const Profile: React.FC = () => {
                 <div className="legend-items">
                   <div
                     className="legend-box"
+                    data-level="0"
                     title="No contributions"
-                    style={{ backgroundColor: 'var(--muted)' }}
                   />
                   <div
                     className="legend-box"
-                    title="1-2 contributions"
-                    style={{ backgroundColor: '#0e4429' }}
+                    data-level="1"
+                    title="1 contribution"
                   />
                   <div
                     className="legend-box"
+                    data-level="2"
+                    title="2 contributions"
+                  />
+                  <div
+                    className="legend-box"
+                    data-level="3"
                     title="3-4 contributions"
-                    style={{ backgroundColor: '#006d32' }}
                   />
                   <div
                     className="legend-box"
-                    title="5-7 contributions"
-                    style={{ backgroundColor: '#26a641' }}
-                  />
-                  <div
-                    className="legend-box"
-                    title="8+ contributions"
-                    style={{ backgroundColor: '#39d353' }}
+                    data-level="4"
+                    title="5+ contributions"
                   />
                 </div>
                 <span className="legend-text">More</span>

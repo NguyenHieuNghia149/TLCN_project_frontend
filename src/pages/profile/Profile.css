@@ -323,54 +323,118 @@
     gap: 4px;
   }
 
+  /* Contribution Grid Styles */
   .contribution-cell {
-    width: 13px;
-    height: 13px;
     border-radius: 2px;
     cursor: pointer;
     transition: all 0.2s ease;
-    border: 1px solid rgba(55, 65, 81, 0.2);
+    /* Default (Light Mode) GitHub Colors */
+    background-color: #ebedf0; /* level 0 */
   }
 
+  /* Levels */
+  .contribution-cell[data-level='0'] {
+    background-color: #ebedf0;
+  }
+  .contribution-cell[data-level='1'] {
+    background-color: #9be9a8;
+  }
+  .contribution-cell[data-level='2'] {
+    background-color: #40c463;
+  }
+  .contribution-cell[data-level='3'] {
+    background-color: #30a14e;
+  }
+  .contribution-cell[data-level='4'] {
+    background-color: #216e39;
+  }
+
+  /* Hover effect */
   .contribution-cell:hover {
-    border-color: rgba(102, 126, 234, 0.8);
-    box-shadow: 0 0 8px rgba(102, 126, 234, 0.4);
-    transform: scale(1.5);
+    transform: scale(1.1);
+    border: 1px solid rgba(0, 0, 0, 0.1);
   }
 
-  /* Contribution Legend */
-  .contribution-legend {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
-    padding-top: 1rem;
-    border-top: 1px solid rgba(55, 65, 81, 0.3);
-    font-size: 0.75rem;
-  }
-
-  .legend-text {
-    color: #9ca3af;
-    font-weight: 500;
-  }
-
-  .legend-items {
-    display: flex;
-    gap: 4px;
-  }
-
+  /* Legend Box matches cells */
   .legend-box {
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     border-radius: 2px;
-    border: 1px solid rgba(55, 65, 81, 0.3);
-    cursor: pointer;
-    transition: all 0.2s ease;
+    display: inline-block;
+  }
+  .legend-box[data-level='0'] {
+    background-color: #ebedf0;
+  }
+  .legend-box[data-level='1'] {
+    background-color: #9be9a8;
+  }
+  .legend-box[data-level='2'] {
+    background-color: #40c463;
+  }
+  .legend-box[data-level='3'] {
+    background-color: #30a14e;
+  }
+  .legend-box[data-level='4'] {
+    background-color: #216e39;
   }
 
-  .legend-box:hover {
-    border-color: rgba(102, 126, 234, 0.8);
-    box-shadow: 0 0 4px rgba(102, 126, 234, 0.4);
+  /* Dark Mode Overrides (GitHub Dark) */
+  @media (prefers-color-scheme: dark) {
+    /* Level 0 - Empty */
+    .contribution-cell[data-level='0'],
+    .legend-box[data-level='0'] {
+      background-color: #161b22;
+    }
+
+    /* Level 1 */
+    .contribution-cell[data-level='1'],
+    .legend-box[data-level='1'] {
+      background-color: #0e4429;
+    }
+
+    /* Level 2 */
+    .contribution-cell[data-level='2'],
+    .legend-box[data-level='2'] {
+      background-color: #006d32;
+    }
+
+    /* Level 3 */
+    .contribution-cell[data-level='3'],
+    .legend-box[data-level='3'] {
+      background-color: #26a641;
+    }
+
+    /* Level 4 */
+    .contribution-cell[data-level='4'],
+    .legend-box[data-level='4'] {
+      background-color: #39d353;
+    }
+  }
+
+  /* Manual Dark Mode Override (.dark class) */
+  :is(.dark) .contribution-cell[data-level='0'],
+  :is(.dark) .legend-box[data-level='0'] {
+    background-color: #161b22;
+  }
+
+  :is(.dark) .contribution-cell[data-level='1'],
+  :is(.dark) .legend-box[data-level='1'] {
+    background-color: #0e4429;
+  }
+
+  :is(.dark) .contribution-cell[data-level='2'],
+  :is(.dark) .legend-box[data-level='2'] {
+    background-color: #006d32;
+  }
+
+  :is(.dark) .contribution-cell[data-level='3'],
+  :is(.dark) .legend-box[data-level='3'] {
+    background-color: #26a641;
+  }
+
+  :is(.dark) .contribution-cell[data-level='4'],
+  :is(.dark) .legend-box[data-level='4'] {
+    background-color: #39d353;
   }
 
   @media (max-width: 768px) {
@@ -378,11 +442,7 @@
       font-size: 0.7rem;
     }
 
-    .contribution-cell {
-      width: 10px;
-      height: 10px;
-    }
-
+    .contribution-cell,
     .legend-box {
       width: 10px;
       height: 10px;
