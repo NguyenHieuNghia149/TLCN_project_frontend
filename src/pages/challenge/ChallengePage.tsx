@@ -233,7 +233,7 @@ const ChallengePage: React.FC = () => {
                     type="checkbox"
                     checked={showFavorites}
                     onChange={e => setShowFavorites(e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-700 bg-gray-800 text-green-500 focus:ring-0 focus:ring-offset-0"
+                    className="h-4 w-4 rounded border-border bg-input text-green-500 focus:ring-0 focus:ring-offset-0"
                   />
                   <span className="text-sm">Favorites</span>
                 </label>
@@ -250,7 +250,7 @@ const ChallengePage: React.FC = () => {
                     type="checkbox"
                     checked={difficulties.includes('easy')}
                     onChange={() => toggleDifficulty('easy')}
-                    className="h-4 w-4 rounded border-gray-700 bg-gray-800 text-green-500 focus:ring-0 focus:ring-offset-0"
+                    className="h-4 w-4 rounded border-border bg-input text-green-500 focus:ring-0 focus:ring-offset-0"
                   />
                   <span className="text-sm">Easy</span>
                 </label>
@@ -259,7 +259,7 @@ const ChallengePage: React.FC = () => {
                     type="checkbox"
                     checked={difficulties.includes('medium')}
                     onChange={() => toggleDifficulty('medium')}
-                    className="h-4 w-4 rounded border-gray-700 bg-gray-800 text-green-500 focus:ring-0 focus:ring-offset-0"
+                    className="h-4 w-4 rounded border-border bg-input text-green-500 focus:ring-0 focus:ring-offset-0"
                   />
                   <span className="text-sm">Medium</span>
                 </label>
@@ -268,7 +268,7 @@ const ChallengePage: React.FC = () => {
                     type="checkbox"
                     checked={difficulties.includes('hard')}
                     onChange={() => toggleDifficulty('hard')}
-                    className="h-4 w-4 rounded border-gray-700 bg-gray-800 text-green-500 focus:ring-0 focus:ring-offset-0"
+                    className="h-4 w-4 rounded border-border bg-input text-green-500 focus:ring-0 focus:ring-offset-0"
                   />
                   <span className="text-sm">Hard</span>
                 </label>

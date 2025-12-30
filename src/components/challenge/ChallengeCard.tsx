@@ -41,7 +41,7 @@ const ChallengeCard: React.FC<Props> = ({ challenge, onFavoriteToggle }) => {
   }
 
   return (
-    <div className="rounded-xl border border-gray-800 bg-[#1f202a] p-5 transition-colors hover:border-gray-700 hover:bg-[#373741]">
+    <div className="rounded-xl border border-border bg-card p-5 transition-colors hover:border-gray-500 hover:shadow-md">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <h3 className="mb-1 text-lg font-semibold">{challenge.title}</h3>

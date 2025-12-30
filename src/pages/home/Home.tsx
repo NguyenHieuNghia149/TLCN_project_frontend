@@ -142,7 +142,7 @@ const ContinuePracticeCard: React.FC<ContinuePracticeCardProps> = ({
 
         {/* Progress text */}
 
-        <div className="continue-practice-card-percentage flex items-center gap-2 text-muted-foreground">
+        <div className="continue-practice-card-percentage flex items-center gap-2 text-foreground">
           <p>{percentage}%</p>
           <p className="continue-practice-card-subtitle">
             ({progress}/{total} {subtitle})

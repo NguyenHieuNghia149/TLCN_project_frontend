@@ -4,8 +4,8 @@
   padding: 0 48px;
   font-family: 'Satoshi', sans-serif;
   display: flex;
-  background-color: #121418;
-  border-bottom: 1px solid #1e1f29;
+  background-color: rgb(var(--card));
+  border-bottom: 1px solid rgb(var(--border));
   flex-shrink: 0;
 }
 
@@ -27,7 +27,7 @@
   align-items: center;
   justify-content: center;
   padding: 0 24px;
-  color: #9091ab; // Light gray for inactive items
+  color: rgb(var(--muted-foreground)); // Light gray for inactive items
   font-size: 14px;
   font-weight: 500;
   position: relative;
@@ -36,13 +36,13 @@
   white-space: nowrap;
 
   &:hover {
-    color: #ffffff;
+    color: rgb(var(--foreground));
     font-weight: 500;
   }
 
   // Active state - white text with green underline
   &.active {
-    color: #ffffff;
+    color: rgb(var(--foreground));
     font-weight: 700;
     // border-bottom: 4px solid #2ec866;
     // margin-bottom: 4px;
@@ -53,7 +53,7 @@
       left: 0;
       right: 0;
       height: 4px;
-      background-color: #10b981; // Green color
+      background-color: rgb(var(--primary)); // Green color
       border-radius: 2px 2px 0 0;
     }
   }
@@ -69,7 +69,7 @@
   justify-content: center;
   border-radius: 10px; // full circle
   &:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgb(var(--accent));
     transform: scale(1.05);
     border-color: transparent;
   }
@@ -92,7 +92,7 @@
 .header-separator {
   width: 2px;
   height: 14px;
-  background-color: #797888; // gray-600
+  background-color: rgb(var(--border)); // gray-600
   margin: 0 20px;
 }
 
@@ -104,8 +104,8 @@
 
 // Profile dropdown menu
 .profile-menu {
-  background: #2a2f3a;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgb(var(--card));
+  border: 1px solid rgb(var(--border));
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   border-radius: 10px;
   padding: 8px 0;
@@ -131,7 +131,7 @@
     text-align: left;
     padding: 0 16px;
     background: transparent; // transparent by default
-    color: #e5e7eb;
+    color: rgb(var(--foreground));
     font-size: 14px;
     border: none;
     cursor: pointer;
@@ -142,8 +142,8 @@
   }
 
   &__item:hover {
-    background: rgba(148, 163, 184, 0.4); // slightly darker on hover
-    color: #ffffff;
+    background: rgb(var(--accent)); // slightly darker on hover
+    color: rgb(var(--foreground));
   }
 
   &__item:focus,
