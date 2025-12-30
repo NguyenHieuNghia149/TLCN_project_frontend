@@ -94,17 +94,13 @@
 
 /* Card */
 .register-card {
-  background: linear-gradient(
-    135deg,
-    rgba(15, 23, 42, 0.7),
-    rgba(15, 23, 42, 0.9)
-  );
+  background: rgb(var(--card));
   backdrop-filter: blur(20px);
   border-radius: 24px;
   overflow: hidden;
   box-shadow:
-    0 25px 50px -12px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(148, 163, 184, 0.1);
+    0 25px 50px -12px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgb(var(--border));
   display: grid;
   grid-template-columns: 1fr 1fr;
   min-height: 700px;
@@ -127,12 +123,12 @@
   background:
     radial-gradient(
       800px 600px at 0% 0%,
-      rgba(124, 58, 237, 0.15),
+      rgb(var(--primary) / 0.15),
       transparent 50%
     ),
     radial-gradient(
       600px 800px at 100% 100%,
-      rgba(37, 99, 235, 0.15),
+      rgb(var(--accent) / 0.15),
       transparent 50%
     );
   pointer-events: none;
@@ -148,10 +144,10 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background: rgba(124, 58, 237, 0.15);
-  border: 1px solid rgba(124, 58, 237, 0.3);
+  background: rgb(var(--primary) / 0.15);
+  border: 1px solid rgb(var(--primary) / 0.3);
   border-radius: 999px;
-  color: #c4b5fd;
+  color: rgb(var(--primary));
   font-size: 0.875rem;
   font-weight: 600;
   margin-bottom: 2rem;
@@ -162,7 +158,11 @@
   font-weight: 800;
   line-height: 1.1;
   margin: 0 0 1.5rem 0;
-  background: linear-gradient(135deg, #fff 0%, #c4b5fd 100%);
+  background: linear-gradient(
+    135deg,
+    rgb(var(--foreground)) 0%,
+    rgb(var(--primary)) 100%
+  );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -171,7 +171,7 @@
 .register-hero__description {
   font-size: 1.125rem;
   line-height: 1.7;
-  color: #94a3b8;
+  color: rgb(var(--muted-foreground));
   margin: 0 0 3rem 0;
   max-width: 400px;
 }
@@ -186,7 +186,7 @@
   display: flex;
   align-items: center;
   gap: 1rem;
-  color: #cbd5e1;
+  color: rgb(var(--foreground));
   font-size: 1rem;
 }
 
@@ -196,10 +196,10 @@
   justify-content: center;
   width: 40px;
   height: 40px;
-  background: rgba(124, 58, 237, 0.15);
-  border: 1px solid rgba(124, 58, 237, 0.3);
+  background: rgb(var(--primary) / 0.15);
+  border: 1px solid rgb(var(--primary) / 0.3);
   border-radius: 0.5rem;
-  color: #c4b5fd;
+  color: rgb(var(--primary));
   flex-shrink: 0;
 }
 
@@ -211,19 +211,19 @@
 }
 
 .code-window {
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgb(var(--card));
+  border: 1px solid rgb(var(--border));
   border-radius: 0.75rem;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 }
 
 .code-window__header {
   display: flex;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
-  background: rgba(15, 23, 42, 0.9);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  background: rgb(var(--muted) / 0.3);
+  border-bottom: 1px solid rgb(var(--border));
 }
 
 .dot {
@@ -250,7 +250,7 @@
 
 .code-line {
   margin-bottom: 0.5rem;
-  color: #cbd5e1;
+  color: rgb(var(--foreground));
 }
 
 .code-keyword {
@@ -272,7 +272,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(2, 6, 23, 0.6);
+  background: rgb(var(--card));
 }
 
 .register-form-wrapper {
@@ -285,19 +285,19 @@
 .register-footer {
   margin-top: 2rem;
   text-align: center;
-  color: #94a3b8;
+  color: rgb(var(--muted-foreground));
   font-size: 0.938rem;
 }
 
 .register-link {
-  color: #c4b5fd;
+  color: rgb(var(--primary));
   font-weight: 600;
   text-decoration: none;
   transition: color 0.2s;
 }
 
 .register-link:hover {
-  color: #e9d5ff;
+  color: rgb(var(--primary) / 0.8);
   text-decoration: underline;
 }
 
