@@ -91,6 +91,10 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
+      // Clean up Google One Tap/Button state on unmount
+      if (window.google?.accounts?.id) {
+        window.google.accounts.id.cancel()
+      }
     }
   }, [onSuccess, onError, text, theme, size, width, logo_alignment, disabled])
 
@@ -164,7 +168,12 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
             try {
               // Wait for Google API and native button to be ready
               await new Promise<void>((resolve, reject) => {
-                if (window.google?.accounts?.id && isGoogleLoaded) {
+                // If loaded, strict check if native button has content
+                if (
+                  window.google?.accounts?.id &&
+                  isGoogleLoaded &&
+                  buttonRef.current?.hasChildNodes()
+                ) {
                   resolve()
                   return
                 }
@@ -172,42 +181,45 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
                 const maxWait = 5000
                 const startTime = Date.now()
                 const checkInterval = setInterval(() => {
-                  if (window.google?.accounts?.id && isGoogleLoaded) {
+                  if (
+                    window.google?.accounts?.id &&
+                    isGoogleLoaded &&
+                    buttonRef.current?.hasChildNodes()
+                  ) {
                     clearInterval(checkInterval)
                     resolve()
                   } else if (Date.now() - startTime > maxWait) {
                     clearInterval(checkInterval)
-                    const currentOrigin = window.location.origin
-                    reject(
-                      new Error(
-                        `Google API failed to load. ` +
-                          `Please ensure "${currentOrigin}" is added to Authorized JavaScript origins in Google Cloud Console. ` +
-                          `Also check that VITE_GOOGLE_CLIENT_ID is set correctly in .env file.`
-                      )
-                    )
+                    // If simply no child nodes but loaded, try forced re-render logic or just reject
+                    reject(new Error('Google Button not ready (DOM missing)'))
                   }
                 }, 100)
               })
 
               // Trigger click on the native Google button
               if (buttonRef.current) {
+                // Try to find the specific clickable iframe/div Google renders
                 const nativeButton = buttonRef.current.querySelector(
                   'div[role="button"]'
                 ) as HTMLElement
+
+                // Fallback to searching deeper or for iframe
+                const iframe = buttonRef.current.querySelector('iframe')
+
                 if (nativeButton) {
                   nativeButton.click()
+                } else if (iframe) {
+                  // If iframe exists but no role=button div found (rare), try to find clickable inside or click container
+                  // Note: You can't click internal iframe elements due to cross-origin,
+                  // but usually the wrapper div is clickable.
+                  // Let's try to click the first child div of container
+                  const wrapper = buttonRef.current
+                    .firstElementChild as HTMLElement
+                  if (wrapper) wrapper.click()
                 } else {
-                  // Fallback: try to find any clickable element in the native button container
-                  const clickableElement = buttonRef.current.querySelector(
-                    '*'
-                  ) as HTMLElement
-                  if (clickableElement) {
-                    clickableElement.click()
-                  } else {
-                    throw new Error(
-                      'Native Google button not found. Please refresh the page.'
-                    )
-                  }
+                  throw new Error(
+                    'Native Google button not found. Please refresh the page.'
+                  )
                 }
               } else {
                 throw new Error('Button container not found')
