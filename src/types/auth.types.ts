@@ -20,8 +20,8 @@ export interface LoginCredentials {
 export interface RegisterData {
   email: string
   password: string
-  firstname: string
-  lastname: string
+  firstName: string
+  lastName: string
   passwordConfirm: string
   otp: string
 }
