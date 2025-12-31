@@ -66,6 +66,17 @@
   background-color: rgb(var(--muted) / 0.5);
 }
 
+/* Override browser autofill background colors */
+.input-field:-webkit-autofill,
+.input-field:-webkit-autofill:hover,
+.input-field:-webkit-autofill:focus,
+.input-field:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px rgb(var(--input)) inset !important;
+  -webkit-text-fill-color: rgb(var(--foreground)) !important;
+  box-shadow: 0 0 0 1000px rgb(var(--input)) inset !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
 .input-field.input-error {
   border-color: rgb(var(--destructive) / 0.6);
 }

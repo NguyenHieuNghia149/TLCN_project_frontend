@@ -82,9 +82,9 @@ const RegisterForm: React.FC = () => {
         break
       case 'password':
         if (!value) return 'Password is required'
-        if (value.length < 6) return 'Must be at least 6 characters'
-        if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(value)) {
-          return 'Must contain uppercase, lowercase, and number'
+        if (value.length < 8) return 'Must be at least 8 characters'
+        if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/.test(value)) {
+          return 'Must contain uppercase, lowercase, number, and special character (@$!%*?&)'
         }
         break
       case 'passwordConfirm':

@@ -258,8 +258,8 @@ export const registerUser = createAsyncThunk<
       email: data.email,
       password: data.password,
       passwordConfirm: data.password,
-      firstname: data.firstname,
-      lastname: data.lastname,
+      firstName: data.firstname,
+      lastName: data.lastname,
       otp: data.otp,
     }
     await authService.register(payload)
