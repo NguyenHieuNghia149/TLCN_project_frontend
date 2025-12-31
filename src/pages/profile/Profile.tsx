@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useProfile } from '../../hooks/api/useProfile'
 import { UpdateProfileData } from '../../services/api/profile.service'
 import '../../pages/profile/Profile.css'
@@ -6,6 +6,7 @@ import { API_CONFIG } from '../../config/api.config'
 import { tokenManager } from '../../services/auth/token.service'
 import { submissionsService } from '../../services/api/submissions.service'
 import type { SubmissionDetail } from '../../types/submission.types'
+import AvatarCropper from '../../components/common/AvatarCropper'
 
 const Profile: React.FC = () => {
   const { profile, loading, error, updateProfile, refetch } = useProfile()
@@ -19,6 +20,10 @@ const Profile: React.FC = () => {
   const [contributionData, setContributionData] = useState<Map<string, number>>(
     new Map()
   )
+  const [showCropper, setShowCropper] = useState(false)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
 
   // Parse names for display
   const firstName = profile?.firstName || 'User'
@@ -222,6 +227,68 @@ const Profile: React.FC = () => {
     setUpdateError(null)
   }
 
+  // Handle avatar file selection
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setUpdateError('Vui lòng chọn file ảnh hợp lệ')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setUpdateError('Kích thước file không được vượt quá 5MB')
+      return
+    }
+
+    // Create preview URL
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setAvatarPreview(reader.result as string)
+      setShowCropper(true)
+    }
+    reader.onerror = () => {
+      setUpdateError('Không thể đọc file ảnh')
+    }
+    reader.readAsDataURL(file)
+  }
+
+  // Handle cropped avatar
+  const handleCroppedAvatar = async (croppedImageBlob: Blob) => {
+    setIsUploadingAvatar(true)
+    setUpdateError(null)
+    setShowCropper(false)
+
+    try {
+      // Convert blob to File
+      const croppedFile = new File([croppedImageBlob], 'avatar.jpg', {
+        type: 'image/jpeg',
+      })
+
+      // Upload to server
+      const avatarUrl = await uploadAvatar(croppedFile)
+
+      // Update profile with new avatar URL
+      await updateProfile({ avatar: avatarUrl })
+      await refetch()
+
+      // Reset preview and input
+      setAvatarPreview(null)
+      if (avatarInputRef.current) {
+        avatarInputRef.current.value = ''
+      }
+    } catch (err) {
+      setUpdateError(
+        err instanceof Error ? err.message : 'Không thể tải lên avatar'
+      )
+    } finally {
+      setIsUploadingAvatar(false)
+    }
+  }
+
   // Upload avatar file to server; server should return cloudinary url
   const uploadAvatar = async (file: File): Promise<string> => {
     try {
@@ -280,14 +347,6 @@ const Profile: React.FC = () => {
       // Get form values
       const firstName = (formData.get('firstName') as string)?.trim()
       const lastName = (formData.get('lastName') as string)?.trim()
-      // Get file from input element (more reliable)
-      const avatarInput = form.elements.namedItem(
-        'avatar'
-      ) as HTMLInputElement | null
-      const avatarFile =
-        avatarInput?.files && avatarInput.files.length > 0
-          ? (avatarInput.files[0] as File)
-          : null
       const gender = (formData.get('gender') as string)?.trim()
       const dateOfBirthValue = (formData.get('dateOfBirth') as string)?.trim()
 
@@ -298,19 +357,7 @@ const Profile: React.FC = () => {
       if (lastName) {
         updateData.lastName = lastName
       }
-      // If user selected a new avatar file, upload it first and use returned URL
-      if (avatarFile && avatarFile.size) {
-        try {
-          const uploadUrl = await uploadAvatar(avatarFile)
-          if (uploadUrl) updateData.avatar = uploadUrl
-        } catch (upErr) {
-          throw new Error(
-            upErr instanceof Error
-              ? upErr.message
-              : 'Avatar upload failed - please try again'
-          )
-        }
-      }
+      // Avatar is handled separately via cropper
       if (
         gender &&
         (gender === 'male' || gender === 'female' || gender === 'other')
@@ -725,7 +772,25 @@ const Profile: React.FC = () => {
               </label>
               <label>
                 <span>Avatar</span>
-                <input name="avatar" type="file" accept="image/*" />
+                <input
+                  ref={avatarInputRef}
+                  name="avatar"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarFileChange}
+                  disabled={isUploadingAvatar}
+                />
+                {isUploadingAvatar && (
+                  <div
+                    style={{
+                      marginTop: '8px',
+                      fontSize: '0.875rem',
+                      color: 'rgb(var(--muted-foreground))',
+                    }}
+                  >
+                    Đang tải lên avatar...
+                  </div>
+                )}
               </label>
               <label>
                 <span>Gender</span>
@@ -770,6 +835,21 @@ const Profile: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Avatar Cropper Modal */}
+      {showCropper && avatarPreview && (
+        <AvatarCropper
+          imageSrc={avatarPreview}
+          onCropComplete={handleCroppedAvatar}
+          onCancel={() => {
+            setShowCropper(false)
+            setAvatarPreview(null)
+            if (avatarInputRef.current) {
+              avatarInputRef.current.value = ''
+            }
+          }}
+        />
       )}
     </div>
   )

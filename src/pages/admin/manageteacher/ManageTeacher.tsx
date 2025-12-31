@@ -14,12 +14,7 @@ import {
   DatePicker,
 } from 'antd'
 import type { TablePaginationConfig } from 'antd/es/table'
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  UserOutlined,
-} from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, UserOutlined } from '@ant-design/icons'
 import { apiClient } from '@/config/axios.config'
 import dayjs from 'dayjs'
 
@@ -73,7 +68,7 @@ const ManageTeacher: React.FC = () => {
   const [editing, setEditing] = useState<UserItem | null>(null)
   const [form] = Form.useForm()
 
-  const { modal, notification } = App.useApp()
+  const { notification } = App.useApp()
 
   const fetchTeachers = React.useCallback(
     async (page: number = 1, pageSize: number = 10, search?: string) => {
@@ -174,35 +169,6 @@ const ManageTeacher: React.FC = () => {
       dateOfBirth: teacher.dateOfBirth ? dayjs(teacher.dateOfBirth) : undefined,
     })
     setShowForm(true)
-  }
-
-  const onDelete = (teacher: UserItem) => {
-    modal.confirm({
-      title: `Delete teacher ${teacher.name}?`,
-      content: 'This action cannot be undone.',
-      okText: 'Yes',
-      okType: 'danger',
-      cancelText: 'No',
-      onOk: async () => {
-        try {
-          await apiClient.delete(`/admin/users/${teacher.id}`)
-          notification.success({
-            message: 'Success',
-            description: 'Teacher deleted successfully',
-            placement: 'topRight',
-          })
-          fetchTeachers(pagination.current, pagination.pageSize, searchText)
-        } catch (error: unknown) {
-          const err = error as { response?: { data?: { message?: string } } }
-          notification.error({
-            message: 'Error',
-            description:
-              err.response?.data?.message || 'Failed to delete teacher',
-            placement: 'topRight',
-          })
-        }
-      },
-    })
   }
 
   const handleFormSubmit = async (values: {
@@ -310,16 +276,6 @@ const ManageTeacher: React.FC = () => {
               shape="circle"
               icon={<EditOutlined />}
               onClick={() => onEdit(record)}
-            />
-          </Tooltip>
-          <Tooltip title="Delete">
-            <Button
-              type="primary"
-              danger
-              ghost
-              shape="circle"
-              icon={<DeleteOutlined />}
-              onClick={() => onDelete(record)}
             />
           </Tooltip>
         </Space>

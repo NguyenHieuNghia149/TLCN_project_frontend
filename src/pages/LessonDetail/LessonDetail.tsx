@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
-import { FiArrowLeft, FiCheckCircle } from 'react-icons/fi'
+import { FiArrowLeft } from 'react-icons/fi'
 import { useNavigate } from 'react-router-dom'
 import DOMPurify from 'dompurify'
+import toast from 'react-hot-toast'
 import VideoPlayer from '../../components/ui/VideoPlayer'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import { useLessonDetail } from '../../hooks/api/useLessonDetail'
@@ -22,7 +23,6 @@ const LessonDetail: React.FC = () => {
   )
 
   // Lesson completion tracking
-  const [showCompletionMessage, setShowCompletionMessage] = useState(false)
   const mainContentRef = useRef<HTMLDivElement>(null)
   const hasMarkedAsCompletedRef = useRef(false)
   const learnedLessonServiceRef = useRef(new LearnedLessonService())
@@ -49,9 +49,19 @@ const LessonDetail: React.FC = () => {
         await learnedLessonServiceRef.current.markLessonAsCompleted(lessonId)
 
       if (success) {
-        setShowCompletionMessage(true)
-        // Auto-hide message after 3 seconds
-        setTimeout(() => setShowCompletionMessage(false), 3000)
+        // Show floating toast notification instead of inline message
+        toast.success('Lesson Completed! 🎉', {
+          position: 'bottom-right',
+          duration: 4000,
+          style: {
+            background: '#15803d',
+            color: '#dcfce7',
+            border: '1px solid #22c55e',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: '500',
+          },
+        })
       }
     } catch {
       hasMarkedAsCompletedRef.current = false
@@ -128,6 +138,9 @@ const LessonDetail: React.FC = () => {
 
   // Scroll detection: Mark as completed when user reaches bottom
   useEffect(() => {
+    // Only enable scroll detection after content is loaded
+    if (!contentLoaded || !lesson) return
+
     let lastScrollCheck = 0
 
     const handleScroll = () => {
@@ -138,22 +151,28 @@ const LessonDetail: React.FC = () => {
 
       if (hasMarkedAsCompletedRef.current) return
 
-      // Check window scroll (for normal page scroll)
-      const scrollTop = window.scrollY
+      // Use document.documentElement for better accuracy
+      const scrollTop = window.scrollY || document.documentElement.scrollTop
       const windowHeight = window.innerHeight
-      const docHeight = document.body.scrollHeight
+      const docHeight = Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight
+      )
 
       // Calculate how far down the page we are
       const scrollableHeight = docHeight - windowHeight
-      const scrollPercentage =
-        scrollableHeight > 0 ? (scrollTop / scrollableHeight) * 100 : 0
+
+      // Only proceed if there's actually content to scroll
+      if (scrollableHeight <= 0) return
+
+      const scrollPercentage = (scrollTop / scrollableHeight) * 100
       const distanceToBottom = docHeight - scrollTop - windowHeight
 
-      // Mark as complete if scrolled to 80% or within 200px of bottom
-      // But only if user has actually scrolled down (scrollTop > 0)
+      // Mark as complete only if scrolled to 80% or within 100px of bottom
+      // AND user has actively scrolled down significantly (at least 500px)
       if (
-        scrollTop > 0 &&
-        (scrollPercentage >= 80 || distanceToBottom <= 200)
+        scrollTop > 500 &&
+        (scrollPercentage >= 80 || distanceToBottom <= 100)
       ) {
         if (lessonId) {
           markLessonCompleted()
@@ -161,12 +180,16 @@ const LessonDetail: React.FC = () => {
       }
     }
 
-    // Attach listener immediately
-    window.addEventListener('scroll', handleScroll, { passive: true })
+    // Add small delay to ensure content is fully rendered
+    const timer = setTimeout(() => {
+      window.addEventListener('scroll', handleScroll, { passive: true })
+    }, 300)
+
     return () => {
+      clearTimeout(timer)
       window.removeEventListener('scroll', handleScroll)
     }
-  }, [lessonId, markLessonCompleted])
+  }, [lessonId, markLessonCompleted, contentLoaded, lesson])
 
   const handleGoBack = () => {
     navigate('/lessons')
@@ -228,18 +251,6 @@ const LessonDetail: React.FC = () => {
         </header>
 
         {/* Completion Message */}
-        {showCompletionMessage && (
-          <div className="mb-4 flex items-center gap-3 rounded-lg border border-green-500 bg-green-900 bg-opacity-40 px-4 py-4 text-green-300 shadow-lg">
-            <FiCheckCircle className="flex-shrink-0 text-2xl" />
-            <div>
-              <p className="font-semibold">Lesson Completed! 🎉</p>
-              <p className="mt-1 text-sm">
-                This lesson has been marked as learned and saved to your
-                progress.
-              </p>
-            </div>
-          </div>
-        )}
 
         {/* Video Player */}
         {lesson.videoUrl && (
