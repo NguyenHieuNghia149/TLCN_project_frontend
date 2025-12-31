@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { RouterProvider } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
+import { Toaster } from 'react-hot-toast'
 import './App.css'
 
 import router from './routes'
@@ -74,6 +75,17 @@ function App() {
       }}
     >
       <AntdApp>
+        <Toaster
+          position="bottom-right"
+          reverseOrder={false}
+          gutter={8}
+          toastOptions={{
+            duration: 4000,
+            style: {
+              fontSize: '14px',
+            },
+          }}
+        />
         <RouterProvider router={router} />
       </AntdApp>
     </ConfigProvider>
