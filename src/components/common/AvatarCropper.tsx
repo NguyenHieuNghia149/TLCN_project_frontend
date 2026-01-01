@@ -98,7 +98,7 @@ const AvatarCropper: React.FC<AvatarCropperProps> = ({
       onCropComplete(croppedImageBlob)
     } catch (error) {
       console.error('Error cropping image:', error)
-      alert('Có lỗi xảy ra khi xử lý ảnh. Vui lòng thử lại.')
+      alert('An error occurred while processing the image. Please try again.')
     } finally {
       setIsProcessing(false)
     }
@@ -108,11 +108,11 @@ const AvatarCropper: React.FC<AvatarCropperProps> = ({
     <div className="avatar-cropper-backdrop" onClick={onCancel}>
       <div className="avatar-cropper-modal" onClick={e => e.stopPropagation()}>
         <div className="avatar-cropper-header">
-          <h3>Chỉnh sửa Avatar</h3>
+          <h3>Edit Avatar</h3>
           <button
             className="avatar-cropper-close"
             onClick={onCancel}
-            aria-label="Đóng"
+            aria-label="Close"
           >
             ×
           </button>
@@ -153,7 +153,7 @@ const AvatarCropper: React.FC<AvatarCropperProps> = ({
             onClick={onCancel}
             disabled={isProcessing}
           >
-            Hủy
+            Cancel
           </button>
           <button
             type="button"
@@ -161,7 +161,7 @@ const AvatarCropper: React.FC<AvatarCropperProps> = ({
             onClick={handleSave}
             disabled={isProcessing || !croppedAreaPixels}
           >
-            {isProcessing ? 'Đang xử lý...' : 'Lưu'}
+            {isProcessing ? 'Processing...' : 'Save'}
           </button>
         </div>
       </div>
