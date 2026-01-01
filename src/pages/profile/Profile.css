@@ -259,6 +259,34 @@
     font-weight: 600;
   }
 
+  .year-selector {
+    display: flex;
+    align-items: center;
+  }
+
+  .year-select {
+    padding: 6px 12px;
+    border: 1px solid rgb(var(--border));
+    border-radius: 6px;
+    background: rgb(var(--input));
+    color: rgb(var(--foreground));
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+  }
+
+  .year-select:hover {
+    border-color: rgb(var(--primary) / 0.5);
+    background: rgb(var(--muted));
+  }
+
+  .year-select:focus {
+    border-color: rgb(var(--primary));
+    box-shadow: 0 0 0 3px rgb(var(--primary) / 0.25);
+  }
+
   /* GitHub-style contribution heatmap */
   .github-heatmap-wrapper {
     display: flex;
