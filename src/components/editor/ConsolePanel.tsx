@@ -84,11 +84,12 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Content wrapper */}
       {consoleExpanded && (
-        <>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          {/* Tabs */}
           <div
-            className="flex border-b"
+            className="flex flex-shrink-0 border-b"
             style={{
               borderColor: 'var(--surface-border)',
               backgroundColor: 'var(--exam-toolbar-bg)',
@@ -155,11 +156,13 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
 
           {/* Console Content */}
           {activeConsoleTab === 'testcase' && (
-            <TestCasePanel
-              testCases={testCases}
-              selectedTestCase={selectedTestCase}
-              onTestCaseSelect={onTestCaseSelect}
-            />
+            <div className="flex-1 overflow-auto p-4">
+              <TestCasePanel
+                testCases={testCases}
+                selectedTestCase={selectedTestCase}
+                onTestCaseSelect={onTestCaseSelect}
+              />
+            </div>
           )}
 
           {activeConsoleTab === 'output' && (
@@ -265,214 +268,228 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
                   ) : (
                     <>
                       {/* Run: Detailed testcase view */}
-                      <div className="flex items-center gap-3">
-                        {Array.isArray(output.results) &&
-                        output.results.length > 0 ? (
-                          output.results.map((r, idx) => {
-                            const isSelected = selectedResultIndex === idx
-                            // Color logic: failed => red, passed/undefined => neutral; selected => blue
-                            const statusClass =
-                              r.ok === false
-                                ? 'bg-red-800 text-red-50 hover:bg-red-700'
-                                : 'bg-[var(--surface-border)] text-[var(--text-color)] hover:opacity-80'
-                            const cls = isSelected
-                              ? 'bg-blue-600 text-white'
-                              : statusClass
-                            return (
-                              <button
-                                key={idx}
-                                onClick={() => setSelectedResultIndex(idx)}
-                                className={`rounded px-3 py-1 text-sm font-medium transition-colors ${cls}`}
-                              >
-                                Case {idx + 1}
-                              </button>
-                            )
-                          })
-                        ) : (
-                          <span className="text-xs text-[var(--muted-text)]">
-                            No results
-                          </span>
-                        )}
-                      </div>
-                      {output.passedTests !== undefined &&
-                        output.totalTests !== undefined && (
-                          <div className="ml-auto mr-4 text-right text-sm text-[var(--muted-text)]">
-                            Passed test cases: {output.passedTests}/
-                            {output.totalTests}
-                          </div>
-                        )}
-                      {/* Detail panel stacked sections */}
-                      <div className="min-w-0 flex-1 overflow-auto bg-[var(--code-bg)] p-4">
-                        {/* Summary header - Check actual results */}
-                        <div className="mb-3 space-y-1">
-                          {(() => {
-                            const hasResults =
-                              Array.isArray(output.results) &&
-                              output.results.length > 0
-
-                            if (!hasResults) {
-                              return null
-                            }
-
-                            // Use backend-provided counts if available (more accurate)
-                            // Otherwise fallback to client-side calculation from visible results
-                            const passedCount =
-                              output.passedTests ??
-                              output.results!.filter(r => r.ok === true).length
-                            const totalCount =
-                              output.totalTests ?? output.results!.length
-
-                            const allPassed = passedCount === totalCount
-
-                            if (allPassed) {
-                              return (
-                                <>
-                                  <div className="font-semibold text-green-400">
-                                    ✓ All Test Cases Passed
-                                  </div>
-                                  <div className="text-sm text-[var(--muted-text)]">
-                                    {passedCount}/{totalCount} test cases passed
-                                  </div>
-                                </>
-                              )
-                            } else {
-                              return (
-                                <>
-                                  <div className="font-semibold text-red-400">
-                                    ✗ Some Test Cases Failed
-                                  </div>
-                                  <div className="text-sm text-[var(--muted-text)]">
-                                    {passedCount}/{totalCount} test cases passed
-                                  </div>
-                                </>
-                              )
-                            }
-                          })()}
-                          {typeof output.processingTime === 'number' && (
-                            <div className="text-xs text-[var(--muted-text)]">
-                              Time: {output.processingTime} ms
-                            </div>
-                          )}
-                          {output.error && (
-                            <pre className="whitespace-pre-wrap rounded border border-red-600 bg-red-900/30 p-3 font-mono text-sm text-red-200">
-                              {output.error}
-                            </pre>
-                          )}
-                        </div>
-
-                        {/* Selected result details stacked */}
-                        {Array.isArray(output.results) &&
-                          output.results.length > 0 && (
-                            <>
-                              {(() => {
-                                const r =
-                                  output.results![selectedResultIndex] ||
-                                  output.results![0]
+                      <div className="flex min-h-0 flex-1 flex-col">
+                        <div
+                          className="flex items-center justify-between border-b px-4 py-2"
+                          style={{ borderColor: 'var(--surface-border)' }}
+                        >
+                          <div className="flex items-center gap-3">
+                            {Array.isArray(output.results) &&
+                            output.results.length > 0 ? (
+                              output.results.map((r, idx) => {
+                                const isSelected = selectedResultIndex === idx
+                                // Color logic: failed => red, passed/undefined => neutral; selected => blue
+                                const statusClass =
+                                  r.ok === false
+                                    ? 'bg-red-800 text-red-50 hover:bg-red-700'
+                                    : 'bg-[var(--surface-border)] text-[var(--text-color)] hover:opacity-80'
+                                const cls = isSelected
+                                  ? 'bg-blue-600 text-white'
+                                  : statusClass
                                 return (
-                                  <div className="space-y-4">
-                                    {r.stderr && (
-                                      <div>
-                                        <div className="mb-1 text-sm font-semibold text-red-300">
-                                          {(() => {
-                                            const stderr =
-                                              r.stderr.toLowerCase()
-                                            if (
-                                              stderr.includes('time limit') ||
-                                              stderr.includes('timeout')
-                                            ) {
-                                              return '⏱ Time Limit Exceeded'
-                                            }
-                                            if (
-                                              stderr.includes('memory limit') ||
-                                              stderr.includes('out of memory')
-                                            ) {
-                                              return '💾 Memory Limit Exceeded'
-                                            }
-                                            if (
-                                              stderr.includes(
-                                                'runtime error'
-                                              ) ||
-                                              stderr.includes(
-                                                'segmentation fault'
-                                              ) ||
-                                              stderr.includes('sigsegv')
-                                            ) {
-                                              return '⚠️ Runtime Error'
-                                            }
-                                            if (
-                                              stderr.includes(
-                                                'compilation error'
-                                              )
-                                            ) {
-                                              return '🔧 Compilation Error'
-                                            }
-                                            return '❌ Error'
-                                          })()}
-                                        </div>
-                                        <pre className="whitespace-pre-wrap rounded border border-red-600 bg-red-900/30 p-3 font-mono text-sm text-red-200">
-                                          {r.stderr}
-                                        </pre>
-                                      </div>
-                                    )}
-                                    {!r.ok && !r.stderr && (
-                                      <div>
-                                        <div className="mb-1 text-sm font-semibold text-yellow-300">
-                                          ❓ Wrong Answer
-                                        </div>
-                                        <div className="text-xs text-[var(--muted-text)]">
-                                          Output does not match expected output
-                                        </div>
-                                      </div>
-                                    )}
-                                    <div>
-                                      <span className="text-sm text-[var(--muted-text)]">
-                                        Input:
-                                      </span>
-                                      <div className="mt-1 rounded border border-[var(--surface-border)] bg-[var(--exam-panel-bg)] px-3 py-2 font-mono text-sm text-[var(--text-color)]">
-                                        {r.input}
-                                      </div>
+                                  <button
+                                    key={idx}
+                                    onClick={() => setSelectedResultIndex(idx)}
+                                    className={`rounded px-3 py-1 text-sm font-medium transition-colors ${cls}`}
+                                  >
+                                    Case {idx + 1}
+                                  </button>
+                                )
+                              })
+                            ) : (
+                              <span className="text-xs text-[var(--muted-text)]">
+                                No results
+                              </span>
+                            )}
+                          </div>
+                          {output.passedTests !== undefined &&
+                            output.totalTests !== undefined && (
+                              <div className="text-sm text-[var(--muted-text)]">
+                                Passed test cases: {output.passedTests}/
+                                {output.totalTests}
+                              </div>
+                            )}
+                        </div>
+                        {/* Detail panel stacked sections */}
+                        <div className="min-w-0 flex-1 overflow-auto bg-[var(--code-bg)] p-4">
+                          {/* Summary header - Check actual results */}
+                          <div className="mb-3 space-y-1">
+                            {(() => {
+                              const hasResults =
+                                Array.isArray(output.results) &&
+                                output.results.length > 0
+
+                              if (!hasResults) {
+                                return null
+                              }
+
+                              // Use backend-provided counts if available (more accurate)
+                              // Otherwise fallback to client-side calculation from visible results
+                              const passedCount =
+                                output.passedTests ??
+                                output.results!.filter(r => r.ok === true)
+                                  .length
+                              const totalCount =
+                                output.totalTests ?? output.results!.length
+
+                              const allPassed = passedCount === totalCount
+
+                              if (allPassed) {
+                                return (
+                                  <>
+                                    <div className="font-semibold text-green-400">
+                                      ✓ All Test Cases Passed
                                     </div>
-                                    <div>
-                                      <span className="text-sm text-[var(--muted-text)]">
-                                        Expected output:
-                                      </span>
-                                      {(() => {
-                                        const related = testCases[r.index]
-                                        const isPublic =
-                                          related?.isPublic !== false
-                                        if (isPublic) {
+                                    <div className="text-sm text-[var(--muted-text)]">
+                                      {passedCount}/{totalCount} test cases
+                                      passed
+                                    </div>
+                                  </>
+                                )
+                              } else {
+                                return (
+                                  <>
+                                    <div className="font-semibold text-red-400">
+                                      ✗ Some Test Cases Failed
+                                    </div>
+                                    <div className="text-sm text-[var(--muted-text)]">
+                                      {passedCount}/{totalCount} test cases
+                                      passed
+                                    </div>
+                                  </>
+                                )
+                              }
+                            })()}
+                            {typeof output.processingTime === 'number' && (
+                              <div className="text-xs text-[var(--muted-text)]">
+                                Time: {output.processingTime} ms
+                              </div>
+                            )}
+                            {output.error && (
+                              <pre className="whitespace-pre-wrap rounded border border-red-600 bg-red-900/30 p-3 font-mono text-sm text-red-200">
+                                {output.error}
+                              </pre>
+                            )}
+                          </div>
+
+                          {/* Selected result details stacked */}
+                          {Array.isArray(output.results) &&
+                            output.results.length > 0 && (
+                              <>
+                                {(() => {
+                                  const r =
+                                    output.results![selectedResultIndex] ||
+                                    output.results![0]
+                                  return (
+                                    <div className="space-y-4">
+                                      {r.stderr && (
+                                        <div>
+                                          <div className="mb-1 text-sm font-semibold text-red-300">
+                                            {(() => {
+                                              const stderr =
+                                                r.stderr.toLowerCase()
+                                              if (
+                                                stderr.includes('time limit') ||
+                                                stderr.includes('timeout')
+                                              ) {
+                                                return '⏱ Time Limit Exceeded'
+                                              }
+                                              if (
+                                                stderr.includes(
+                                                  'memory limit'
+                                                ) ||
+                                                stderr.includes('out of memory')
+                                              ) {
+                                                return '💾 Memory Limit Exceeded'
+                                              }
+                                              if (
+                                                stderr.includes(
+                                                  'runtime error'
+                                                ) ||
+                                                stderr.includes(
+                                                  'segmentation fault'
+                                                ) ||
+                                                stderr.includes('sigsegv')
+                                              ) {
+                                                return '⚠️ Runtime Error'
+                                              }
+                                              if (
+                                                stderr.includes(
+                                                  'compilation error'
+                                                )
+                                              ) {
+                                                return '🔧 Compilation Error'
+                                              }
+                                              return '❌ Error'
+                                            })()}
+                                          </div>
+                                          <pre className="whitespace-pre-wrap rounded border border-red-600 bg-red-900/30 p-3 font-mono text-sm text-red-200">
+                                            {r.stderr}
+                                          </pre>
+                                        </div>
+                                      )}
+                                      {!r.ok && !r.stderr && (
+                                        <div>
+                                          <div className="mb-1 text-sm font-semibold text-yellow-300">
+                                            ❓ Wrong Answer
+                                          </div>
+                                          <div className="text-xs text-[var(--muted-text)]">
+                                            Output does not match expected
+                                            output
+                                          </div>
+                                        </div>
+                                      )}
+                                      <div>
+                                        <span className="text-sm text-[var(--muted-text)]">
+                                          Input:
+                                        </span>
+                                        <div className="mt-1 rounded border border-[var(--surface-border)] bg-[var(--exam-panel-bg)] px-3 py-2 font-mono text-sm text-[var(--text-color)]">
+                                          {r.input}
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <span className="text-sm text-[var(--muted-text)]">
+                                          Expected output:
+                                        </span>
+                                        {(() => {
+                                          const related = testCases[r.index]
+                                          const isPublic =
+                                            related?.isPublic !== false
+                                          if (isPublic) {
+                                            return (
+                                              <div className="mt-1 rounded border border-[var(--surface-border)] bg-[var(--exam-panel-bg)] px-3 py-2 font-mono text-sm text-[var(--text-color)]">
+                                                {r.expectedOutput}
+                                              </div>
+                                            )
+                                          }
                                           return (
-                                            <div className="mt-1 rounded border border-[var(--surface-border)] bg-[var(--exam-panel-bg)] px-3 py-2 font-mono text-sm text-[var(--text-color)]">
-                                              {r.expectedOutput}
+                                            <div className="mt-1 rounded border border-[var(--surface-border)] bg-[var(--exam-panel-bg)] px-3 py-2 text-sm text-[var(--muted-text)]">
+                                              🔒 Output is hidden for private
+                                              test case
                                             </div>
                                           )
-                                        }
-                                        return (
-                                          <div className="mt-1 rounded border border-[var(--surface-border)] bg-[var(--exam-panel-bg)] px-3 py-2 text-sm text-[var(--muted-text)]">
-                                            🔒 Output is hidden for private test
-                                            case
-                                          </div>
-                                        )
-                                      })()}
-                                    </div>
-                                    <div>
-                                      <span className="text-sm text-[var(--muted-text)]">
-                                        Your output:
-                                      </span>
-                                      <div
-                                        className={`mt-1 rounded border px-3 py-2 font-mono text-sm ${r.ok ? 'border-green-700 bg-green-900/20 text-green-200' : 'border-[var(--surface-border)] bg-[var(--exam-panel-bg)] text-[var(--text-color)]'}`}
-                                      >
-                                        {r.actualOutput}
+                                        })()}
+                                      </div>
+                                      <div>
+                                        <span className="text-sm text-[var(--muted-text)]">
+                                          Your output:
+                                        </span>
+                                        <div
+                                          className={`mt-1 rounded border px-3 py-2 font-mono text-sm ${r.ok ? 'border-green-700 bg-green-900/20 text-green-200' : 'border-[var(--surface-border)] bg-[var(--exam-panel-bg)] text-[var(--text-color)]'}`}
+                                        >
+                                          {r.actualOutput}
+                                        </div>
+                                      </div>
+                                      <div className="text-xs text-[var(--muted-text)]">
+                                        #{r.index} • • Time: {r.executionTime}{' '}
+                                        ms
                                       </div>
                                     </div>
-                                    <div className="text-xs text-[var(--muted-text)]">
-                                      #{r.index} • • Time: {r.executionTime} ms
-                                    </div>
-                                  </div>
-                                )
-                              })()}
-                            </>
-                          )}
+                                  )
+                                })()}
+                              </>
+                            )}
+                        </div>
                       </div>
                     </>
                   )}
@@ -484,7 +501,7 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
               )}
             </div>
           )}
-        </>
+        </div>
       )}
 
       {/* Submit Buttons - Always visible */}
