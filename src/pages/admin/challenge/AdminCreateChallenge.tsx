@@ -239,11 +239,20 @@ const AdminCreateChallenge: React.FC = () => {
       }
     } catch (error: unknown) {
       console.error('Full Update Error:', error)
-      const err = error as { response?: { data?: { message?: string } } }
+      const err = error as {
+        response?: { data?: { code?: string; message?: string } }
+      }
+      const hasSubmissions =
+        err.response?.data?.code === 'CHALLENGE_HAS_SUBMISSIONS' ||
+        err.response?.data?.message?.includes('submitted')
+
       notification.error({
-        message: 'Error',
-        description: err.response?.data?.message || 'Failed to save challenge',
+        message: hasSubmissions ? 'Cannot Update Challenge' : 'Error',
+        description: hasSubmissions
+          ? 'This challenge cannot be updated because users have already submitted solutions to it. You can only change the visibility setting.'
+          : err.response?.data?.message || 'Failed to save challenge',
         placement: 'topRight',
+        duration: 5,
       })
     } finally {
       setLoading(false)
