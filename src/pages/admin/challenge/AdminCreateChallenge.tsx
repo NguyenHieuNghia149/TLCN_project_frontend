@@ -242,9 +242,19 @@ const AdminCreateChallenge: React.FC = () => {
       const err = error as {
         response?: { data?: { code?: string; message?: string } }
       }
+
+      // Debug logging
+      console.log('err.response:', err.response)
+      console.log('err.response?.data:', err.response?.data)
+      console.log('Error code:', err.response?.data?.code)
+      console.log('Error message:', err.response?.data?.message)
+
       const hasSubmissions =
         err.response?.data?.code === 'CHALLENGE_HAS_SUBMISSIONS' ||
         err.response?.data?.message?.includes('submitted')
+
+      console.log('hasSubmissions check:', hasSubmissions)
+      console.log('About to show notification...')
 
       notification.error({
         message: hasSubmissions ? 'Cannot Update Challenge' : 'Error',
@@ -254,6 +264,8 @@ const AdminCreateChallenge: React.FC = () => {
         placement: 'topRight',
         duration: 5,
       })
+
+      console.log('Notification called!')
     } finally {
       setLoading(false)
     }
