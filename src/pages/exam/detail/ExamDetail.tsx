@@ -573,13 +573,11 @@ const InfoBadge: React.FC<{
   label: string
   value: string
 }> = ({ icon, label, value }) => (
-  <div className="flex items-center gap-3 rounded-2xl border border-white/5 bg-white/5 px-4 py-3 text-sm">
+  <div className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-sm">
     {icon && <span className="text-primary-200">{icon}</span>}
     <div>
-      <p className="text-[10px] uppercase tracking-[0.4em] text-gray-500">
-        {label}
-      </p>
-      <p className="text-base font-semibold text-white">{value}</p>
+      <p className="muted text-[10px] uppercase tracking-[0.4em]">{label}</p>
+      <p className="text-base font-semibold text-foreground">{value}</p>
     </div>
   </div>
 )
