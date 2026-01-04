@@ -127,12 +127,20 @@ const AdminChallengeList: React.FC = () => {
           })
           fetchChallenges(pagination.current, pagination.pageSize)
         } catch (error: unknown) {
-          const err = error as { response?: { data?: { message?: string } } }
+          const err = error as {
+            response?: { data?: { code?: string; message?: string } }
+          }
+          const hasSubmissions =
+            err.response?.data?.code === 'CHALLENGE_HAS_SUBMISSIONS' ||
+            err.response?.data?.message?.includes('submitted')
+
           notification.error({
-            message: 'Error',
-            description:
-              err.response?.data?.message || 'Failed to delete challenge',
+            message: 'Cannot Delete Challenge',
+            description: hasSubmissions
+              ? 'This challenge cannot be deleted because users have already submitted solutions to it. You can hide it instead by changing its visibility.'
+              : err.response?.data?.message || 'Failed to delete challenge',
             placement: 'topRight',
+            duration: 5,
           })
         }
       },
