@@ -1,3 +1,8 @@
+import type {
+  FunctionSignature,
+  StarterCodeByLanguage,
+} from '@/types/functionSignature.types'
+
 export interface Challenge {
   id: string
   title: string
@@ -14,8 +19,10 @@ export interface Challenge {
 
 export interface TestCase {
   id: string
-  input: string
-  output: string
+  inputJson: Record<string, unknown>
+  outputJson: unknown
+  displayInput: string
+  displayOutput: string
   isPublic: boolean
   point: number
   createdAt: string
@@ -55,11 +62,17 @@ export interface Problem {
   difficulty: 'easy' | 'medium' | 'hard'
   constraint: string
   tags: string[]
-  lessonId?: string
+  topic?: string
   topicId?: string
+  topicName?: string
+  lessonId?: string
+  lessonName?: string
+  orderIndex?: number
   totalPoints: number
   isSolved?: boolean
   isFavorite?: boolean
+  functionSignature?: FunctionSignature | null
+  starterCodeByLanguage?: StarterCodeByLanguage | null
   createdAt?: string
   updatedAt?: string
 }
@@ -73,7 +86,6 @@ export interface ProblemDetailResponse {
   }
 }
 
-// For challenge listing service - cursor-based pagination
 export interface Cursor {
   createdAt: string
   id: string
@@ -82,7 +94,6 @@ export interface Cursor {
 export interface PaginatedResponse<T> {
   items: T[]
   nextCursor: Cursor | null
-  // Optional metadata returned by some endpoints (e.g., user's rank for this topic)
   rank?: number
   rankingPoint?: number
 }
@@ -90,9 +101,9 @@ export interface PaginatedResponse<T> {
 export interface ChallengeItem {
   id: string
   title: string
-  description: string // Match Challenge interface (non-nullable)
-  difficulty: 'easy' | 'medium' | 'hard' // Match Challenge interface type
-  topic: string // Add required topic property
+  description: string
+  difficulty: 'easy' | 'medium' | 'hard'
+  topic: string
   createdAt: string
   totalPoints: number
   isSolved: boolean
@@ -100,3 +111,5 @@ export interface ChallengeItem {
   topicName?: string
   visibility: string
 }
+
+export type { FunctionSignature, StarterCodeByLanguage }
