@@ -1,5 +1,14 @@
 import { apiClient } from '@/config/axios.config'
-import { CreateExamPayload, Exam, ExamParticipation } from '@/types/exam.types'
+import {
+  normalizeExamChallengeResponse,
+  type RawExamChallengeResponse,
+} from '@/utils/challengeResponse'
+import type {
+  CreateExamPayload,
+  Exam,
+  ExamChallengeResponse,
+  ExamParticipation,
+} from '@/types/exam.types'
 
 export class ExamService {
   async getExams(
@@ -66,11 +75,11 @@ export class ExamService {
   async getExamChallenge(
     examId: string,
     challengeId: string
-  ): Promise<{ data: unknown }> {
-    const response = await apiClient.get(
+  ): Promise<ExamChallengeResponse> {
+    const response = await apiClient.get<RawExamChallengeResponse>(
       `/exams/${examId}/challenge/${challengeId}`
     )
-    return response.data
+    return normalizeExamChallengeResponse(response.data)
   }
 
   // Sync session progress

@@ -1,4 +1,13 @@
-export type SupportedLanguage = 'cpp' | 'python' | 'java' | 'javascript'
+﻿export type SupportedLanguage = 'cpp' | 'python' | 'java'
+
+export interface SubmissionStreamPayload {
+  submissionId: string
+  status?: string
+  result?: SubmissionResultSummary
+  score?: number
+  isRunOnly?: boolean
+  message?: string
+}
 
 export interface SandboxTestcaseResult {
   index: number

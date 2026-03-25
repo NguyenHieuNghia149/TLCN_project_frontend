@@ -1,5 +1,13 @@
-import { ChallengeItem } from './challenge.types'
-import { User } from './auth.types'
+import type { User } from './auth.types'
+import type {
+  ChallengeItem,
+  Solution as ProblemSolution,
+  TestCase as ChallengeTestCase,
+} from './challenge.types'
+import type {
+  FunctionSignature,
+  StarterCodeByLanguage,
+} from './functionSignature.types'
 
 export interface Exam {
   id: string
@@ -84,20 +92,10 @@ export interface ExamChallengeData {
   constraint: string
   tags: string[]
   orderIndex: number
-  testcases: Array<{
-    id: string
-    input: string
-    output: string
-    isPublic: boolean
-    point: number
-  }>
-  solution?: {
-    id: string
-    title: string
-    description: string
-    videoUrl?: string
-    imageUrl?: string
-  }
+  functionSignature?: FunctionSignature | null
+  starterCodeByLanguage?: StarterCodeByLanguage | null
+  testcases: ChallengeTestCase[]
+  solution?: ProblemSolution
   initialCode?: string
 }
 

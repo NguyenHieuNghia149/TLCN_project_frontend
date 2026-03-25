@@ -1,8 +1,13 @@
 import { apiClient } from '@/config/axios.config'
+import {
+  normalizeProblemDetailResponse,
+  type RawProblemDetailResponse,
+} from '@/utils/challengeResponse'
 import type {
-  PaginatedResponse,
   ChallengeItem,
   Cursor,
+  PaginatedResponse,
+  ProblemDetailResponse,
 } from '@/types/challenge.types'
 
 export class ChallengeService {
@@ -61,12 +66,18 @@ export class ChallengeService {
     return Array.isArray(tags) ? (tags as string[]) : []
   }
 
-  async getChallengeById(challengeId: string, showAll = false) {
+  async getChallengeById(
+    challengeId: string,
+    showAll = false
+  ): Promise<ProblemDetailResponse> {
     const params = showAll ? { showAll: 'true' } : {}
-    const response = await apiClient.get(`/challenges/${challengeId}`, {
-      params,
-    })
-    return response.data
+    const response = await apiClient.get<RawProblemDetailResponse>(
+      `/challenges/${challengeId}`,
+      {
+        params,
+      }
+    )
+    return normalizeProblemDetailResponse(response.data)
   }
 
   async getAllTags() {

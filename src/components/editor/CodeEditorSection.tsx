@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ChevronDown,
   RotateCcw,
@@ -10,18 +10,20 @@ import {
   Sun,
   Moon,
 } from 'lucide-react'
-import MonacoEditorWrapper from './MonacoEditorWrapper'
-import ConsolePanel from './ConsolePanel'
-import type { TestCase, OutputState } from '@/types/editor.types'
-import { useTheme } from '@/contexts/useTheme'
 
-// Types moved to src/types/editor.types.ts
+import { SUBMISSION_LANGUAGE_OPTIONS } from '@/constants/submissionLanguages'
+import { useTheme } from '@/contexts/useTheme'
+import type { TestCase, OutputState } from '@/types/editor.types'
+import type { SupportedLanguage } from '@/types/submission.types'
+
+import ConsolePanel from './ConsolePanel'
+import MonacoEditorWrapper from './MonacoEditorWrapper'
 
 interface CodeEditorSectionProps {
   code: string
   onCodeChange: (code: string) => void
-  selectedLanguage: string
-  onLanguageChange: (language: string) => void
+  selectedLanguage: SupportedLanguage
+  onLanguageChange: (language: SupportedLanguage) => void
   testCases: TestCase[]
   selectedTestCase: string
   onTestCaseSelect: (testCaseId: string) => void
@@ -30,8 +32,6 @@ interface CodeEditorSectionProps {
   onSubmit: () => void
   onReset: () => void
 }
-
-const LANGUAGES = ['C++']
 
 const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
   code,
@@ -55,46 +55,61 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
   const [editorTheme, setEditorTheme] = useState<'dark' | 'light'>(
     appTheme === 'dark' ? 'dark' : 'light'
   )
+  const [activeConsoleTab, setActiveConsoleTab] = useState<
+    'testcase' | 'output'
+  >('testcase')
+
+  const selectedLanguageOption = useMemo(
+    () =>
+      SUBMISSION_LANGUAGE_OPTIONS.find(
+        option => option.value === selectedLanguage
+      ) ?? SUBMISSION_LANGUAGE_OPTIONS[0],
+    [selectedLanguage]
+  )
 
   useEffect(() => {
     setEditorTheme(appTheme === 'dark' ? 'dark' : 'light')
   }, [appTheme])
 
   const startResizeConsole = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      e.preventDefault()
-      e.stopPropagation()
-      const startY = e.clientY
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      event.preventDefault()
+      event.stopPropagation()
+      const startY = event.clientY
       const startHeight = consoleHeight
-      const containerEl = containerRef.current
-      const containerRect = containerEl?.getBoundingClientRect()
+      const containerElement = containerRef.current
+      const containerRect = containerElement?.getBoundingClientRect()
       const maxHeight = containerRect
         ? Math.max(120, Math.floor(containerRect.height * 0.9))
         : 600
 
-      const onMove = (ev: MouseEvent) => {
-        const delta = startY - ev.clientY
-        const next = Math.min(maxHeight, Math.max(120, startHeight + delta))
-        setConsoleHeight(next)
-        if (!consoleExpanded) setConsoleExpanded(true)
+      const onMove = (moveEvent: MouseEvent) => {
+        const delta = startY - moveEvent.clientY
+        const nextHeight = Math.min(
+          maxHeight,
+          Math.max(120, startHeight + delta)
+        )
+        setConsoleHeight(nextHeight)
+        if (!consoleExpanded) {
+          setConsoleExpanded(true)
+        }
       }
+
       const onUp = () => {
         window.removeEventListener('mousemove', onMove)
         window.removeEventListener('mouseup', onUp)
       }
+
       window.addEventListener('mousemove', onMove)
       window.addEventListener('mouseup', onUp)
     },
-    [consoleHeight, consoleExpanded]
+    [consoleExpanded, consoleHeight]
   )
-  const [activeConsoleTab, setActiveConsoleTab] = useState<
-    'testcase' | 'output'
-  >('testcase')
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(code)
     setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    window.setTimeout(() => setCopied(false), 2000)
   }
 
   return (
@@ -107,7 +122,6 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
         overflow: 'hidden',
       }}
     >
-      {/* Toolbar */}
       <div
         className="flex items-center justify-between border-b p-3"
         style={{
@@ -118,21 +132,22 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
         <div className="flex items-center gap-2">
           <div className="relative">
             <button
-              onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
+              onClick={() => setShowLanguageDropdown(open => !open)}
               className="flex items-center gap-2 rounded px-3 py-2 text-sm font-medium transition-colors"
               style={{
                 backgroundColor: 'var(--exam-panel-bg)',
                 color: 'var(--text-color)',
                 border: '1px solid var(--surface-border)',
               }}
-              onMouseEnter={e => {
-                e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
+              onMouseEnter={event => {
+                event.currentTarget.style.backgroundColor = 'var(--editor-bg)'
               }}
-              onMouseLeave={e => {
-                e.currentTarget.style.backgroundColor = 'var(--exam-panel-bg)'
+              onMouseLeave={event => {
+                event.currentTarget.style.backgroundColor =
+                  'var(--exam-panel-bg)'
               }}
             >
-              <span>{selectedLanguage}</span>
+              <span>{selectedLanguageOption.label}</span>
               <ChevronDown size={16} />
             </button>
 
@@ -144,34 +159,35 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
                   borderColor: 'var(--surface-border)',
                 }}
               >
-                {LANGUAGES.map(lang => (
+                {SUBMISSION_LANGUAGE_OPTIONS.map(option => (
                   <button
-                    key={lang}
+                    key={option.value}
                     onClick={() => {
-                      onLanguageChange(lang)
+                      onLanguageChange(option.value)
                       setShowLanguageDropdown(false)
                     }}
                     className="w-full px-4 py-2 text-left text-sm transition-colors"
                     style={{
                       color: 'var(--text-color)',
                       backgroundColor:
-                        selectedLanguage === lang
+                        selectedLanguage === option.value
                           ? 'var(--editor-bg)'
                           : 'transparent',
                     }}
-                    onMouseEnter={e => {
-                      if (selectedLanguage !== lang) {
-                        e.currentTarget.style.backgroundColor =
+                    onMouseEnter={event => {
+                      if (selectedLanguage !== option.value) {
+                        event.currentTarget.style.backgroundColor =
                           'var(--editor-bg)'
                       }
                     }}
-                    onMouseLeave={e => {
-                      if (selectedLanguage !== lang) {
-                        e.currentTarget.style.backgroundColor = 'transparent'
+                    onMouseLeave={event => {
+                      if (selectedLanguage !== option.value) {
+                        event.currentTarget.style.backgroundColor =
+                          'transparent'
                       }
                     }}
                   >
-                    {lang}
+                    {option.label}
                   </button>
                 ))}
               </div>
@@ -179,7 +195,9 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
           </div>
           <button
             onClick={() =>
-              setEditorTheme(prev => (prev === 'dark' ? 'light' : 'dark'))
+              setEditorTheme(prevTheme =>
+                prevTheme === 'dark' ? 'light' : 'dark'
+              )
             }
             className="rounded px-3 py-2 transition-colors"
             style={{
@@ -187,11 +205,11 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
               color: 'var(--text-color)',
               border: '1px solid var(--surface-border)',
             }}
-            onMouseEnter={e => {
-              e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
+            onMouseEnter={event => {
+              event.currentTarget.style.backgroundColor = 'var(--editor-bg)'
             }}
-            onMouseLeave={e => {
-              e.currentTarget.style.backgroundColor = 'var(--exam-panel-bg)'
+            onMouseLeave={event => {
+              event.currentTarget.style.backgroundColor = 'var(--exam-panel-bg)'
             }}
             title="Toggle editor theme"
             aria-label="Toggle editor theme"
@@ -212,18 +230,17 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
           </button>
         </div>
 
-        {/* Action Buttons */}
         <div className="flex items-center gap-2">
           <button
             onClick={onReset}
             title="Reset Code"
             className="rounded p-2 transition-colors"
             style={{ color: 'var(--text-color)' }}
-            onMouseEnter={e => {
-              e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
+            onMouseEnter={event => {
+              event.currentTarget.style.backgroundColor = 'var(--editor-bg)'
             }}
-            onMouseLeave={e => {
-              e.currentTarget.style.backgroundColor = 'transparent'
+            onMouseLeave={event => {
+              event.currentTarget.style.backgroundColor = 'transparent'
             }}
           >
             <RotateCcw size={18} />
@@ -233,11 +250,11 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
             title="Copy Code"
             className="rounded p-2 transition-colors"
             style={{ color: 'var(--text-color)' }}
-            onMouseEnter={e => {
-              e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
+            onMouseEnter={event => {
+              event.currentTarget.style.backgroundColor = 'var(--editor-bg)'
             }}
-            onMouseLeave={e => {
-              e.currentTarget.style.backgroundColor = 'transparent'
+            onMouseLeave={event => {
+              event.currentTarget.style.backgroundColor = 'transparent'
             }}
           >
             {copied ? (
@@ -250,11 +267,11 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
             title="Settings"
             className="rounded p-2 transition-colors"
             style={{ color: 'var(--text-color)' }}
-            onMouseEnter={e => {
-              e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
+            onMouseEnter={event => {
+              event.currentTarget.style.backgroundColor = 'var(--editor-bg)'
             }}
-            onMouseLeave={e => {
-              e.currentTarget.style.backgroundColor = 'transparent'
+            onMouseLeave={event => {
+              event.currentTarget.style.backgroundColor = 'transparent'
             }}
           >
             <Settings size={18} />
@@ -263,11 +280,11 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
             title="Report Bug"
             className="rounded p-2 transition-colors"
             style={{ color: 'var(--text-color)' }}
-            onMouseEnter={e => {
-              e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
+            onMouseEnter={event => {
+              event.currentTarget.style.backgroundColor = 'var(--editor-bg)'
             }}
-            onMouseLeave={e => {
-              e.currentTarget.style.backgroundColor = 'transparent'
+            onMouseLeave={event => {
+              event.currentTarget.style.backgroundColor = 'transparent'
             }}
           >
             <Bug size={18} />
@@ -276,11 +293,11 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
             title="Fullscreen"
             className="rounded p-2 transition-colors"
             style={{ color: 'var(--text-color)' }}
-            onMouseEnter={e => {
-              e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
+            onMouseEnter={event => {
+              event.currentTarget.style.backgroundColor = 'var(--editor-bg)'
             }}
-            onMouseLeave={e => {
-              e.currentTarget.style.backgroundColor = 'transparent'
+            onMouseLeave={event => {
+              event.currentTarget.style.backgroundColor = 'transparent'
             }}
           >
             <Maximize2 size={18} />
@@ -288,13 +305,11 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
         </div>
       </div>
 
-      {/* Editor Area */}
       <div
         ref={containerRef}
         className="flex flex-1 flex-col overflow-hidden"
         style={{ minHeight: 0 }}
       >
-        {/* Monaco-style Code Editor */}
         <div
           className="flex-1 overflow-hidden px-3 py-3"
           style={{ minHeight: 0 }}
@@ -302,31 +317,25 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
           <MonacoEditorWrapper
             value={code}
             onChange={onCodeChange}
-            language={
-              selectedLanguage.toLowerCase() === 'c++'
-                ? 'cpp'
-                : selectedLanguage.toLowerCase()
-            }
+            language={selectedLanguageOption.monacoLanguage}
             editorTheme={
               editorTheme === 'dark' ? 'custom-dark' : 'custom-light'
             }
           />
         </div>
 
-        {/* Resize handle */}
         <div
           onMouseDown={startResizeConsole}
           className="h-2 w-full cursor-row-resize transition-colors"
           style={{ backgroundColor: 'var(--surface-border)' }}
           title="Drag to resize"
-          onMouseEnter={e => {
-            e.currentTarget.style.backgroundColor = 'var(--accent)'
+          onMouseEnter={event => {
+            event.currentTarget.style.backgroundColor = 'var(--accent)'
           }}
-          onMouseLeave={e => {
-            e.currentTarget.style.backgroundColor = 'var(--surface-border)'
+          onMouseLeave={event => {
+            event.currentTarget.style.backgroundColor = 'var(--surface-border)'
           }}
         />
-        {/* Console/Output Area - Resizable, Collapsible */}
         <ConsolePanel
           consoleExpanded={consoleExpanded}
           onToggleConsole={() => setConsoleExpanded(!consoleExpanded)}

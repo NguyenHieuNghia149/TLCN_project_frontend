@@ -11,29 +11,15 @@ import ExamProblemSection from '@/components/problem/ExamProblemSection'
 import CodeEditorSection from '@/components/editor/CodeEditorSection'
 import ChallengePicker from '@/components/exam/ChallengePicker'
 import { ProblemDetailResponse } from '@/types/challenge.types'
-import { submissionsService } from '@/services/api/submissions.service'
-import type {
-  SupportedLanguage,
-  SandboxTestcaseResult,
-} from '@/types/submission.types'
-import type { TestCase, OutputState } from '@/types/editor.types'
-import { io, Socket } from 'socket.io-client'
+import { useLanguageDrafts } from '@/hooks/useLanguageDrafts'
+import { useSubmissionExecution } from '@/hooks/useSubmissionExecution'
+import type { SupportedLanguage } from '@/types/submission.types'
+import type { TestCase } from '@/types/editor.types'
 import './ExamChallengeDetail.scss'
 // mocks removed: use real API only
 import { examService } from '@/services/api/exam.service'
 import useAutosaveSession from '@/hooks/useAutosaveSession'
 import { useTheme } from '@/contexts/useTheme'
-import { normalizeSubmissionStatus } from '@/utils/submissionStatus'
-
-const DEFAULT_CODE = `
-#include <iostream>
-using namespace std;
-
-int main() {
- 
-    return 0;
-}
-`
 
 const ExamChallengeDetail: React.FC = () => {
   const { examId, challengeId } = useParams<{
@@ -54,12 +40,6 @@ const ExamChallengeDetail: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'question' | 'submissions'>(
     'question'
   )
-  const [selectedLanguage, setSelectedLanguage] = useState('C++')
-  const [code, setCode] = useState(DEFAULT_CODE)
-  const [output, setOutput] = useState<OutputState>({
-    status: 'idle',
-    message: 'Ready to run tests',
-  })
   const [selectedTestCase, setSelectedTestCase] = useState<string>('1')
   const [showChallengeList, setShowChallengeList] = useState(false)
   const [yourScore, setYourScore] = useState<number | null>(null)
@@ -113,6 +93,53 @@ const ExamChallengeDetail: React.FC = () => {
       // ignore refresh errors; UI will simply not update scores
     }
   }, [examId, reduxParticipationId])
+
+  const resolveSupportedLanguage = (
+    value?: string | null
+  ): SupportedLanguage => {
+    if (value === 'cpp' || value === 'java' || value === 'python') {
+      return value
+    }
+    return 'cpp'
+  }
+
+  const editorStorageKey =
+    examId && challengeId
+      ? `exam_${examId}_challenge_${challengeId}_editor_state`
+      : undefined
+  const legacyCodeStorageKey =
+    examId && challengeId
+      ? `exam_${examId}_challenge_${challengeId}_code`
+      : undefined
+
+  const {
+    code,
+    selectedLanguage,
+    setSelectedLanguage,
+    onCodeChange,
+    onResetCurrentLanguage,
+    restoreDraft,
+  } = useLanguageDrafts({
+    storageKey: editorStorageKey,
+    legacyCodeStorageKey,
+    starterCodeByLanguage: problemData?.problem.starterCodeByLanguage,
+  })
+
+  const testCases: TestCase[] =
+    problemData?.testcases.map((testCase, index) => ({
+      id: testCase.id,
+      name: `Case ${index + 1}`,
+      input: testCase.displayInput,
+      expectedOutput: testCase.displayOutput,
+      isPublic: testCase.isPublic,
+    })) || []
+
+  const { output, run, submit, resetOutput } = useSubmissionExecution({
+    testCases,
+    onSubmitCompleted: async () => {
+      await refreshSubmissionData()
+    },
+  })
   const splitPaneRef = useRef<HTMLDivElement | null>(null)
   const isDraggingSplitRef = useRef(false)
   const { theme, toggleTheme } = useTheme()
@@ -182,13 +209,9 @@ const ExamChallengeDetail: React.FC = () => {
 
   const resetSplit = () => setProblemPanelWidth(60)
 
-  const pollTimerRef = useRef<number | null>(null)
   const countdownRef = useRef<number | null>(null)
   const prevChallengeIdRef = useRef<string | null>(null)
   const codeRef = useRef<string>(code)
-  const socketRef = useRef<Socket | null>(null)
-  const socketTimeoutRef = useRef<number | null>(null)
-  const isCompletedRef = useRef<boolean>(false)
 
   // Prepare autosave payload getter and hook
   const getPayload = useCallback(() => {
@@ -279,68 +302,36 @@ const ExamChallengeDetail: React.FC = () => {
             examId,
             challengeId
           )
-          if (response && response.data) {
-            const rawData = response.data as Record<string, unknown>
-            const formattedData = {
+          if (response && response.success) {
+            const challengeData = response.data
+            setProblemData({
               problem: {
-                id: rawData.id as string,
-                title: rawData.title as string,
+                id: challengeData.id,
+                title: challengeData.title,
                 description:
-                  (rawData.description as string) ||
-                  (rawData.content as string) ||
-                  '',
-                difficulty: rawData.difficulty as string as
-                  | 'easy'
-                  | 'medium'
-                  | 'hard',
-                topic: rawData.topic as string,
-                totalPoints: rawData.totalPoints as number,
-                constraint: rawData.constraint as string,
-                tags: (rawData.tags as string[]) || [],
-                orderIndex: rawData.orderIndex as number,
+                  challengeData.description || challengeData.content || '',
+                difficulty: challengeData.difficulty,
+                topic: challengeData.topic,
+                totalPoints: challengeData.totalPoints,
+                constraint: challengeData.constraint,
+                tags: challengeData.tags || [],
+                orderIndex: challengeData.orderIndex,
+                functionSignature: challengeData.functionSignature,
+                starterCodeByLanguage: challengeData.starterCodeByLanguage,
               },
-              testcases:
-                (rawData.testcases as Array<{
-                  id: string
-                  input: string
-                  output: string
-                  isPublic: boolean
-                  point: number
-                }>) || [],
-              solution: rawData.solution as
-                | {
-                    id: string
-                    title: string
-                    description: string
-                    videoUrl?: string
-                    imageUrl?: string
-                  }
-                | undefined,
-            }
-            setProblemData(
-              formattedData as unknown as ProblemDetailResponse['data']
-            )
-
-            // Always start with initial code first
-            const initialCode = (rawData.initialCode as string) || DEFAULT_CODE
-
-            // Check localStorage for saved code (F5 recovery)
-            try {
-              const storageKey = `exam_${examId}_challenge_${challengeId}_code`
-              const savedCode = localStorage.getItem(storageKey)
-              if (savedCode && savedCode !== DEFAULT_CODE) {
-                setCode(savedCode)
-              } else {
-                setCode(initialCode)
-              }
-            } catch (err) {
-              console.warn('Failed to restore code from localStorage:', err)
-              setCode(initialCode)
-            }
-
-            // Do NOT recover saved code here — saved code is restored via a separate effect that depends on reduxParticipationId.
-            // Do NOT persist current challenge id to localStorage for privacy/security.
-            // Keep current challenge in Redux only to avoid leaking session identifiers.
+              testcases: challengeData.testcases,
+              solution: challengeData.solution ?? {
+                id: 'no-solution',
+                title: 'No Solution',
+                description: '',
+                videoUrl: '',
+                imageUrl: '',
+                isVisible: false,
+                solutionApproaches: [],
+                createdAt: '',
+                updatedAt: '',
+              },
+            })
           } else {
             setError('Failed to load challenge')
             return
@@ -383,7 +374,10 @@ const ExamChallengeDetail: React.FC = () => {
         const answers = partData?.currentAnswers || partData?.answers || {}
         const saved = answers?.[challengeId || '']
         if (saved && saved.sourceCode) {
-          setCode(saved.sourceCode)
+          restoreDraft(
+            resolveSupportedLanguage(saved.language),
+            saved.sourceCode
+          )
         }
       } catch (err) {
         console.warn(
@@ -400,17 +394,6 @@ const ExamChallengeDetail: React.FC = () => {
   useEffect(() => {
     codeRef.current = code
   }, [code])
-
-  // Save code to localStorage whenever it changes (for F5 persistence)
-  useEffect(() => {
-    if (!examId || !challengeId || !code) return
-    try {
-      const storageKey = `exam_${examId}_challenge_${challengeId}_code`
-      localStorage.setItem(storageKey, code)
-    } catch (err) {
-      console.warn('Failed to save code to localStorage:', err)
-    }
-  }, [code, examId, challengeId])
 
   // Save previous challenge's code when switching challenges
   useEffect(() => {
@@ -500,482 +483,34 @@ const ExamChallengeDetail: React.FC = () => {
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [challengeId, reduxParticipationId, selectedLanguage])
 
-  const clearPoll = () => {
-    if (pollTimerRef.current) {
-      window.clearInterval(pollTimerRef.current)
-      pollTimerRef.current = null
-    }
-  }
-
   useEffect(() => {
-    return () => clearPoll()
-  }, [])
-
-  const clearSocketTimeout = () => {
-    if (socketTimeoutRef.current) {
-      window.clearTimeout(socketTimeoutRef.current)
-      socketTimeoutRef.current = null
-    }
-  }
-
-  const ensureSocket = () => {
-    if (!socketRef.current) {
-      const socketUrl =
-        import.meta.env.REACT_APP_API_URL || 'https://api.algoforge.site'
-      socketRef.current = io(socketUrl, {
-        transports: ['websocket'],
-        withCredentials: true,
-      })
-    }
-    return socketRef.current
-  }
-
-  const leaveSubmissionRoom = (submissionId: string) => {
-    const s = socketRef.current
-    if (s) {
-      s.emit('leave_submission', { submissionId })
-    }
-  }
-
-  const normalizeStatus = (status?: string) => {
-    if (!status) return ''
-    const s = status.toUpperCase()
-    const map: Record<string, string> = {
-      PENDING: 'pending',
-      RUNNING: 'running',
-      ACCEPTED: 'accepted',
-      WRONG_ANSWER: 'wrong_answer',
-      TIME_LIMIT_EXCEEDED: 'time_limit_exceeded',
-      MEMORY_LIMIT_EXCEEDED: 'memory_limit_exceeded',
-      RUNTIME_ERROR: 'runtime_error',
-      COMPILATION_ERROR: 'compilation_error',
-      FAILED: 'failed',
-    }
-    return map[s] || status.toLowerCase()
-  }
-
-  const coerceResults = (
-    results?: unknown[],
-    testCasesArray: TestCase[] = []
-  ): SandboxTestcaseResult[] | undefined => {
-    if (!Array.isArray(results)) return undefined
-    type RawResult = Record<string, unknown>
-    const arr = results as RawResult[]
-    return arr.map((r: RawResult, idx: number) => {
-      // Determine index: prefer explicit index, then testcaseId lookup, fallback to array index
-      let index =
-        typeof r['index'] === 'number' ? (r['index'] as number) : undefined
-      if (
-        index === undefined &&
-        typeof r['testcaseId'] === 'string' &&
-        Array.isArray(testCasesArray)
-      ) {
-        const found = testCasesArray.findIndex(
-          tc => tc.id === (r['testcaseId'] as string)
-        )
-        if (found >= 0) index = found
-      }
-      if (index === undefined) index = idx
-
-      const input = (r['input'] as string) ?? (r['stdin'] as string) ?? ''
-      const expectedOutput =
-        (r['expectedOutput'] as string) ??
-        (r['expected'] as string) ??
-        (r['output'] as string) ??
-        ''
-      const actualOutput =
-        (r['actualOutput'] as string) ??
-        (r['actual'] as string) ??
-        (r['stdout'] as string) ??
-        ''
-      const ok =
-        typeof r['ok'] === 'boolean'
-          ? (r['ok'] as boolean)
-          : typeof r['isPassed'] === 'boolean'
-            ? (r['isPassed'] as boolean)
-            : !!(r['passed'] as boolean)
-      const stderr = (r['stderr'] as string) || (r['error'] as string) || ''
-      const executionTime =
-        (r['executionTime'] as number) ?? (r['time'] as number) ?? 0
-      const isPublic = (r as { isPublic?: boolean }).isPublic ?? true
-
-      return {
-        index,
-        input,
-        expectedOutput,
-        actualOutput,
-        ok,
-        stderr,
-        executionTime,
-        isPublic,
-      }
-    })
-  }
-
-  const languageToApi = (lang: string): SupportedLanguage => {
-    const l = lang.toLowerCase()
-    if (l === 'c++' || l === 'cpp') return 'cpp'
-    if (l === 'python') return 'python'
-    if (l === 'java') return 'java'
-    return 'javascript'
-  }
+    setSelectedTestCase('1')
+    resetOutput()
+  }, [challengeId, resetOutput])
 
   const handleRun = async () => {
     if (!problemData?.problem.id) return
-    setOutput({ status: 'running', message: 'Running tests...' })
-    try {
-      const participationIdToUse = reduxParticipationId || undefined
-      const payload = {
-        sourceCode: code,
-        language: languageToApi(selectedLanguage),
-        problemId: problemData.problem.id,
-        ...(participationIdToUse
-          ? { participationId: participationIdToUse }
-          : {}),
-      }
-      const data = await submissionsService.runCode(payload)
-      const submissionId = data.submissionId
-
-      // Reuse socket logic similar to handleSubmit but without DB polling
-      // Join socket room
-      const s = ensureSocket()
-      s.emit('join_submission', { submissionId })
-
-      const onUpdate = (update: {
-        submissionId?: string
-        status?: string
-        result?: {
-          passed?: number
-          total?: number
-          results?: Array<{
-            index: number
-            input: string
-            expected?: string
-            expectedOutput?: string
-            actual?: string
-            actualOutput?: string
-            ok: boolean
-            stderr?: string
-            executionTime?: number
-          }>
-        }
-      }) => {
-        if (!update || update.submissionId !== submissionId) return
-        clearSocketTimeout()
-
-        const normalized = normalizeStatus(update.status)
-        const isTerminal = [
-          'accepted',
-          'wrong_answer',
-          'time_limit_exceeded',
-          'memory_limit_exceeded',
-          'runtime_error',
-          'compilation_error',
-          'failed',
-        ].includes(normalized)
-
-        const allResults =
-          coerceResults(update.result?.results, testCases) || []
-        // Note: Exam challenge test cases usually hidden, but if public field exists use it
-        const publicResults = allResults.filter(
-          r => r.isPublic !== false && testCases[r.index]?.isPublic !== false
-        )
-        // Prefer sandbox summary when available
-        const passedCount = publicResults.filter(r => r.ok).length
-        const totalCount = publicResults.length
-
-        setOutput(prev => ({
-          status: isTerminal
-            ? normalized === 'accepted'
-              ? 'accepted'
-              : 'rejected'
-            : 'running',
-          message: isTerminal
-            ? normalized === 'accepted'
-              ? 'All test cases passed!'
-              : `Status: ${normalized}${
-                  typeof passedCount === 'number' &&
-                  typeof totalCount === 'number'
-                    ? ` • ${passedCount}/${totalCount}`
-                    : ''
-                }`
-            : typeof passedCount === 'number' && typeof totalCount === 'number'
-              ? `Running... ${passedCount}/${totalCount} passed`
-              : 'Running...',
-          passedTests: passedCount,
-          totalTests: totalCount,
-          results: publicResults.length ? publicResults : prev.results,
-          isSubmit: false,
-        }))
-
-        if (isTerminal) {
-          s.off('submission_update', onUpdate)
-          leaveSubmissionRoom(submissionId)
-        }
-      }
-
-      s.on('submission_update', onUpdate)
-
-      // Fallback timeout since we have no DB polling to rely on for ephemeral runs
-      clearSocketTimeout()
-      socketTimeoutRef.current = window.setTimeout(() => {
-        s.off('submission_update', onUpdate)
-        leaveSubmissionRoom(submissionId)
-        if (output.status === 'running') {
-          setOutput({
-            status: 'rejected',
-            message: 'Execution timed out (no response from server).',
-            error: 'Socket timeout',
-          })
-        }
-      }, 30000) // 30s timeout
-    } catch (err) {
-      setOutput({
-        status: 'rejected',
-        message:
-          (err as { message?: string }).message ||
-          'Run code failed. Please try again.',
-        error: (err as { message?: string }).message,
-      })
-    }
+    await run({
+      sourceCode: code,
+      language: selectedLanguage,
+      problemId: problemData.problem.id,
+      participationId: reduxParticipationId || undefined,
+    })
   }
 
   const handleSubmit = async () => {
     if (!problemData?.problem.id) return
-    setOutput({ status: 'running', message: 'Submitting...' })
-    try {
-      const participationIdToUse = reduxParticipationId || undefined
-      const payload = {
-        sourceCode: code,
-        language: languageToApi(selectedLanguage),
-        problemId: problemData.problem.id,
-        ...(participationIdToUse
-          ? { participationId: participationIdToUse }
-          : {}),
-      }
-      const create = await submissionsService.submitCode(payload)
-      const submissionId = create.submissionId
-
-      // Socket realtime updates
-      try {
-        const s = ensureSocket()
-        s.emit('join_submission', { submissionId })
-
-        const onUpdate = (update: {
-          submissionId?: string
-          status?: string
-          result?: {
-            passed?: number
-            total?: number
-            results?: Array<{
-              index: number
-              input: string
-              expected?: string
-              expectedOutput?: string
-              actual?: string
-              actualOutput?: string
-              ok: boolean
-              stderr?: string
-              executionTime?: number
-            }>
-          }
-        }) => {
-          if (!update || update.submissionId !== submissionId) return
-          clearSocketTimeout()
-          const normalized = normalizeStatus(update.status)
-          const isTerminal = [
-            'accepted',
-            'wrong_answer',
-            'time_limit_exceeded',
-            'memory_limit_exceeded',
-            'runtime_error',
-            'compilation_error',
-            'failed',
-          ].includes(normalized)
-          const allResults =
-            coerceResults(update.result?.results, testCases) || []
-          const publicResults = allResults.filter(
-            r => r.isPublic !== false && testCases[r.index]?.isPublic !== false
-          )
-
-          // Use ALL testcases count from backend for status consistency
-          // If backend doesn't provide summary, calculate from results
-          const allPassed =
-            update.result?.passed ?? allResults.filter(r => r.ok).length
-          const allTotal = update.result?.total ?? allResults.length
-          const uiStatus = normalizeSubmissionStatus(normalized)
-
-          setOutput(prev => ({
-            status: isTerminal
-              ? normalized === 'accepted'
-                ? 'accepted'
-                : 'rejected'
-              : 'running',
-            message: isTerminal
-              ? normalized === 'accepted'
-                ? 'You have successfully completed this problem!'
-                : `Status: ${normalized}${typeof allPassed === 'number' && typeof allTotal === 'number' ? ` • ${allPassed}/${allTotal}` : ''}`
-              : typeof allPassed === 'number' && typeof allTotal === 'number'
-                ? `Running... ${allPassed}/${allTotal} passed`
-                : 'Running...',
-            passedTests: allPassed,
-            totalTests: allTotal,
-            results: publicResults.length ? publicResults : prev.results,
-            isSubmit: true,
-            normalizedStatus: uiStatus,
-          }))
-          if (isTerminal) {
-            isCompletedRef.current = true
-            s.off('submission_update', onUpdate)
-            leaveSubmissionRoom(submissionId)
-            clearPoll()
-            // Refresh user's current session scores to update ChallengePicker
-            ;(async () => {
-              try {
-                await refreshSubmissionData()
-              } catch (err) {
-                console.warn(
-                  'Failed to refresh submission details after socket update',
-                  err
-                )
-              }
-            })()
-          }
-        }
-
-        s.on('submission_update', onUpdate)
-
-        // Fallback to polling if socket silent for 6s
-        clearSocketTimeout()
-        socketTimeoutRef.current = window.setTimeout(() => {
-          s.off('submission_update', onUpdate)
-          leaveSubmissionRoom(submissionId)
-        }, 6000)
-      } catch {
-        // ignore socket errors and rely on polling
-      }
-
-      const checkOnce = async () => {
-        try {
-          const detail = await submissionsService.getSubmission(submissionId)
-          const normalized = normalizeStatus(detail.status)
-          const terminal = [
-            'accepted',
-            'wrong_answer',
-            'time_limit_exceeded',
-            'memory_limit_exceeded',
-            'runtime_error',
-            'compilation_error',
-            'failed',
-          ]
-          if (terminal.includes(normalized)) {
-            const allResults =
-              coerceResults(detail.result?.results, testCases) || []
-            const publicResults = allResults.filter(
-              r =>
-                r.isPublic !== false && testCases[r.index]?.isPublic !== false
-            )
-
-            // Use ALL testcases count from backend for status consistency
-            // If backend doesn't provide summary, calculate from results
-            const allPassed =
-              detail.result?.passed ?? allResults.filter(r => r.ok).length
-            const allTotal = detail.result?.total ?? allResults.length
-            const uiStatus = normalizeSubmissionStatus(normalized)
-
-            setOutput({
-              status: normalized === 'accepted' ? 'accepted' : 'rejected',
-              message:
-                normalized === 'accepted'
-                  ? 'You have successfully completed this problem!'
-                  : `Status: ${normalized}. Passed ${allPassed}/${allTotal}`,
-              passedTests: allPassed,
-              totalTests: allTotal,
-              results: publicResults,
-              isSubmit: true,
-              normalizedStatus: uiStatus,
-            })
-            clearPoll()
-            try {
-              await refreshSubmissionData()
-            } catch (err) {
-              console.warn(
-                'Failed to refresh submission details after polling',
-                err
-              )
-            }
-            return true
-          } else {
-            const allResults =
-              coerceResults(detail.result?.results, testCases) || []
-            const publicResults = allResults.filter(
-              r =>
-                r.isPublic !== false && testCases[r.index]?.isPublic !== false
-            )
-
-            // Use ALL testcases count from backend
-            // If backend doesn't provide summary, calculate from results
-            const allPassed =
-              detail.result?.passed ?? allResults.filter(r => r.ok).length
-            const allTotal = detail.result?.total ?? allResults.length
-            const uiStatus = normalizeSubmissionStatus(normalized)
-
-            setOutput({
-              status: 'running',
-              message:
-                allPassed !== undefined && allTotal !== undefined
-                  ? `Running... ${allPassed}/${allTotal} passed`
-                  : 'Running...',
-              passedTests: allPassed,
-              totalTests: allTotal,
-              results: publicResults,
-              isSubmit: true,
-              normalizedStatus: uiStatus,
-            })
-            return false
-          }
-        } catch (e) {
-          const uiStatus = normalizeSubmissionStatus('failed')
-          setOutput({
-            status: 'rejected',
-            message:
-              (e as { message?: string }).message ||
-              'Failed to get submission status',
-            error: (e as { message?: string }).message,
-            isSubmit: true,
-            normalizedStatus: uiStatus,
-          })
-          clearPoll()
-          return true
-        }
-      }
-
-      // Poll every 2s until terminal status
-      clearPoll()
-      // Immediate fetch once so UI updates without initial delay
-      const finished = await checkOnce()
-      if (!finished && !isCompletedRef.current) {
-        pollTimerRef.current = window.setInterval(async () => {
-          const done = await checkOnce()
-          if (done) {
-            clearPoll()
-            isCompletedRef.current = true
-          }
-        }, 2000)
-      }
-    } catch (err) {
-      setOutput({
-        status: 'rejected',
-        message:
-          (err as { message?: string }).message ||
-          'Submit failed. Please try again.',
-        error: (err as { message?: string }).message,
-      })
-    }
+    await submit({
+      sourceCode: code,
+      language: selectedLanguage,
+      problemId: problemData.problem.id,
+      participationId: reduxParticipationId || undefined,
+    })
   }
 
   const handleReset = () => {
-    setCode(DEFAULT_CODE)
+    onResetCurrentLanguage()
+    resetOutput()
   }
 
   const handleSubmitExam = useCallback(async () => {
@@ -1206,16 +741,6 @@ const ExamChallengeDetail: React.FC = () => {
     reduxStartAt,
   ])
 
-  // Convert API test cases to the format expected by CodeEditorSection
-  const testCases: TestCase[] =
-    problemData?.testcases.map((tc, index) => ({
-      id: tc.id,
-      name: `Case ${index + 1}`,
-      input: tc.input,
-      expectedOutput: tc.output,
-      isPublic: tc.isPublic,
-    })) || []
-
   if (loading) {
     return (
       <div
@@ -1428,7 +953,7 @@ const ExamChallengeDetail: React.FC = () => {
         >
           <CodeEditorSection
             code={code}
-            onCodeChange={setCode}
+            onCodeChange={onCodeChange}
             selectedLanguage={selectedLanguage}
             onLanguageChange={setSelectedLanguage}
             testCases={testCases}

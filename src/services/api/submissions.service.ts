@@ -1,4 +1,6 @@
+import { API_CONFIG } from '@/config/api.config'
 import { apiClient } from '@/config/axios.config'
+import { tokenManager } from '@/services/auth/token.service'
 import type {
   RunOrSubmitPayload,
   RunResponseWrapper,
@@ -47,6 +49,24 @@ class SubmissionsService {
       throw new Error(json?.message || 'Failed to get submission')
     }
     return json.data
+  }
+
+  buildSubmissionStreamUrl(submissionId: string): string {
+    const baseUrl = API_CONFIG.baseURL.replace(/\/+$/, '')
+    const streamUrl = new URL(`${baseUrl}/submissions/stream/${submissionId}`)
+    const accessToken = tokenManager.getAccessToken()
+
+    if (accessToken) {
+      streamUrl.searchParams.set('token', accessToken)
+    }
+
+    return streamUrl.toString()
+  }
+
+  createSubmissionEventSource(submissionId: string): EventSource {
+    return new EventSource(this.buildSubmissionStreamUrl(submissionId), {
+      withCredentials: API_CONFIG.withCredentials,
+    })
   }
 
   async getUserSubmissions(params?: {

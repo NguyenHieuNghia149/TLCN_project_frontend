@@ -180,7 +180,12 @@ const AdminCreateChallenge: React.FC = () => {
           topicid: problem.topicId,
           topicName: problem.topicName,
           lessonName: problem.lessonName,
-          testcases: data.data.testcases,
+          testcases: data.data.testcases.map(testCase => ({
+            input: testCase.displayInput,
+            output: testCase.displayOutput,
+            point: testCase.point,
+            isPublic: testCase.isPublic,
+          })),
           solution: solutionData,
         }
         form.setFieldsValue(formData)
@@ -292,8 +297,13 @@ const AdminCreateChallenge: React.FC = () => {
       },
       testcases:
         previewData.testcases?.map((tc: TestCase, i: number) => ({
-          ...tc,
           id: `temp-${i}`,
+          inputJson: {},
+          outputJson: tc.output,
+          displayInput: tc.input,
+          displayOutput: tc.output,
+          isPublic: tc.isPublic,
+          point: tc.point,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         })) || [],
