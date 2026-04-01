@@ -5,6 +5,7 @@ import type { OutputState, TestCase } from '@/types/editor.types'
 import type {
   RunOrSubmitPayload,
   SubmissionDetail,
+  SubmissionStreamConnection,
   SubmissionStreamPayload,
   SupportedLanguage,
 } from '@/types/submission.types'
@@ -40,7 +41,7 @@ export function useSubmissionExecution(options: {
   const { testCases, onSubmitCompleted } = options
   const [output, setOutput] = useState<OutputState>(INITIAL_OUTPUT)
   const pollTimerRef = useRef<number | null>(null)
-  const streamRef = useRef<EventSource | null>(null)
+  const streamRef = useRef<SubmissionStreamConnection | null>(null)
   const streamFallbackTimerRef = useRef<number | null>(null)
   const completedRef = useRef(false)
   const latestTestCasesRef = useRef(testCases)

@@ -1,4 +1,10 @@
-﻿export type SupportedLanguage = 'cpp' | 'python' | 'java'
+export type SupportedLanguage = 'cpp' | 'python' | 'java'
+
+export interface SubmissionStreamConnection {
+  onmessage: ((event: MessageEvent<string>) => void) | null
+  onerror: ((event: Event) => void) | null
+  close(): void
+}
 
 export interface SubmissionStreamPayload {
   submissionId: string
