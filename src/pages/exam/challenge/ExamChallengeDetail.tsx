@@ -12,10 +12,15 @@ import CodeEditorSection from '@/components/editor/CodeEditorSection'
 import ChallengePicker from '@/components/exam/ChallengePicker'
 import { ProblemDetailResponse } from '@/types/challenge.types'
 import { useLanguageDrafts } from '@/hooks/useLanguageDrafts'
+import { useLanguages } from '@/hooks/api/useLanguages'
 import { useSubmissionExecution } from '@/hooks/useSubmissionExecution'
 import type { SupportedLanguage } from '@/types/submission.types'
 import type { TestCase } from '@/types/editor.types'
 import './ExamChallengeDetail.scss'
+import {
+  buildSubmissionLanguageOptions,
+  DEFAULT_SUBMISSION_LANGUAGE,
+} from '@/constants/submissionLanguages'
 // mocks removed: use real API only
 import { examService } from '@/services/api/exam.service'
 import useAutosaveSession from '@/hooks/useAutosaveSession'
@@ -46,6 +51,15 @@ const ExamChallengeDetail: React.FC = () => {
   // const [yourPoints, setYourPoints] = useState<number | null>(null)
 
   const [problemPanelWidth, setProblemPanelWidth] = useState(60)
+  const { data: languages } = useLanguages()
+  const languageOptions = React.useMemo(
+    () => buildSubmissionLanguageOptions(languages),
+    [languages]
+  )
+  const activeLanguages = React.useMemo(
+    () => languageOptions.map(option => option.value),
+    [languageOptions]
+  )
   const dispatch = useDispatch()
   const reduxParticipationId = useSelector(
     (s: RootState) => s.exam?.currentParticipationId
@@ -97,10 +111,10 @@ const ExamChallengeDetail: React.FC = () => {
   const resolveSupportedLanguage = (
     value?: string | null
   ): SupportedLanguage => {
-    if (value === 'cpp' || value === 'java' || value === 'python') {
+    if (value && activeLanguages.includes(value)) {
       return value
     }
-    return 'cpp'
+    return activeLanguages[0] ?? DEFAULT_SUBMISSION_LANGUAGE
   }
 
   const editorStorageKey =
@@ -122,6 +136,7 @@ const ExamChallengeDetail: React.FC = () => {
   } = useLanguageDrafts({
     storageKey: editorStorageKey,
     legacyCodeStorageKey,
+    languages: activeLanguages,
     starterCodeByLanguage: problemData?.problem.starterCodeByLanguage,
   })
 
@@ -956,6 +971,7 @@ const ExamChallengeDetail: React.FC = () => {
             onCodeChange={onCodeChange}
             selectedLanguage={selectedLanguage}
             onLanguageChange={setSelectedLanguage}
+            languageOptions={languageOptions}
             testCases={testCases}
             selectedTestCase={selectedTestCase}
             onTestCaseSelect={setSelectedTestCase}

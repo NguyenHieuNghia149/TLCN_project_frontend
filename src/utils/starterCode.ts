@@ -14,24 +14,41 @@ type GetCodeForLanguageOptions = {
 }
 
 type MergeStoredLanguageDraftsOptions = {
+  languages?: SupportedLanguage[]
   starterCodeByLanguage?: StarterCodeByLanguage | null
   storedDrafts?: Partial<Record<SupportedLanguage, string>>
   touchedLanguages?: SupportedLanguage[]
 }
 
-const EMPTY_STARTER_CODE: StarterCodeByLanguage = {
-  cpp: '',
-  java: '',
-  python: '',
+const LEGACY_FALLBACK_LANGUAGES: SupportedLanguage[] = ['cpp', 'java', 'python']
+
+function resolveLanguages(
+  languages?: SupportedLanguage[],
+  starterCodeByLanguage?: StarterCodeByLanguage | null,
+  storedDrafts?: Partial<Record<SupportedLanguage, string>>
+): SupportedLanguage[] {
+  if (Array.isArray(languages) && languages.length > 0) {
+    return [...languages]
+  }
+
+  const inferredLanguages = new Set<SupportedLanguage>([
+    ...Object.keys(starterCodeByLanguage ?? {}),
+    ...Object.keys(storedDrafts ?? {}),
+  ])
+
+  if (inferredLanguages.size > 0) {
+    return [...inferredLanguages]
+  }
+
+  return [...LEGACY_FALLBACK_LANGUAGES]
 }
 
-const SUPPORTED_LANGUAGES: SupportedLanguage[] = ['cpp', 'java', 'python']
-
 function inferLegacyTouchedLanguages(
+  languages: SupportedLanguage[],
   storedDrafts?: Partial<Record<SupportedLanguage, string>>
 ): Set<SupportedLanguage> {
   return new Set(
-    SUPPORTED_LANGUAGES.filter(language => {
+    languages.filter(language => {
       const storedDraft = storedDrafts?.[language]
       return typeof storedDraft === 'string' && storedDraft.length > 0
     })
@@ -44,7 +61,8 @@ export function getLanguageLabel(language: SupportedLanguage): string {
       ?.label ??
     SUBMISSION_LANGUAGE_OPTIONS.find(
       option => option.value === DEFAULT_SUBMISSION_LANGUAGE
-    )!.label
+    )?.label ??
+    language
   )
 }
 
@@ -56,23 +74,47 @@ export function getLanguageValueFromLabel(label: string): SupportedLanguage {
 }
 
 export function createInitialLanguageDrafts(
+  languages: SupportedLanguage[],
   starterCodeByLanguage?: StarterCodeByLanguage | null
+): Record<SupportedLanguage, string>
+export function createInitialLanguageDrafts(
+  starterCodeByLanguage?: StarterCodeByLanguage | null
+): Record<SupportedLanguage, string>
+export function createInitialLanguageDrafts(
+  languagesOrStarterCode?: SupportedLanguage[] | StarterCodeByLanguage | null,
+  maybeStarterCode?: StarterCodeByLanguage | null
 ): Record<SupportedLanguage, string> {
-  const starter = starterCodeByLanguage ?? EMPTY_STARTER_CODE
+  const languages = Array.isArray(languagesOrStarterCode)
+    ? resolveLanguages(languagesOrStarterCode, maybeStarterCode)
+    : resolveLanguages(undefined, languagesOrStarterCode ?? undefined)
+  const starterCodeByLanguage = Array.isArray(languagesOrStarterCode)
+    ? maybeStarterCode
+    : languagesOrStarterCode
 
-  return {
-    cpp: starter.cpp ?? '',
-    java: starter.java ?? '',
-    python: starter.python ?? '',
-  }
+  return languages.reduce<Record<SupportedLanguage, string>>(
+    (drafts, language) => {
+      drafts[language] = starterCodeByLanguage?.[language] ?? ''
+      return drafts
+    },
+    {}
+  )
 }
 
 export function mergeStoredLanguageDrafts({
+  languages,
   starterCodeByLanguage,
   storedDrafts,
   touchedLanguages,
 }: MergeStoredLanguageDraftsOptions): Record<SupportedLanguage, string> {
-  const baseDrafts = createInitialLanguageDrafts(starterCodeByLanguage)
+  const resolvedLanguages = resolveLanguages(
+    languages,
+    starterCodeByLanguage,
+    storedDrafts
+  )
+  const baseDrafts = createInitialLanguageDrafts(
+    resolvedLanguages,
+    starterCodeByLanguage
+  )
 
   if (!storedDrafts) {
     return baseDrafts
@@ -81,23 +123,19 @@ export function mergeStoredLanguageDrafts({
   const touchedLanguageSet =
     touchedLanguages && touchedLanguages.length > 0
       ? new Set(touchedLanguages)
-      : inferLegacyTouchedLanguages(storedDrafts)
+      : inferLegacyTouchedLanguages(resolvedLanguages, storedDrafts)
 
-  return {
-    cpp:
-      touchedLanguageSet.has('cpp') && typeof storedDrafts.cpp === 'string'
-        ? storedDrafts.cpp
-        : baseDrafts.cpp,
-    java:
-      touchedLanguageSet.has('java') && typeof storedDrafts.java === 'string'
-        ? storedDrafts.java
-        : baseDrafts.java,
-    python:
-      touchedLanguageSet.has('python') &&
-      typeof storedDrafts.python === 'string'
-        ? storedDrafts.python
-        : baseDrafts.python,
-  }
+  return resolvedLanguages.reduce<Record<SupportedLanguage, string>>(
+    (drafts, language) => {
+      drafts[language] =
+        touchedLanguageSet.has(language) &&
+        typeof storedDrafts[language] === 'string'
+          ? (storedDrafts[language] ?? '')
+          : (baseDrafts[language] ?? '')
+      return drafts
+    },
+    {}
+  )
 }
 
 export function getCodeForLanguage({
@@ -110,7 +148,7 @@ export function getCodeForLanguage({
     return userDraft
   }
 
-  return createInitialLanguageDrafts(starterCodeByLanguage)[language]
+  return starterCodeByLanguage?.[language] ?? ''
 }
 
 export function updateLanguageDraft(

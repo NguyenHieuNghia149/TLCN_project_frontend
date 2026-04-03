@@ -1,8 +1,12 @@
 import React from 'react'
-import { ProblemDetailResponse } from '@/types/challenge.types'
-import './ProblemSection.css'
+import { CheckCircle2 } from 'lucide-react'
+
+import type { ProblemDetailResponse } from '@/types/challenge.types'
 import { formatConstraintText } from '@/utils/textFormatter'
+
 import SubmissionsTab from './SubmissionsTab'
+
+import './ProblemSection.css'
 
 interface ExamProblemSectionProps {
   activeTab: 'question' | 'submissions'
@@ -37,7 +41,6 @@ const ExamProblemSection: React.FC<ExamProblemSectionProps> = ({
       className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-r"
       style={{ borderColor: 'var(--surface-border)' }}
     >
-      {/* Tabs */}
       <div
         className="flex border-b"
         style={{ borderColor: 'var(--surface-border)' }}
@@ -76,7 +79,6 @@ const ExamProblemSection: React.FC<ExamProblemSectionProps> = ({
         </button>
       </div>
 
-      {/* Content */}
       <div
         className="flex-1 overflow-auto p-6"
         style={{ backgroundColor: 'var(--exam-panel-bg)' }}
@@ -95,7 +97,8 @@ const ExamProblemSection: React.FC<ExamProblemSectionProps> = ({
                   className="flex items-center gap-1 text-sm"
                   style={{ color: '#10b981' }}
                 >
-                  ✓ Solved
+                  <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
+                  <span>Solved</span>
                 </span>
               )}
             </div>
@@ -116,7 +119,6 @@ const ExamProblemSection: React.FC<ExamProblemSectionProps> = ({
               )}
             </div>
 
-            {/* HTML Description */}
             <div
               className="problem-description"
               style={{ color: 'var(--text-color)' }}
@@ -125,7 +127,6 @@ const ExamProblemSection: React.FC<ExamProblemSectionProps> = ({
               }}
             />
 
-            {/* Tags */}
             <details
               className="mt-6 rounded border p-4"
               style={{ borderColor: 'var(--surface-border)' }}
@@ -155,7 +156,6 @@ const ExamProblemSection: React.FC<ExamProblemSectionProps> = ({
               </div>
             </details>
 
-            {/* Constraints */}
             <details
               className="mt-6 rounded border p-4"
               style={{ borderColor: 'var(--surface-border)' }}

@@ -1,4 +1,10 @@
-import React, { useEffect, useState, useContext } from 'react'
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 import {
   Form,
   Input,
@@ -17,12 +23,18 @@ import {
   DeleteOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
-import { challengeService } from '@/services/api/challenge.service'
-import { topicService } from '@/services/api/topic.service'
 import { Editor } from '@tinymce/tinymce-react'
 import MonacoEditor from '@monaco-editor/react'
+
 import ProblemSection from '@/components/problem/ProblemSection'
+import {
+  buildSubmissionLanguageOptions,
+  type LanguageOption,
+} from '@/constants/submissionLanguages'
 import { AdminThemeContext } from '@/contexts/AdminThemeContextDef'
+import { useLanguages } from '@/hooks/api/useLanguages'
+import { challengeService } from '@/services/api/challenge.service'
+import { topicService } from '@/services/api/topic.service'
 import { ProblemDetailResponse } from '@/types/challenge.types'
 
 const { Option } = Select
@@ -34,23 +46,27 @@ interface TestCase {
   isPublic: boolean
 }
 
-interface SolutionApproach {
-  title: string
+interface CodeVariantFormValue {
   language: string
   sourceCode: string
-  timeComplexity?: string
-  spaceComplexity?: string
-  explanation?: string
-  description?: string
-  order?: number
 }
 
-interface Solution {
+interface SolutionApproachFormValue {
+  title: string
+  description?: string
+  explanation?: string
+  timeComplexity?: string
+  spaceComplexity?: string
+  order?: number
+  codeVariants: CodeVariantFormValue[]
+}
+
+interface SolutionFormValue {
   title: string
   description?: string
   videoUrl?: string
   isVisible: boolean
-  solutionApproaches: SolutionApproach[]
+  solutionApproaches: SolutionApproachFormValue[]
 }
 
 interface ChallengeFormValues {
@@ -66,7 +82,7 @@ interface ChallengeFormValues {
   topicName?: string
   lessonName?: string
   testcases: TestCase[]
-  solution?: Solution
+  solution?: SolutionFormValue
 }
 
 const RichTextEditor: React.FC<{
@@ -77,7 +93,6 @@ const RichTextEditor: React.FC<{
 }> = ({ value, onChange, onBlur, theme = 'light' }) => {
   return (
     <Editor
-      // apiKey="your-api-key" // Optional: Add your TinyMCE API key here to remove the warning
       apiKey="mbktsx5e61er2k8coefqk7u51n3sf1m7z1r9qyqcpv01grpw"
       value={value}
       onEditorChange={onChange}
@@ -101,7 +116,6 @@ const RichTextEditor: React.FC<{
           'insertdatetime',
           'media',
           'table',
-          'code',
           'help',
           'wordcount',
         ],
@@ -119,10 +133,132 @@ const RichTextEditor: React.FC<{
   )
 }
 
+function buildEmptyCodeVariants(
+  languageOptions: LanguageOption[]
+): CodeVariantFormValue[] {
+  return languageOptions.map(language => ({
+    language: language.value,
+    sourceCode: '',
+  }))
+}
+
+function normalizeCodeVariantsForForm(
+  codeVariants: Array<{ language?: string; sourceCode?: string }> | undefined,
+  languageOptions: LanguageOption[]
+): CodeVariantFormValue[] {
+  const sourceCodeByLanguage = new Map<string, string>()
+
+  for (const variant of codeVariants ?? []) {
+    if (typeof variant.language === 'string') {
+      sourceCodeByLanguage.set(variant.language, variant.sourceCode ?? '')
+    }
+  }
+
+  return languageOptions.map(language => ({
+    language: language.value,
+    sourceCode: sourceCodeByLanguage.get(language.value) ?? '',
+  }))
+}
+
+function normalizeApproachesForSubmit(
+  solutionApproaches: SolutionApproachFormValue[] | undefined,
+  languageOptions: LanguageOption[]
+): SolutionApproachFormValue[] {
+  return (solutionApproaches ?? []).map((approach, index) => ({
+    ...approach,
+    order: index + 1,
+    codeVariants: normalizeCodeVariantsForForm(
+      approach.codeVariants,
+      languageOptions
+    ),
+  }))
+}
+
+function normalizeSolutionForForm(
+  solution: ProblemDetailResponse['data']['solution'] | undefined,
+  languageOptions: LanguageOption[]
+): SolutionFormValue {
+  if (!solution) {
+    return {
+      title: 'Reference Solution',
+      description: '',
+      videoUrl: '',
+      isVisible: true,
+      solutionApproaches: [],
+    }
+  }
+
+  return {
+    title: solution.title || 'Reference Solution',
+    description: solution.description || '',
+    videoUrl: solution.videoUrl || '',
+    isVisible: solution.isVisible,
+    solutionApproaches: (solution.solutionApproaches ?? []).map(approach => ({
+      title: approach.title,
+      description: approach.description || '',
+      explanation: approach.explanation || '',
+      timeComplexity: approach.timeComplexity || '',
+      spaceComplexity: approach.spaceComplexity || '',
+      order: approach.order,
+      codeVariants: normalizeCodeVariantsForForm(
+        approach.codeVariants,
+        languageOptions
+      ),
+    })),
+  }
+}
+
+function mapSolutionForPreview(
+  solution: SolutionFormValue | undefined,
+  languageOptions: LanguageOption[]
+): ProblemDetailResponse['data']['solution'] {
+  if (!solution) {
+    return {
+      id: 'no-solution',
+      title: 'No Solution',
+      description: '',
+      videoUrl: '',
+      imageUrl: '',
+      isVisible: false,
+      solutionApproaches: [],
+      createdAt: '',
+      updatedAt: '',
+    }
+  }
+
+  return {
+    id: 'temp-solution',
+    title: solution.title,
+    description: solution.description || '',
+    videoUrl: solution.videoUrl || '',
+    imageUrl: '',
+    isVisible: solution.isVisible,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    solutionApproaches: normalizeApproachesForSubmit(
+      solution.solutionApproaches,
+      languageOptions
+    ).map((approach, index) => {
+      return {
+        id: `temp-ap-${index}`,
+        title: approach.title,
+        description: approach.description || '',
+        explanation: approach.explanation || '',
+        timeComplexity: approach.timeComplexity || '',
+        spaceComplexity: approach.spaceComplexity || '',
+        order: index + 1,
+        codeVariants: approach.codeVariants,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+    }),
+  }
+}
+
 const AdminCreateChallenge: React.FC = () => {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
-  const [form] = Form.useForm()
+  const [form] = Form.useForm<ChallengeFormValues>()
   const [loading, setLoading] = useState(false)
   const [previewMode, setPreviewMode] = useState(false)
   const [topics, setTopics] = useState<{ id: string; topicName: string }[]>([])
@@ -133,6 +269,11 @@ const AdminCreateChallenge: React.FC = () => {
   const [activeTab, setActiveTab] = useState<
     'question' | 'solution' | 'submissions' | 'discussion'
   >('question')
+  const { data: languages } = useLanguages()
+  const languageOptions = useMemo(
+    () => buildSubmissionLanguageOptions(languages),
+    [languages]
+  )
 
   const { adminTheme } = useContext(AdminThemeContext) || {
     adminTheme: 'light',
@@ -157,27 +298,29 @@ const AdminCreateChallenge: React.FC = () => {
         })
       }
     }
-    loadTopics()
-  }, [])
 
-  const fetchChallenge = React.useCallback(
+    void loadTopics()
+  }, [notification])
+
+  const fetchChallenge = useCallback(
     async (challengeId: string) => {
       setLoading(true)
       try {
-        const data = await challengeService.getChallengeById(challengeId, true) // showAll=true for admin
-        // Transform data for form
-        const problem = data.data.problem || data.data // Handle potential different response structure
+        const data = await challengeService.getChallengeById(challengeId, true)
+        const problem = data.data.problem || data.data
+        const solution = normalizeSolutionForForm(
+          data.data.solution,
+          languageOptions
+        )
 
-        // Default empty solution if none exists
-        const solutionData = data.data.solution || {
-          title: 'Reference Solution',
-          isVisible: true,
-          solutionApproaches: [],
-        }
-
-        const formData = {
+        const formData: ChallengeFormValues = {
           ...problem,
-          topicid: problem.topicId,
+          visibility:
+            (problem as { visibility?: string }).visibility ?? 'public',
+          timeLimit: (problem as { timeLimit?: number }).timeLimit ?? 1000,
+          memoryLimit:
+            (problem as { memoryLimit?: string }).memoryLimit ?? '128m',
+          topicid: problem.topicId || '',
           topicName: problem.topicName,
           lessonName: problem.lessonName,
           testcases: data.data.testcases.map(testCase => ({
@@ -186,8 +329,9 @@ const AdminCreateChallenge: React.FC = () => {
             point: testCase.point,
             isPublic: testCase.isPublic,
           })),
-          solution: solutionData,
+          solution,
         }
+
         form.setFieldsValue(formData)
       } catch {
         notification.error({
@@ -199,45 +343,43 @@ const AdminCreateChallenge: React.FC = () => {
         setLoading(false)
       }
     },
-    [form]
+    [form, languageOptions, notification]
   )
 
   useEffect(() => {
     if (id) {
-      fetchChallenge(id)
+      void fetchChallenge(id)
     }
-  }, [id, fetchChallenge])
+  }, [fetchChallenge, id])
 
   const onFinish = async (values: ChallengeFormValues) => {
     setLoading(true)
     try {
-      // Direct pass-through of values now that backend handles nested solution
-      const payload = values as unknown as Record<string, unknown>
-      const solutionPayload = payload.solution as
-        | Record<string, unknown>
-        | undefined
-
-      if (
-        solutionPayload &&
-        Array.isArray(solutionPayload.solutionApproaches)
-      ) {
-        // Ensure orders are set
-        solutionPayload.solutionApproaches =
-          solutionPayload.solutionApproaches.map(
-            (ap: unknown, index: number) => ({
-              ...(ap as object),
-              order: index + 1,
-            })
-          )
+      const payload: ChallengeFormValues = {
+        ...values,
+        solution: values.solution
+          ? {
+              ...values.solution,
+              solutionApproaches: normalizeApproachesForSubmit(
+                values.solution.solutionApproaches,
+                languageOptions
+              ),
+            }
+          : undefined,
       }
 
       if (id) {
-        await challengeService.updateChallenge(id, payload)
+        await challengeService.updateChallenge(
+          id,
+          payload as unknown as Record<string, unknown>
+        )
         navigate('/admin/challenges', {
           state: { successMessage: 'Challenge updated successfully' },
         })
       } else {
-        await challengeService.createChallenge(payload)
+        await challengeService.createChallenge(
+          payload as unknown as Record<string, unknown>
+        )
         navigate('/admin/challenges', {
           state: { successMessage: 'Challenge created successfully' },
         })
@@ -282,7 +424,6 @@ const AdminCreateChallenge: React.FC = () => {
   const renderPreview = () => {
     if (!previewData) return null
 
-    // Construct mock data for ProblemSection
     const mockProblemData: ProblemDetailResponse['data'] = {
       problem: {
         id: id || 'preview-id',
@@ -296,8 +437,8 @@ const AdminCreateChallenge: React.FC = () => {
         isFavorite: false,
       },
       testcases:
-        previewData.testcases?.map((tc: TestCase, i: number) => ({
-          id: `temp-${i}`,
+        previewData.testcases?.map((tc: TestCase, index: number) => ({
+          id: `temp-${index}`,
           inputJson: {},
           outputJson: tc.output,
           displayInput: tc.input,
@@ -307,56 +448,14 @@ const AdminCreateChallenge: React.FC = () => {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         })) || [],
-      solution: previewData.solution
-        ? {
-            id: 'temp-solution',
-            title: previewData.solution.title,
-            description: previewData.solution.description || '',
-            videoUrl: previewData.solution.videoUrl || '',
-            imageUrl: '',
-            isVisible: previewData.solution.isVisible,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            solutionApproaches:
-              previewData.solution.solutionApproaches?.map(
-                (ap: SolutionApproach, i: number) => ({
-                  id: `temp-ap-${i}`,
-                  title: ap.title,
-                  language: ap.language,
-                  sourceCode: ap.sourceCode,
-                  timeComplexity: ap.timeComplexity || '',
-                  spaceComplexity: ap.spaceComplexity || '',
-                  explanation: ap.explanation || '',
-                  description: ap.description || '',
-                  order: i + 1,
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
-                })
-              ) || [],
-          }
-        : {
-            id: 'no-solution',
-            title: 'No Solution',
-            description: '',
-            videoUrl: '',
-            imageUrl: '',
-            isVisible: false,
-            solutionApproaches: [],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
+      solution: mapSolutionForPreview(previewData.solution, languageOptions),
     }
 
     return (
       <div className="flex h-screen flex-col border-border bg-background">
         <div className="flex items-center justify-between border-b border-border bg-card p-4">
-          <Button
-            onClick={() => setPreviewMode(false)}
-            className="text-white hover:text-blue-400"
-          >
-            Back to Edit
-          </Button>
-          <Button type="primary" onClick={() => onFinish(previewData)}>
+          <Button onClick={() => setPreviewMode(false)}>Back to Edit</Button>
+          <Button type="primary" onClick={() => void onFinish(previewData)}>
             {id ? 'Update Challenge' : 'Create Challenge'}
           </Button>
         </div>
@@ -365,6 +464,7 @@ const AdminCreateChallenge: React.FC = () => {
             activeTab={activeTab}
             onTabChange={setActiveTab}
             problemData={mockProblemData}
+            solutionLanguageOptions={languageOptions}
           />
         </div>
       </div>
@@ -377,7 +477,6 @@ const AdminCreateChallenge: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background p-6 transition-colors duration-300">
-      {/* {contextHolder} */}
       <div className="mb-4 flex items-center gap-4">
         <Button
           icon={<ArrowLeftOutlined />}
@@ -394,6 +493,19 @@ const AdminCreateChallenge: React.FC = () => {
           layout="vertical"
           onFinish={onFinish}
           validateTrigger={['onChange', 'onBlur']}
+          initialValues={{
+            difficulty: 'easy',
+            visibility: 'public',
+            timeLimit: 1000,
+            memoryLimit: '128m',
+            solution: {
+              title: 'Reference Solution',
+              description: '',
+              videoUrl: '',
+              isVisible: true,
+              solutionApproaches: [],
+            },
+          }}
         >
           <Form.Item
             name="title"
@@ -446,35 +558,23 @@ const AdminCreateChallenge: React.FC = () => {
           </Form.Item>
 
           <Space style={{ display: 'flex', marginBottom: 8 }} align="baseline">
-            <Form.Item name="difficulty" label="Difficulty" initialValue="easy">
+            <Form.Item name="difficulty" label="Difficulty">
               <Select style={{ width: 120 }}>
                 <Option value="easy">Easy</Option>
                 <Option value="medium">Medium</Option>
                 <Option value="hard">Hard</Option>
               </Select>
             </Form.Item>
-            <Form.Item
-              name="visibility"
-              label="Visibility"
-              initialValue="public"
-            >
+            <Form.Item name="visibility" label="Visibility">
               <Select style={{ width: 120 }}>
                 <Option value="public">Public</Option>
                 <Option value="private">Private</Option>
               </Select>
             </Form.Item>
-            <Form.Item
-              name="timeLimit"
-              label="Time Limit (ms)"
-              initialValue={1000}
-            >
+            <Form.Item name="timeLimit" label="Time Limit (ms)">
               <InputNumber />
             </Form.Item>
-            <Form.Item
-              name="memoryLimit"
-              label="Memory Limit"
-              initialValue="128m"
-            >
+            <Form.Item name="memoryLimit" label="Memory Limit">
               <Input />
             </Form.Item>
           </Space>
@@ -486,9 +586,9 @@ const AdminCreateChallenge: React.FC = () => {
               showSearch
               optionFilterProp="children"
             >
-              {topics.map(t => (
-                <Option key={t.id} value={t.id}>
-                  {t.topicName}
+              {topics.map(topic => (
+                <Option key={topic.id} value={topic.id}>
+                  {topic.topicName}
                 </Option>
               ))}
             </Select>
@@ -592,7 +692,9 @@ const AdminCreateChallenge: React.FC = () => {
                 ))}
                 <Button
                   type="dashed"
-                  onClick={() => add()}
+                  onClick={() =>
+                    add({ input: '', output: '', point: 10, isPublic: false })
+                  }
                   block
                   icon={<PlusOutlined />}
                   className="h-12"
@@ -609,11 +711,23 @@ const AdminCreateChallenge: React.FC = () => {
               <Form.Item
                 name={['solution', 'title']}
                 label="Solution Title"
-                initialValue="Reference Solution"
+                rules={[
+                  { required: true, message: 'Please enter solution title' },
+                ]}
               >
                 <Input />
               </Form.Item>
-              <Form.Item name={['solution', 'videoUrl']} label="Video URL">
+              <Form.Item
+                name={['solution', 'videoUrl']}
+                label="Video URL"
+                rules={[
+                  {
+                    type: 'url',
+                    warningOnly: true,
+                    message: 'Please enter a valid URL',
+                  },
+                ]}
+              >
                 <Input placeholder="https://youtube.com/..." />
               </Form.Item>
             </div>
@@ -623,11 +737,7 @@ const AdminCreateChallenge: React.FC = () => {
             >
               <Input.TextArea rows={2} />
             </Form.Item>
-            <Form.Item
-              name={['solution', 'isVisible']}
-              valuePropName="checked"
-              initialValue={true}
-            >
+            <Form.Item name={['solution', 'isVisible']} valuePropName="checked">
               <Switch checkedChildren="Public" unCheckedChildren="Private" />
             </Form.Item>
           </div>
@@ -652,30 +762,30 @@ const AdminCreateChallenge: React.FC = () => {
                     className="border-border bg-card transition-colors duration-300"
                   >
                     <Space direction="vertical" style={{ width: '100%' }}>
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'title']}
-                          label="Approach Title"
-                          rules={[{ required: true }]}
-                        >
-                          <Input placeholder="e.g. Brute Force" />
-                        </Form.Item>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'language']}
-                          label="Language"
-                          initialValue="javascript"
-                        >
-                          <Select>
-                            <Option value="javascript">JavaScript</Option>
-                            <Option value="typescript">TypeScript</Option>
-                            <Option value="python">Python</Option>
-                            <Option value="java">Java</Option>
-                            <Option value="cpp">C++</Option>
-                          </Select>
-                        </Form.Item>
-                      </div>
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'title']}
+                        label="Approach Title"
+                        rules={[
+                          {
+                            required: true,
+                            message: 'Please enter approach title',
+                          },
+                        ]}
+                      >
+                        <Input placeholder="e.g. Brute Force" />
+                      </Form.Item>
+
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'description']}
+                        label="Shared Description"
+                      >
+                        <Input.TextArea
+                          rows={2}
+                          placeholder="One description shared across all languages"
+                        />
+                      </Form.Item>
 
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <Form.Item
@@ -705,24 +815,72 @@ const AdminCreateChallenge: React.FC = () => {
                         />
                       </Form.Item>
 
-                      <Form.Item
-                        {...restField}
-                        name={[name, 'sourceCode']}
-                        label="Code"
-                        rules={[{ required: true }]}
-                      >
-                        <MonacoEditor
-                          height="250px"
-                          defaultLanguage="javascript"
-                          theme="vs-dark"
-                        />
-                      </Form.Item>
+                      <Divider orientation="left">Code Variants</Divider>
+                      {languageOptions.map((languageOption, languageIndex) => (
+                        <div
+                          key={languageOption.value}
+                          className="rounded border border-border p-4"
+                        >
+                          <div className="mb-3 flex items-center justify-between">
+                            <h4 className="font-medium text-foreground">
+                              {languageOption.label}
+                            </h4>
+                            <span className="text-xs text-muted-foreground">
+                              Required
+                            </span>
+                          </div>
+                          <Form.Item
+                            name={[
+                              name,
+                              'codeVariants',
+                              languageIndex,
+                              'language',
+                            ]}
+                            initialValue={languageOption.value}
+                            hidden
+                          >
+                            <Input />
+                          </Form.Item>
+                          <Form.Item
+                            name={[
+                              name,
+                              'codeVariants',
+                              languageIndex,
+                              'sourceCode',
+                            ]}
+                            label={`Code (${languageOption.label})`}
+                            rules={[
+                              {
+                                required: true,
+                                message: `Please enter ${languageOption.label} solution code`,
+                              },
+                            ]}
+                          >
+                            <MonacoEditor
+                              height="250px"
+                              language={languageOption.monacoLanguage}
+                              theme={
+                                adminTheme === 'dark' ? 'vs-dark' : 'light'
+                              }
+                            />
+                          </Form.Item>
+                        </div>
+                      ))}
                     </Space>
                   </Card>
                 ))}
                 <Button
                   type="dashed"
-                  onClick={() => add()}
+                  onClick={() =>
+                    add({
+                      title: '',
+                      description: '',
+                      explanation: '',
+                      timeComplexity: '',
+                      spaceComplexity: '',
+                      codeVariants: buildEmptyCodeVariants(languageOptions),
+                    })
+                  }
                   block
                   icon={<PlusOutlined />}
                   className="h-12 border-blue-300 text-blue-500"
