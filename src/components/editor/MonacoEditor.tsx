@@ -8,6 +8,9 @@ interface MonacoEditorProps {
   readOnly?: boolean
   height?: string | number
   editorTheme?: string
+  fontSize?: number
+  lineHeight?: number
+  wordWrap?: 'on' | 'off'
 }
 
 const MonacoEditor: React.FC<MonacoEditorProps> = ({
@@ -17,6 +20,9 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
   readOnly = false,
   height = '100%',
   editorTheme = 'custom-dark',
+  fontSize = 16,
+  lineHeight = 26,
+  wordWrap = 'on',
 }) => {
   const handleEditorChange = (value: string | undefined) => {
     if (value !== undefined) {
@@ -44,29 +50,41 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
         onChange={handleEditorChange}
         theme={editorTheme === 'custom-light' ? 'vs-light' : 'vs-dark'}
         options={{
-          fontSize: 14,
-          fontFamily: "'Fira Code', 'Monaco', 'Courier New', monospace",
+          fontSize,
+          lineHeight,
+          fontFamily:
+            "'JetBrains Mono', 'Fira Code', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace",
+          fontLigatures: true,
+          fontWeight: '500',
+          letterSpacing: 0.2,
           lineNumbers: 'on',
           minimap: { enabled: false },
           scrollBeyondLastLine: false,
           automaticLayout: true,
           tabSize: 2,
           insertSpaces: true,
-          wordWrap: 'on',
+          wordWrap,
+          wrappingIndent: 'indent',
           lineNumbersMinChars: 3,
           glyphMargin: false,
           folding: true,
           lineDecorationsWidth: 0,
           renderLineHighlight: 'line',
+          renderWhitespace: 'selection',
           selectOnLineNumbers: true,
           roundedSelection: false,
           readOnly,
           cursorStyle: 'line',
-          cursorBlinking: 'blink',
-          cursorWidth: 0,
+          cursorBlinking: 'phase',
+          cursorSmoothCaretAnimation: 'on',
+          cursorWidth: 2,
           hideCursorInOverviewRuler: true,
           smoothScrolling: true,
           mouseWheelZoom: true,
+          padding: {
+            top: 22,
+            bottom: 24,
+          },
           bracketPairColorization: {
             enabled: true,
           },
@@ -109,25 +127,30 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
             base: 'vs-dark',
             inherit: true,
             rules: [
-              { token: 'comment', foreground: '6A9955', fontStyle: 'italic' },
-              { token: 'keyword', foreground: '569CD6', fontStyle: 'bold' },
-              { token: 'string', foreground: 'CE9178' },
-              { token: 'number', foreground: 'B5CEA8' },
-              { token: 'operator', foreground: 'D4D4D4' },
-              { token: 'delimiter', foreground: 'D4D4D4' },
-              { token: 'type', foreground: '4EC9B0' },
-              { token: 'function', foreground: 'DCDCAA' },
+              { token: 'comment', foreground: '788191', fontStyle: 'italic' },
+              { token: 'keyword', foreground: '62B0FF', fontStyle: 'bold' },
+              { token: 'string', foreground: 'F6B17A' },
+              { token: 'number', foreground: 'D9A5FF' },
+              { token: 'operator', foreground: 'D8DDE6' },
+              { token: 'delimiter', foreground: 'D8DDE6' },
+              { token: 'type', foreground: '43D1C0' },
+              { token: 'function', foreground: 'F8D774' },
+              { token: 'identifier', foreground: 'F3F4F6' },
             ],
             colors: {
-              'editor.background': '#0b0c10', // var(--editor-bg)
-              'editor.foreground': '#d4d4d4',
-              'editorLineNumber.foreground': '#858585',
-              'editorLineNumber.activeForeground': '#d4d4d4',
-              'editor.selectionBackground': '#264f78',
-              'editor.inactiveSelectionBackground': '#3a3d41',
-              'editor.lineHighlightBackground': '#2d2d30',
-              'editorCursor.foreground': '#aeafad',
-              'editorWhitespace.foreground': '#404040',
+              'editor.background': '#232323',
+              'editor.foreground': '#F3F4F6',
+              'editorLineNumber.foreground': '#6B7280',
+              'editorLineNumber.activeForeground': '#CBD5E1',
+              'editor.selectionBackground': '#29446f',
+              'editor.inactiveSelectionBackground': '#26354d',
+              'editor.lineHighlightBackground': '#2c2c2c',
+              'editorCursor.foreground': '#F8D774',
+              'editorWhitespace.foreground': '#3a3a3a',
+              'editorIndentGuide.background1': '#323232',
+              'editorIndentGuide.activeBackground1': '#4b5563',
+              'editorBracketMatch.background': '#243b62',
+              'editorBracketMatch.border': '#62B0FF',
             },
           })
 
@@ -135,25 +158,30 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
             base: 'vs',
             inherit: true,
             rules: [
-              { token: 'comment', foreground: '008000', fontStyle: 'italic' },
-              { token: 'keyword', foreground: '0000FF', fontStyle: 'bold' },
-              { token: 'string', foreground: 'A31515' },
-              { token: 'number', foreground: '09885A' },
-              { token: 'operator', foreground: '000000' },
-              { token: 'delimiter', foreground: '000000' },
-              { token: 'type', foreground: '267f99' },
-              { token: 'function', foreground: '795E26' },
+              { token: 'comment', foreground: '64748B', fontStyle: 'italic' },
+              { token: 'keyword', foreground: '2563EB', fontStyle: 'bold' },
+              { token: 'string', foreground: 'C2410C' },
+              { token: 'number', foreground: '7C3AED' },
+              { token: 'operator', foreground: '0F172A' },
+              { token: 'delimiter', foreground: '0F172A' },
+              { token: 'type', foreground: '0F766E' },
+              { token: 'function', foreground: '9A3412' },
+              { token: 'identifier', foreground: '0F172A' },
             ],
             colors: {
-              'editor.background': '#ffffff',
-              'editor.foreground': '#1f1f1f',
-              'editorLineNumber.foreground': '#858585',
-              'editorLineNumber.activeForeground': '#1f1f1f',
-              'editor.selectionBackground': '#aad6ff',
-              'editor.inactiveSelectionBackground': '#e5f0fb',
-              'editor.lineHighlightBackground': '#f0f0f0',
-              'editorCursor.foreground': '#000000',
-              'editorWhitespace.foreground': '#d3d3d3',
+              'editor.background': '#FFFFFF',
+              'editor.foreground': '#0F172A',
+              'editorLineNumber.foreground': '#94A3B8',
+              'editorLineNumber.activeForeground': '#334155',
+              'editor.selectionBackground': '#BFDBFE',
+              'editor.inactiveSelectionBackground': '#DBEAFE',
+              'editor.lineHighlightBackground': '#F8FAFC',
+              'editorCursor.foreground': '#2563EB',
+              'editorWhitespace.foreground': '#E2E8F0',
+              'editorIndentGuide.background1': '#E2E8F0',
+              'editorIndentGuide.activeBackground1': '#94A3B8',
+              'editorBracketMatch.background': '#DBEAFE',
+              'editorBracketMatch.border': '#60A5FA',
             },
           })
 

@@ -12,32 +12,46 @@ import {
 } from '@/utils/starterCode'
 
 type StoredEditorState = {
+  version: 2
   selectedLanguage?: SupportedLanguage
   drafts?: Partial<Record<SupportedLanguage, string>>
   touchedLanguages?: SupportedLanguage[]
 }
 
-const SUPPORTED_LANGUAGES: SupportedLanguage[] = ['cpp', 'java', 'python']
+const STORAGE_VERSION = 2
 
-function isSupportedLanguage(value: unknown): value is SupportedLanguage {
-  return value === 'cpp' || value === 'java' || value === 'python'
+function resolveLanguages(
+  languages?: SupportedLanguage[],
+  starterCodeByLanguage?: StarterCodeByLanguage | null
+): SupportedLanguage[] {
+  if (Array.isArray(languages) && languages.length > 0) {
+    return [...languages]
+  }
+
+  const starterLanguages = Object.keys(starterCodeByLanguage ?? {})
+  if (starterLanguages.length > 0) {
+    return starterLanguages
+  }
+
+  return [DEFAULT_SUBMISSION_LANGUAGE]
 }
 
-function normalizeTouchedLanguages(value: unknown): SupportedLanguage[] {
+function isKnownLanguage(
+  value: unknown,
+  languages: SupportedLanguage[]
+): value is SupportedLanguage {
+  return typeof value === 'string' && languages.includes(value)
+}
+
+function normalizeTouchedLanguages(
+  value: unknown,
+  languages: SupportedLanguage[]
+): SupportedLanguage[] {
   if (!Array.isArray(value)) {
     return []
   }
 
-  return value.filter(isSupportedLanguage)
-}
-
-function inferTouchedLanguages(
-  drafts?: Partial<Record<SupportedLanguage, string>>
-): SupportedLanguage[] {
-  return SUPPORTED_LANGUAGES.filter(language => {
-    const draft = drafts?.[language]
-    return typeof draft === 'string' && draft.length > 0
-  })
+  return value.filter(language => isKnownLanguage(language, languages))
 }
 
 function addTouchedLanguage(
@@ -56,30 +70,51 @@ function removeTouchedLanguage(
   return touchedLanguages.filter(item => item !== language)
 }
 
+function getDefaultLanguage(languages: SupportedLanguage[]): SupportedLanguage {
+  return languages[0] ?? DEFAULT_SUBMISSION_LANGUAGE
+}
+
 /**
  * Manages per-language editor drafts with starter-code fallback and local persistence.
  */
 export function useLanguageDrafts(options: {
   storageKey?: string
   legacyCodeStorageKey?: string
+  languages?: SupportedLanguage[]
   starterCodeByLanguage?: StarterCodeByLanguage | null
 }) {
-  const { storageKey, legacyCodeStorageKey, starterCodeByLanguage } = options
-  const [selectedLanguage, setSelectedLanguage] = useState<SupportedLanguage>(
-    DEFAULT_SUBMISSION_LANGUAGE
+  const { storageKey, legacyCodeStorageKey, languages, starterCodeByLanguage } =
+    options
+  const resolvedLanguages = useMemo(
+    () => resolveLanguages(languages, starterCodeByLanguage),
+    [languages, starterCodeByLanguage]
   )
+  const defaultLanguage = useMemo(
+    () => getDefaultLanguage(resolvedLanguages),
+    [resolvedLanguages]
+  )
+
+  const [selectedLanguage, setSelectedLanguage] =
+    useState<SupportedLanguage>(defaultLanguage)
   const [drafts, setDrafts] = useState<LanguageDraftMap>(() =>
-    createInitialLanguageDrafts(starterCodeByLanguage)
+    createInitialLanguageDrafts(resolvedLanguages, starterCodeByLanguage)
   )
   const [touchedLanguages, setTouchedLanguages] = useState<SupportedLanguage[]>(
     []
   )
 
   useEffect(() => {
-    const baseDrafts = createInitialLanguageDrafts(starterCodeByLanguage)
+    const baseDrafts = createInitialLanguageDrafts(
+      resolvedLanguages,
+      starterCodeByLanguage
+    )
+
+    if (legacyCodeStorageKey) {
+      window.localStorage.removeItem(legacyCodeStorageKey)
+    }
 
     if (!storageKey) {
-      setSelectedLanguage(DEFAULT_SUBMISSION_LANGUAGE)
+      setSelectedLanguage(defaultLanguage)
       setDrafts(baseDrafts)
       setTouchedLanguages([])
       return
@@ -88,52 +123,50 @@ export function useLanguageDrafts(options: {
     try {
       const raw = window.localStorage.getItem(storageKey)
       if (raw) {
-        const parsed = JSON.parse(raw) as StoredEditorState
-        const nextLanguage = isSupportedLanguage(parsed.selectedLanguage)
-          ? parsed.selectedLanguage
-          : DEFAULT_SUBMISSION_LANGUAGE
-        const nextTouchedLanguages = normalizeTouchedLanguages(
-          parsed.touchedLanguages
-        )
-        const resolvedTouchedLanguages =
-          nextTouchedLanguages.length > 0
-            ? nextTouchedLanguages
-            : inferTouchedLanguages(parsed.drafts)
+        const parsed = JSON.parse(raw) as Partial<StoredEditorState>
 
-        setSelectedLanguage(nextLanguage)
-        setDrafts(
-          mergeStoredLanguageDrafts({
-            starterCodeByLanguage,
-            storedDrafts: parsed.drafts,
-            touchedLanguages: resolvedTouchedLanguages,
-          })
-        )
-        setTouchedLanguages(resolvedTouchedLanguages)
-        return
+        if (parsed.version === STORAGE_VERSION) {
+          const nextLanguage = isKnownLanguage(
+            parsed.selectedLanguage,
+            resolvedLanguages
+          )
+            ? parsed.selectedLanguage
+            : defaultLanguage
+          const nextTouchedLanguages = normalizeTouchedLanguages(
+            parsed.touchedLanguages,
+            resolvedLanguages
+          )
+
+          setSelectedLanguage(nextLanguage)
+          setDrafts(
+            mergeStoredLanguageDrafts({
+              languages: resolvedLanguages,
+              starterCodeByLanguage,
+              storedDrafts: parsed.drafts,
+              touchedLanguages: nextTouchedLanguages,
+            })
+          )
+          setTouchedLanguages(nextTouchedLanguages)
+          return
+        }
+
+        window.localStorage.removeItem(storageKey)
       }
     } catch (error) {
       console.warn('Failed to restore multi-language editor state:', error)
+      window.localStorage.removeItem(storageKey)
     }
 
-    const legacyDrafts = { ...baseDrafts }
-    const legacyTouchedLanguages: SupportedLanguage[] = []
-
-    if (legacyCodeStorageKey) {
-      try {
-        const legacyCode = window.localStorage.getItem(legacyCodeStorageKey)
-        if (legacyCode) {
-          legacyDrafts[DEFAULT_SUBMISSION_LANGUAGE] = legacyCode
-          legacyTouchedLanguages.push(DEFAULT_SUBMISSION_LANGUAGE)
-        }
-      } catch (error) {
-        console.warn('Failed to restore legacy editor code:', error)
-      }
-    }
-
-    setSelectedLanguage(DEFAULT_SUBMISSION_LANGUAGE)
-    setDrafts(legacyDrafts)
-    setTouchedLanguages(legacyTouchedLanguages)
-  }, [legacyCodeStorageKey, starterCodeByLanguage, storageKey])
+    setSelectedLanguage(defaultLanguage)
+    setDrafts(baseDrafts)
+    setTouchedLanguages([])
+  }, [
+    defaultLanguage,
+    legacyCodeStorageKey,
+    resolvedLanguages,
+    starterCodeByLanguage,
+    storageKey,
+  ])
 
   useEffect(() => {
     if (!storageKey) {
@@ -142,6 +175,7 @@ export function useLanguageDrafts(options: {
 
     try {
       const payload: StoredEditorState = {
+        version: STORAGE_VERSION,
         selectedLanguage,
         drafts,
         touchedLanguages,
@@ -174,9 +208,14 @@ export function useLanguageDrafts(options: {
     [selectedLanguage]
   )
 
-  const handleLanguageChange = useCallback((language: SupportedLanguage) => {
-    setSelectedLanguage(language)
-  }, [])
+  const handleLanguageChange = useCallback(
+    (language: SupportedLanguage) => {
+      setSelectedLanguage(
+        resolvedLanguages.includes(language) ? language : defaultLanguage
+      )
+    },
+    [defaultLanguage, resolvedLanguages]
+  )
 
   const resetCurrentLanguage = useCallback(() => {
     const fallbackCode = starterCodeByLanguage?.[selectedLanguage] ?? ''
@@ -190,15 +229,18 @@ export function useLanguageDrafts(options: {
 
   const restoreDraft = useCallback(
     (language: SupportedLanguage, nextCode: string) => {
-      setSelectedLanguage(language)
+      const nextLanguage = resolvedLanguages.includes(language)
+        ? language
+        : defaultLanguage
+      setSelectedLanguage(nextLanguage)
       setDrafts(prevDrafts =>
-        updateLanguageDraft(prevDrafts, language, nextCode)
+        updateLanguageDraft(prevDrafts, nextLanguage, nextCode)
       )
       setTouchedLanguages(prevTouchedLanguages =>
-        addTouchedLanguage(prevTouchedLanguages, language)
+        addTouchedLanguage(prevTouchedLanguages, nextLanguage)
       )
     },
-    []
+    [defaultLanguage, resolvedLanguages]
   )
 
   return {

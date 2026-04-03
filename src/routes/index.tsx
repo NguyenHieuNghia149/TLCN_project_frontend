@@ -35,6 +35,7 @@ import AdminChallengeList from '@/pages/admin/challenge/AdminChallengeList'
 import AdminCreateChallenge from '@/pages/admin/challenge/AdminCreateChallenge'
 import AdminExamList from '@/pages/admin/exam/AdminExamList'
 import AdminCreateExam from '@/pages/admin/exam/AdminCreateExam'
+import ManageLanguages from '@/pages/admin/language/ManageLanguages'
 
 export const router = createBrowserRouter([
   {
@@ -132,6 +133,18 @@ export const router = createBrowserRouter([
         <TeacherRoute>
           <AdminLayout>
             <AdminChallengeList />
+          </AdminLayout>
+        </TeacherRoute>
+      </AdminThemeProvider>
+    ),
+  },
+  {
+    path: 'admin/languages',
+    element: (
+      <AdminThemeProvider>
+        <TeacherRoute>
+          <AdminLayout>
+            <ManageLanguages />
           </AdminLayout>
         </TeacherRoute>
       </AdminThemeProvider>

@@ -1,4 +1,9 @@
-import type { ProblemDetailResponse, TestCase } from '@/types/challenge.types'
+import type {
+  CodeVariant,
+  ProblemDetailResponse,
+  SolutionApproach,
+  TestCase,
+} from '@/types/challenge.types'
 import type { ExamChallengeResponse } from '@/types/exam.types'
 
 export type RawChallengeTestCase = Omit<
@@ -18,9 +23,21 @@ export type RawChallengeTestCase = Omit<
   updatedAt?: string
 }
 
+type RawSolutionApproach = Omit<SolutionApproach, 'codeVariants'> & {
+  codeVariants?: CodeVariant[] | null
+  sourceCode?: string | null
+  language?: string | null
+}
+
 export type RawProblemDetailResponse = Omit<ProblemDetailResponse, 'data'> & {
-  data: Omit<ProblemDetailResponse['data'], 'testcases'> & {
+  data: Omit<ProblemDetailResponse['data'], 'testcases' | 'solution'> & {
     testcases: RawChallengeTestCase[]
+    solution: Omit<
+      ProblemDetailResponse['data']['solution'],
+      'solutionApproaches'
+    > & {
+      solutionApproaches: RawSolutionApproach[]
+    }
   }
 }
 
@@ -57,6 +74,43 @@ function stringifyDisplayValue(value: unknown): string {
   }
 }
 
+function normalizeCodeVariants(approach: RawSolutionApproach): CodeVariant[] {
+  if (
+    !Array.isArray(approach.codeVariants) ||
+    approach.codeVariants.length === 0
+  ) {
+    return []
+  }
+
+  return approach.codeVariants
+    .filter(
+      variant =>
+        typeof variant?.language === 'string' &&
+        typeof variant?.sourceCode === 'string'
+    )
+    .map(variant => ({
+      language: variant.language,
+      sourceCode: variant.sourceCode,
+    }))
+}
+
+function normalizeSolutionApproach(
+  approach: RawSolutionApproach
+): SolutionApproach {
+  return {
+    id: approach.id,
+    title: approach.title,
+    description: approach.description ?? '',
+    codeVariants: normalizeCodeVariants(approach),
+    timeComplexity: approach.timeComplexity ?? '',
+    spaceComplexity: approach.spaceComplexity ?? '',
+    explanation: approach.explanation ?? '',
+    order: approach.order,
+    createdAt: approach.createdAt ?? '',
+    updatedAt: approach.updatedAt ?? '',
+  }
+}
+
 /**
  * Normalizes backend testcase payloads into the JSON-first frontend contract.
  */
@@ -88,6 +142,12 @@ export function normalizeProblemDetailResponse(
     data: {
       ...response.data,
       testcases: response.data.testcases.map(normalizeChallengeTestCase),
+      solution: {
+        ...response.data.solution,
+        solutionApproaches: response.data.solution.solutionApproaches.map(
+          normalizeSolutionApproach
+        ),
+      },
     },
   }
 }

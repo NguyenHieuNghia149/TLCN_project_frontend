@@ -20,7 +20,21 @@ export class ExamService {
   ): Promise<{ data: Exam[]; total: number }> {
     const params = { limit, offset, search, filterType, isVisible }
     const response = await apiClient.get('/exams', { params })
-    return response.data
+    const payload = response.data?.data ?? response.data
+    const items = Array.isArray(payload?.data)
+      ? payload.data
+      : Array.isArray(payload)
+        ? payload
+        : []
+    const total =
+      typeof payload?.total === 'number'
+        ? payload.total
+        : Number(payload?.total ?? items.length)
+
+    return {
+      data: items,
+      total,
+    }
   }
 
   async getExamById(id: string): Promise<Exam> {
