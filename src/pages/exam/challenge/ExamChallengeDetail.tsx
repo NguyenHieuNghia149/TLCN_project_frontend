@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import type { RootState } from '@/store/stores'
 import { setParticipation } from '@/store/slices/examSlice'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Clock, List, Sun, Moon } from 'lucide-react'
+import { Clock, List, Send, Sun, Moon } from 'lucide-react'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import Button from '@/components/common/Button/Button'
 import { Exam } from '@/types/exam.types'
@@ -26,12 +26,22 @@ import { examService } from '@/services/api/exam.service'
 import useAutosaveSession from '@/hooks/useAutosaveSession'
 import { useTheme } from '@/contexts/useTheme'
 
+type MobileWorkspacePanel = 'problem' | 'editor' | 'output' | 'challenges'
+
 const ExamChallengeDetail: React.FC = () => {
-  const { examId, challengeId } = useParams<{
-    examId: string
+  const {
+    examId: routeExamId,
+    examSlug,
+    challengeId,
+  } = useParams<{
+    examId?: string
+    examSlug?: string
     challengeId: string
   }>()
   const navigate = useNavigate()
+  const [resolvedExamId, setResolvedExamId] = useState<string | null>(
+    routeExamId || null
+  )
   const [exam, setExam] = useState<Exam | null>(null)
   const [problemData, setProblemData] = useState<
     ProblemDetailResponse['data'] | null
@@ -49,8 +59,20 @@ const ExamChallengeDetail: React.FC = () => {
   const [showChallengeList, setShowChallengeList] = useState(false)
   const [yourScore, setYourScore] = useState<number | null>(null)
   // const [yourPoints, setYourPoints] = useState<number | null>(null)
+  const [isMobileWorkspace, setIsMobileWorkspace] = useState(() =>
+    typeof window !== 'undefined'
+      ? window.matchMedia('(max-width: 1023px)').matches
+      : false
+  )
+  const [mobileWorkspacePanel, setMobileWorkspacePanel] =
+    useState<MobileWorkspacePanel>('problem')
 
   const [problemPanelWidth, setProblemPanelWidth] = useState(60)
+  const examWorkspaceBasePath = examSlug
+    ? `/exam/${examSlug}`
+    : resolvedExamId
+      ? `/exam/${resolvedExamId}`
+      : '/exam'
   const { data: languages } = useLanguages()
   const languageOptions = React.useMemo(
     () => buildSubmissionLanguageOptions(languages),
@@ -67,12 +89,16 @@ const ExamChallengeDetail: React.FC = () => {
   const reduxStartAt = useSelector(
     (s: RootState) => s.exam?.currentParticipationStartAt
   )
+  const mobileWorkspacePanelStorageKey =
+    resolvedExamId && reduxParticipationId
+      ? `exam_workspace_mobile_panel_${resolvedExamId}_${reduxParticipationId}`
+      : null
 
   const refreshSubmissionData = useCallback(async () => {
-    if (!examId || !reduxParticipationId) return
+    if (!resolvedExamId || !reduxParticipationId) return
     try {
       const details = await examService.getSubmissionDetails(
-        examId,
+        resolvedExamId,
         reduxParticipationId
       )
       if (!details) return
@@ -106,7 +132,7 @@ const ExamChallengeDetail: React.FC = () => {
     } catch {
       // ignore refresh errors; UI will simply not update scores
     }
-  }, [examId, reduxParticipationId])
+  }, [resolvedExamId, reduxParticipationId])
 
   const resolveSupportedLanguage = (
     value?: string | null
@@ -118,12 +144,12 @@ const ExamChallengeDetail: React.FC = () => {
   }
 
   const editorStorageKey =
-    examId && challengeId
-      ? `exam_${examId}_challenge_${challengeId}_editor_state`
+    resolvedExamId && challengeId
+      ? `exam_${resolvedExamId}_challenge_${challengeId}_editor_state`
       : undefined
   const legacyCodeStorageKey =
-    examId && challengeId
-      ? `exam_${examId}_challenge_${challengeId}_code`
+    resolvedExamId && challengeId
+      ? `exam_${resolvedExamId}_challenge_${challengeId}_code`
       : undefined
 
   const {
@@ -209,6 +235,53 @@ const ExamChallengeDetail: React.FC = () => {
     }
   }, [updateSplitFromClientX])
 
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 1023px)')
+    const onViewportChange = (event: MediaQueryListEvent) => {
+      setIsMobileWorkspace(event.matches)
+      if (!event.matches && showChallengeList) {
+        setShowChallengeList(false)
+      }
+    }
+
+    setIsMobileWorkspace(mediaQuery.matches)
+    mediaQuery.addEventListener('change', onViewportChange)
+    return () => mediaQuery.removeEventListener('change', onViewportChange)
+  }, [showChallengeList])
+
+  useEffect(() => {
+    if (!isMobileWorkspace || !mobileWorkspacePanelStorageKey) {
+      return
+    }
+
+    const storedPanel = window.localStorage.getItem(
+      mobileWorkspacePanelStorageKey
+    ) as MobileWorkspacePanel | null
+    if (
+      storedPanel === 'problem' ||
+      storedPanel === 'editor' ||
+      storedPanel === 'output'
+    ) {
+      setMobileWorkspacePanel(storedPanel)
+      return
+    }
+
+    setMobileWorkspacePanel('problem')
+  }, [isMobileWorkspace, mobileWorkspacePanelStorageKey])
+
+  useEffect(() => {
+    if (!isMobileWorkspace || !mobileWorkspacePanelStorageKey) {
+      return
+    }
+    if (mobileWorkspacePanel === 'challenges') {
+      return
+    }
+    window.localStorage.setItem(
+      mobileWorkspacePanelStorageKey,
+      mobileWorkspacePanel
+    )
+  }, [isMobileWorkspace, mobileWorkspacePanel, mobileWorkspacePanelStorageKey])
+
   const startDraggingSplit = (
     event: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>
   ) => {
@@ -290,8 +363,42 @@ const ExamChallengeDetail: React.FC = () => {
   }
 
   useEffect(() => {
+    if (routeExamId) {
+      setResolvedExamId(routeExamId)
+      return
+    }
+
+    if (!examSlug) {
+      setResolvedExamId(null)
+      return
+    }
+
+    let cancelled = false
+
+    const resolveExamIdFromSlug = async () => {
+      try {
+        const publicExam = await examService.getPublicExam(examSlug)
+        if (!cancelled) {
+          setResolvedExamId(publicExam.id)
+        }
+      } catch (err) {
+        console.error('Failed to resolve exam from slug', err)
+        if (!cancelled) {
+          setResolvedExamId(null)
+          setError('Failed to resolve exam')
+        }
+      }
+    }
+
+    void resolveExamIdFromSlug()
+    return () => {
+      cancelled = true
+    }
+  }, [examSlug, routeExamId])
+
+  useEffect(() => {
     const fetchData = async () => {
-      if (!challengeId || !examId) return
+      if (!challengeId || !resolvedExamId) return
       // If we already have loaded the same challenge, skip to prevent redundant fetches
       if (problemData && problemData.problem?.id === challengeId) {
         return
@@ -303,7 +410,7 @@ const ExamChallengeDetail: React.FC = () => {
 
         // Fetch exam basic info (to populate challenge list)
         try {
-          const apiExam = await examService.getExamById(examId)
+          const apiExam = await examService.getExamById(resolvedExamId)
           setExam(apiExam)
         } catch (apiErr) {
           console.error('Failed to fetch exam from API', apiErr)
@@ -314,7 +421,7 @@ const ExamChallengeDetail: React.FC = () => {
         // Fetch challenge details from exam endpoint (lazy load per challenge)
         try {
           const response = await examService.getExamChallenge(
-            examId,
+            resolvedExamId,
             challengeId
           )
           if (response && response.success) {
@@ -366,12 +473,12 @@ const ExamChallengeDetail: React.FC = () => {
     }
 
     fetchData()
-  }, [examId, challengeId, problemData])
+  }, [challengeId, problemData, resolvedExamId])
 
   // When participation becomes available, attempt to refresh per-problem data and recover saved code for the current challenge
   useEffect(() => {
     const runOnParticipantReady = async () => {
-      if (!reduxParticipationId || !examId || !challengeId) return
+      if (!reduxParticipationId || !resolvedExamId || !challengeId) return
       try {
         await refreshSubmissionData()
       } catch (err) {
@@ -383,7 +490,7 @@ const ExamChallengeDetail: React.FC = () => {
 
       try {
         const partData = await examService.getParticipation(
-          examId,
+          resolvedExamId,
           reduxParticipationId
         )
         const answers = partData?.currentAnswers || partData?.answers || {}
@@ -403,7 +510,7 @@ const ExamChallengeDetail: React.FC = () => {
     }
 
     void runOnParticipantReady()
-  }, [reduxParticipationId, examId, challengeId, refreshSubmissionData])
+  }, [reduxParticipationId, resolvedExamId, challengeId, refreshSubmissionData])
 
   // keep latest code in ref for use in unload/save handlers
   useEffect(() => {
@@ -450,7 +557,7 @@ const ExamChallengeDetail: React.FC = () => {
       if (!participationId || !current) return
       try {
         const payload = JSON.stringify({
-          sessionId: participationId,
+          participationId,
           answers: {
             [current]: {
               sourceCode: codeRef.current,
@@ -458,7 +565,6 @@ const ExamChallengeDetail: React.FC = () => {
               updatedAt: new Date().toISOString(),
             },
           },
-          clientTimestamp: new Date().toISOString(),
         })
         if (typeof navigator !== 'undefined') {
           type BeaconNav = {
@@ -539,8 +645,8 @@ const ExamChallengeDetail: React.FC = () => {
 
     try {
       const participationId = reduxParticipationId
-      if (examId && participationId) {
-        await examService.submitExam(examId, participationId)
+      if (resolvedExamId && participationId) {
+        await examService.submitExam(resolvedExamId, participationId)
         // Flush any pending autosave before navigating
         try {
           await flushAutosave()
@@ -556,9 +662,20 @@ const ExamChallengeDetail: React.FC = () => {
       alert('Failed to submit exam. Please try again.')
       return
     } finally {
-      navigate(`/exam/${examId}/results`)
+      navigate(
+        examSlug
+          ? `/exam/${examSlug}/results`
+          : `/exam/${resolvedExamId}/results`
+      )
     }
-  }, [navigate, examId, reduxParticipationId, dispatch, flushAutosave])
+  }, [
+    dispatch,
+    examSlug,
+    flushAutosave,
+    navigate,
+    resolvedExamId,
+    reduxParticipationId,
+  ])
 
   // Initialize and manage countdown separately so hooks don't depend on `handleSubmitExam` definition order
   useEffect(() => {
@@ -574,8 +691,8 @@ const ExamChallengeDetail: React.FC = () => {
       // Check if user joined. If Redux lacks participation, try server-backed resume.
       if (!participationId) {
         try {
-          if (examId) {
-            const part = await examService.getMyParticipation(examId)
+          if (resolvedExamId) {
+            const part = await examService.getMyParticipation(resolvedExamId)
             const partId = part?.id || part?.participationId
             const serverStart =
               part?.startedAt ||
@@ -634,9 +751,9 @@ const ExamChallengeDetail: React.FC = () => {
       } else {
         // Try to recover session info from server if startAt missing
         try {
-          if (examId && participationId) {
+          if (resolvedExamId && participationId) {
             const partData = await examService.getParticipation(
-              examId,
+              resolvedExamId,
               participationId
             )
             const serverStart =
@@ -749,7 +866,7 @@ const ExamChallengeDetail: React.FC = () => {
   }, [
     exam?.id,
     exam?.duration,
-    examId,
+    resolvedExamId,
     handleSubmitExam,
     dispatch,
     reduxParticipationId,
@@ -788,7 +905,7 @@ const ExamChallengeDetail: React.FC = () => {
             You must join the exam first before accessing challenges.
           </p>
           <Button
-            onClick={() => navigate(`/exam/${examId}`)}
+            onClick={() => navigate(examWorkspaceBasePath)}
             variant="secondary"
             size="md"
           >
@@ -813,7 +930,7 @@ const ExamChallengeDetail: React.FC = () => {
             {error || 'Challenge not found'}
           </p>
           <Button
-            onClick={() => navigate(`/exam/${examId}`)}
+            onClick={() => navigate(examWorkspaceBasePath)}
             variant="secondary"
             size="md"
           >
@@ -914,7 +1031,12 @@ const ExamChallengeDetail: React.FC = () => {
               )}
             </button>
             <Button
-              onClick={() => setShowChallengeList(true)}
+              onClick={() => {
+                if (isMobileWorkspace) {
+                  setMobileWorkspacePanel('challenges')
+                }
+                setShowChallengeList(true)
+              }}
               variant="secondary"
               size="sm"
               icon={<List size={16} />}
@@ -922,84 +1044,207 @@ const ExamChallengeDetail: React.FC = () => {
             >
               View All Challenges
             </Button>
+            <Button
+              onClick={() => {
+                void handleSubmitExam()
+              }}
+              variant="primary"
+              size="sm"
+              icon={<Send size={16} />}
+              aria-label="Submit exam"
+            >
+              Submit Exam
+            </Button>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <div
-        ref={splitPaneRef}
-        className="flex min-h-0 flex-1 flex-col lg:flex-row"
-        style={{ borderTop: '1px solid var(--surface-border)' }}
-      >
+      {isMobileWorkspace ? (
         <div
-          className="flex h-full min-h-0 min-w-[280px] flex-col overflow-hidden lg:border-r"
-          style={{
-            borderColor: 'var(--surface-border)',
-            flexBasis: `${problemPanelWidth}%`,
-            maxWidth: `${problemPanelWidth}%`,
-          }}
+          className="flex min-h-0 flex-1 flex-col"
+          style={{ borderTop: '1px solid var(--surface-border)' }}
         >
-          <ExamProblemSection
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            problemData={problemData}
-          />
+          <div
+            className="sticky top-[73px] z-20 flex gap-2 overflow-x-auto border-b px-3 py-2"
+            style={{
+              backgroundColor: 'var(--exam-panel-bg)',
+              borderColor: 'var(--surface-border)',
+            }}
+          >
+            {(
+              [
+                { key: 'problem', label: 'Problem' },
+                { key: 'editor', label: 'Editor' },
+                { key: 'output', label: 'Output' },
+                { key: 'challenges', label: 'Challenges' },
+              ] as Array<{ key: MobileWorkspacePanel; label: string }>
+            ).map(tab => (
+              <button
+                key={tab.key}
+                type="button"
+                className="rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-wide"
+                style={{
+                  borderColor:
+                    mobileWorkspacePanel === tab.key
+                      ? 'var(--accent)'
+                      : 'var(--surface-border)',
+                  backgroundColor:
+                    mobileWorkspacePanel === tab.key
+                      ? 'rgba(32, 215, 97, 0.14)'
+                      : 'transparent',
+                  color:
+                    mobileWorkspacePanel === tab.key
+                      ? 'var(--accent)'
+                      : 'var(--muted-text)',
+                }}
+                onClick={() => {
+                  setMobileWorkspacePanel(tab.key)
+                  if (tab.key === 'challenges') {
+                    setShowChallengeList(true)
+                  }
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-hidden">
+            {mobileWorkspacePanel === 'problem' ? (
+              <ExamProblemSection
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                problemData={problemData}
+              />
+            ) : null}
+
+            {mobileWorkspacePanel === 'editor' ||
+            mobileWorkspacePanel === 'output' ? (
+              <div className="flex h-full min-h-0 flex-col">
+                {mobileWorkspacePanel === 'output' ? (
+                  <div
+                    className="border-b px-3 py-2 text-xs"
+                    style={{
+                      borderColor: 'var(--surface-border)',
+                      color: 'var(--muted-text)',
+                    }}
+                  >
+                    Output is shown in the console area below the editor.
+                  </div>
+                ) : null}
+                <div className="min-h-0 flex-1">
+                  <CodeEditorSection
+                    code={code}
+                    onCodeChange={onCodeChange}
+                    selectedLanguage={selectedLanguage}
+                    onLanguageChange={setSelectedLanguage}
+                    languageOptions={languageOptions}
+                    testCases={testCases}
+                    selectedTestCase={selectedTestCase}
+                    onTestCaseSelect={setSelectedTestCase}
+                    output={output}
+                    onRun={handleRun}
+                    onSubmit={handleSubmit}
+                    onReset={handleReset}
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            {mobileWorkspacePanel === 'challenges' ? (
+              <div className="flex h-full items-center justify-center px-6 text-center text-sm text-slate-300">
+                Challenge list is opened as a bottom sheet.
+              </div>
+            ) : null}
+          </div>
         </div>
-
+      ) : (
         <div
-          className="hidden w-1 cursor-col-resize select-none lg:block"
-          style={{ backgroundColor: 'var(--surface-border)' }}
-          onMouseDown={startDraggingSplit}
-          onTouchStart={startDraggingSplit}
-          onDoubleClick={resetSplit}
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize panels"
-          tabIndex={-1}
-        />
-
-        <div
-          className="flex h-full min-h-0 min-w-[320px] flex-1 overflow-hidden"
-          style={{
-            flexBasis: `${100 - problemPanelWidth}%`,
-            maxWidth: `${100 - problemPanelWidth}%`,
-          }}
+          ref={splitPaneRef}
+          className="flex min-h-0 flex-1 flex-col lg:flex-row"
+          style={{ borderTop: '1px solid var(--surface-border)' }}
         >
-          <CodeEditorSection
-            code={code}
-            onCodeChange={onCodeChange}
-            selectedLanguage={selectedLanguage}
-            onLanguageChange={setSelectedLanguage}
-            languageOptions={languageOptions}
-            testCases={testCases}
-            selectedTestCase={selectedTestCase}
-            onTestCaseSelect={setSelectedTestCase}
-            output={output}
-            onRun={handleRun}
-            onSubmit={handleSubmit}
-            onReset={handleReset}
+          <div
+            className="flex h-full min-h-0 min-w-[280px] flex-col overflow-hidden lg:border-r"
+            style={{
+              borderColor: 'var(--surface-border)',
+              flexBasis: `${problemPanelWidth}%`,
+              maxWidth: `${problemPanelWidth}%`,
+            }}
+          >
+            <ExamProblemSection
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              problemData={problemData}
+            />
+          </div>
+
+          <div
+            className="hidden w-1 cursor-col-resize select-none lg:block"
+            style={{ backgroundColor: 'var(--surface-border)' }}
+            onMouseDown={startDraggingSplit}
+            onTouchStart={startDraggingSplit}
+            onDoubleClick={resetSplit}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize panels"
+            tabIndex={-1}
           />
+
+          <div
+            className="flex h-full min-h-0 min-w-[320px] flex-1 overflow-hidden"
+            style={{
+              flexBasis: `${100 - problemPanelWidth}%`,
+              maxWidth: `${100 - problemPanelWidth}%`,
+            }}
+          >
+            <CodeEditorSection
+              code={code}
+              onCodeChange={onCodeChange}
+              selectedLanguage={selectedLanguage}
+              onLanguageChange={setSelectedLanguage}
+              languageOptions={languageOptions}
+              testCases={testCases}
+              selectedTestCase={selectedTestCase}
+              onTestCaseSelect={setSelectedTestCase}
+              output={output}
+              onRun={handleRun}
+              onSubmit={handleSubmit}
+              onReset={handleReset}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {showChallengeList &&
         exam &&
         exam.challenges &&
         exam.challenges.length > 0 && (
           <ChallengePicker
+            mobile={isMobileWorkspace}
             challenges={exam.challenges}
             currentIndex={
               exam.challenges.findIndex(c => c.id === challengeId) >= 0
                 ? exam.challenges.findIndex(c => c.id === challengeId)
                 : 0
             }
-            onClose={() => setShowChallengeList(false)}
+            onClose={() => {
+              setShowChallengeList(false)
+              if (isMobileWorkspace) {
+                setMobileWorkspacePanel('problem')
+              }
+            }}
             onSelectChallenge={index => {
               const selectedChallenge = exam.challenges[index]
               if (selectedChallenge) {
-                navigate(`/exam/${examId}/challenge/${selectedChallenge.id}`)
+                navigate(
+                  `${examWorkspaceBasePath}${examSlug ? '/challenges' : '/challenge'}/${selectedChallenge.id}`
+                )
                 setShowChallengeList(false)
+                if (isMobileWorkspace) {
+                  setMobileWorkspacePanel('problem')
+                }
               }
             }}
             // totalPoints={exam.challenges.reduce(

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   // Plus,
   Calendar,
@@ -22,16 +22,22 @@ const PAGE_SIZE = 6
 
 const ExamList: React.FC = () => {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuth()
+  const initialFilter = searchParams.get('filter')
+  const normalizedFilter: 'all' | 'participated' =
+    initialFilter === 'participated' ? 'participated' : 'all'
+  const initialPage = Math.max(Number(searchParams.get('page') || '1'), 1)
   const [exams, setExams] = useState<Exam[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [filterType, setFilterType] = useState<'all' | 'my' | 'participated'>(
-    'all'
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '')
+  const [filterType, setFilterType] = useState<'all' | 'participated'>(
+    normalizedFilter
   )
-  const [page, setPage] = useState(1)
-  const [, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(initialPage)
+  const [error, setError] = useState<string | null>(null)
+  const [reloadTick, setReloadTick] = useState(0)
 
   useEffect(() => {
     const fetchExams = async () => {
@@ -42,7 +48,7 @@ const ExamList: React.FC = () => {
           PAGE_SIZE,
           (page - 1) * PAGE_SIZE,
           searchTerm || undefined,
-          filterType || undefined,
+          filterType,
           true // isVisible=true for student view
         )
         const items: Exam[] = json?.data || []
@@ -59,7 +65,7 @@ const ExamList: React.FC = () => {
     }
 
     fetchExams()
-  }, [page, searchTerm, filterType])
+  }, [filterType, page, reloadTick, searchTerm])
 
   const canManageExam = isTeacherOrOwner(user)
 
@@ -77,6 +83,20 @@ const ExamList: React.FC = () => {
   useEffect(() => {
     setPage(1)
   }, [searchTerm, filterType])
+
+  useEffect(() => {
+    const next = new URLSearchParams()
+    if (searchTerm) {
+      next.set('q', searchTerm)
+    }
+    if (filterType !== 'all') {
+      next.set('filter', filterType)
+    }
+    if (page > 1) {
+      next.set('page', String(page))
+    }
+    setSearchParams(next, { replace: true })
+  }, [filterType, page, searchTerm, setSearchParams])
 
   // Scroll to top when page changes
   useEffect(() => {
@@ -202,29 +222,56 @@ const ExamList: React.FC = () => {
             </div>
           </div>
 
-          {filteredExams.length === 0 ? (
+          {error ? (
             <div
-              className="rounded-md border-dashed p-8 text-center"
+              className="rounded-lg border p-4"
               style={{
-                borderColor: 'var(--surface-border)',
-                transition: 'border-color 200ms ease',
+                borderColor: 'rgba(248, 113, 113, 0.5)',
+                backgroundColor: 'rgba(248, 113, 113, 0.08)',
               }}
             >
-              <p
-                className="text-lg font-semibold"
-                style={{ color: 'var(--text-color)' }}
-              >
-                No exams found
+              <p className="text-sm font-semibold text-rose-300">
+                Failed to load exams.
               </p>
-              <p
-                className="mt-2 text-sm"
-                style={{ color: 'var(--muted-text)' }}
-              >
-                {canManageExam
-                  ? 'Create your first curated exam to get started.'
-                  : 'Please check back soon or contact your instructor.'}
+              <p className="mt-1 text-sm text-rose-200">
+                Please check your connection and try again.
               </p>
+              <Button
+                onClick={() => setReloadTick(current => current + 1)}
+                variant="secondary"
+                size="sm"
+                className="mt-3"
+              >
+                Retry
+              </Button>
             </div>
+          ) : null}
+
+          {filteredExams.length === 0 ? (
+            error ? null : (
+              <div
+                className="rounded-md border-dashed p-8 text-center"
+                style={{
+                  borderColor: 'var(--surface-border)',
+                  transition: 'border-color 200ms ease',
+                }}
+              >
+                <p
+                  className="text-lg font-semibold"
+                  style={{ color: 'var(--text-color)' }}
+                >
+                  No exams found
+                </p>
+                <p
+                  className="mt-2 text-sm"
+                  style={{ color: 'var(--muted-text)' }}
+                >
+                  {canManageExam
+                    ? 'Create your first curated exam to get started.'
+                    : 'Please check back soon or contact your instructor.'}
+                </p>
+              </div>
+            )
           ) : (
             <>
               <div className="grid gap-6 md:grid-cols-2">
@@ -233,9 +280,15 @@ const ExamList: React.FC = () => {
                     key={exam.id}
                     exam={exam}
                     isOwner={exam.createdBy === user?.id}
-                    onView={() => navigate(`/exam/${exam.id}`)}
+                    onView={() =>
+                      exam.createdBy === user?.id
+                        ? navigate(`/admin/exams/edit/${exam.id}`)
+                        : navigate(`/exam/${exam.slug || exam.id}`)
+                    }
                     onResults={() =>
-                      navigate(`/exam/${exam.id}/results/manage`)
+                      exam.createdBy === user?.id
+                        ? navigate(`/admin/exams/${exam.id}/results`)
+                        : navigate(`/exam/${exam.slug || exam.id}/results`)
                     }
                   />
                 ))}
@@ -420,7 +473,7 @@ const ExamCard: React.FC<ExamCardProps> = ({
                 >
                   <Button
                     className="flex w-full items-center rounded-xl px-3 py-2 text-left"
-                    onClick={() => navigate(`/exam/edit/${exam.id}`)}
+                    onClick={() => navigate(`/admin/exams/edit/${exam.id}`)}
                     variant="ghost"
                     style={{ color: 'var(--text-color)' }}
                   >
@@ -500,15 +553,26 @@ const ExamCard: React.FC<ExamCardProps> = ({
           >
             {isActive ? 'Active' : 'Closed'}
           </span>
-          <Button
-            onClick={onView}
-            variant="primary"
-            size="sm"
-            className="inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold"
-            aria-label={isOwner ? 'Manage exam' : 'Enter exam'}
-          >
-            {isOwner ? 'Manage exam' : 'Enter exam'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={onResults}
+              variant="secondary"
+              size="sm"
+              className="inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold"
+              aria-label="View results"
+            >
+              View results
+            </Button>
+            <Button
+              onClick={onView}
+              variant="primary"
+              size="sm"
+              className="inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold"
+              aria-label={isOwner ? 'Manage exam' : 'Enter exam'}
+            >
+              {isOwner ? 'Manage exam' : 'Enter exam'}
+            </Button>
+          </div>
         </div>
       </div>
     </div>

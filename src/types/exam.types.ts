@@ -12,7 +12,7 @@ import type {
 export interface Exam {
   id: string
   title: string
-  password?: string
+  slug?: string
   duration: number // in minutes
   challenges: ChallengeItem[]
   startDate: string // ISO datetime
@@ -20,18 +20,32 @@ export interface Exam {
   createdBy?: string // userId
   isVisible: boolean
   maxAttempts: number
+  status?: 'draft' | 'published' | 'archived' | 'cancelled'
+  accessMode?: 'open_registration' | 'invite_only' | 'hybrid'
+  selfRegistrationApprovalMode?: 'auto' | 'manual' | null
+  selfRegistrationPasswordRequired?: boolean
+  allowExternalCandidates?: boolean
+  registrationOpenAt?: string | null
+  registrationCloseAt?: string | null
   createdAt: string
   updatedAt?: string
 }
 
 export interface CreateExamPayload {
   title: string
-  password?: string
+  slug?: string
+  examPassword?: string
   duration: number
   startDate: string
   endDate: string
   isVisible: boolean
   maxAttempts: number
+  accessMode?: 'open_registration' | 'invite_only' | 'hybrid'
+  selfRegistrationApprovalMode?: 'auto' | 'manual' | null
+  selfRegistrationPasswordRequired?: boolean
+  allowExternalCandidates?: boolean
+  registrationOpenAt?: string | null
+  registrationCloseAt?: string | null
   challenges: Array<{
     type: 'existing' | 'new'
     challengeId: string
@@ -41,17 +55,141 @@ export interface CreateExamPayload {
 
 export interface UpdateExamPayload {
   title?: string
-  password?: string
+  slug?: string
+  examPassword?: string
   duration?: number
   startDate?: string
   endDate?: string
   isVisible?: boolean
   maxAttempts?: number
+  accessMode?: 'open_registration' | 'invite_only' | 'hybrid'
+  selfRegistrationApprovalMode?: 'auto' | 'manual' | null
+  selfRegistrationPasswordRequired?: boolean
+  allowExternalCandidates?: boolean
+  registrationOpenAt?: string | null
+  registrationCloseAt?: string | null
   challenges?: Array<{
     type: 'existing' | 'new'
     challengeId: string
     orderIndex?: number
   }>
+}
+
+export interface PublicExamLanding {
+  id: string
+  slug: string
+  title: string
+  status: 'draft' | 'published' | 'archived' | 'cancelled'
+  accessMode: 'open_registration' | 'invite_only' | 'hybrid'
+  startDate: string
+  endDate: string
+  registrationOpenAt: string | null
+  registrationCloseAt: string | null
+  duration: number
+  maxAttempts: number
+  challengeCount: number
+  allowExternalCandidates: boolean
+  selfRegistrationApprovalMode: 'auto' | 'manual' | null
+  selfRegistrationPasswordRequired: boolean
+  isRegistrationOpen: boolean
+  canUseInviteLink: boolean
+}
+
+export interface AdminExamParticipant {
+  id: string
+  examId: string
+  userId: string | null
+  mergedIntoParticipantId?: string | null
+  normalizedEmail: string
+  fullName: string
+  source: 'invite' | 'self_registration' | 'manual_add'
+  approvalStatus: 'pending' | 'approved' | 'rejected'
+  accessStatus:
+    | 'invited'
+    | 'eligible'
+    | 'active'
+    | 'revoked'
+    | 'completed'
+    | null
+  approvedBy: string | null
+  inviteSentAt: string | null
+  joinedAt: string | null
+  latestInviteId: string | null
+  latestInviteExpiresAt: string | null
+  latestEntrySessionId: string | null
+  latestEntrySessionStatus:
+    | 'opened'
+    | 'verified'
+    | 'eligible'
+    | 'started'
+    | 'expired'
+    | null
+  latestParticipationId: string | null
+  latestParticipationStatus: string | null
+  attemptsUsed: number
+  canUseInviteLink: boolean
+  isMerged: boolean
+}
+
+export interface AdminExamParticipantDraft {
+  localId: string
+  userId?: string
+  email: string
+  fullName: string
+  source: 'manual_add' | 'invite'
+}
+
+export interface AdminUserLookupItem {
+  id: string
+  email: string
+  fullName: string
+  role: string
+}
+
+export interface ExamAccessState {
+  examId: string
+  participantId: string | null
+  entrySessionId: string | null
+  participationId: string | null
+  approvalStatus: 'pending' | 'approved' | 'rejected' | null
+  accessStatus:
+    | 'invited'
+    | 'eligible'
+    | 'active'
+    | 'revoked'
+    | 'completed'
+    | null
+  entrySessionStatus:
+    | 'opened'
+    | 'verified'
+    | 'eligible'
+    | 'started'
+    | 'expired'
+    | null
+  canStart: boolean
+  examStartsAt: string
+  participationExpiresAt: string | null
+  requiresLogin: boolean
+  requiresOtp: boolean
+  requiresPassword: boolean
+}
+
+export type ExamSyncStatus = 'active' | 'submitted' | 'expired'
+
+export interface ExamSessionSyncResponse {
+  synced: boolean
+  lastSyncedAt: string
+  participationExpiresAt: string
+  status: ExamSyncStatus
+}
+
+export interface ExamInviteResolution {
+  participantId: string
+  entrySessionId: string
+  requiresLogin: boolean
+  requiresOtp: boolean
+  maskedEmail: string
+  accessStatus: string
 }
 export interface ExamParticipation {
   id: string
@@ -69,6 +207,8 @@ export interface ExamParticipation {
   currentChallenge?: string // Alias
   currentAnswers?: Record<string, { sourceCode?: string; language?: string }> // Session answers
   answers?: Record<string, { sourceCode?: string; language?: string }> // Alias
+  scoreStatus?: 'pending' | 'scored' | 'failed'
+  scoredAt?: string | null
   totalScore: number
   submittedAt?: string
   status?: string // Add status property

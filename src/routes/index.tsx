@@ -20,10 +20,11 @@ import ProblemDetailPage from '@/pages/challengeDetail/ProblemDetailPage'
 import Ranking from '@/pages/ranking/Ranking'
 import BookmarksPage from '@/pages/bookmarks/BookmarksPage'
 import ExamList from '@/pages/exam/list/ExamList'
-import ExamDetail from '@/pages/exam/detail/ExamDetail'
+import ExamAccessPage from '@/pages/exam/access/ExamAccessPage'
 import ExamResults from '@/pages/exam/results/ExamResults'
 import ExamResultsAdmin from '@/pages/exam/results/ExamResultsAdmin'
 import ExamChallengeDetail from '@/pages/exam/challenge/ExamChallengeDetail'
+import LegacyExamRedirect from '@/pages/exam/legacy/LegacyExamRedirect'
 import NotFound from '@/pages/NotFound'
 import ManageTeacher from '@/pages/admin/manageteacher/ManageTeacher'
 import ManageUser from '@/pages/admin/manageuser/ManageUser'
@@ -211,7 +212,7 @@ export const router = createBrowserRouter([
     ),
   },
   {
-    path: 'exam/:examId/results/manage',
+    path: 'admin/exams/:id/results',
     element: (
       <AdminThemeProvider>
         <TeacherRoute>
@@ -279,7 +280,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'exam/:examId/results',
+        path: 'exam/:examSlug/results',
         element: (
           <ProtectedRoute>
             <ExamResults />
@@ -311,15 +312,41 @@ export const router = createBrowserRouter([
     element: <NotFound />,
   },
   {
-    path: 'exam/:examId',
+    path: 'exam/:examSlug',
+    element: <ExamAccessPage />,
+  },
+  {
+    path: 'exam/:examSlug/entry',
+    element: <ExamAccessPage />,
+  },
+  {
+    path: 'exam/:examId/results/manage',
+    element: (
+      <AdminThemeProvider>
+        <TeacherRoute>
+          <LegacyExamRedirect mode="admin-results" />
+        </TeacherRoute>
+      </AdminThemeProvider>
+    ),
+  },
+  {
+    path: 'exam/:examId/results',
     element: (
       <ProtectedRoute>
-        <ExamDetail />
+        <LegacyExamRedirect mode="results" />
       </ProtectedRoute>
     ),
   },
   {
-    path: 'exam/:examId/challenge/:challengeId/',
+    path: 'exam/:examId/challenge/:challengeId',
+    element: (
+      <ProtectedRoute>
+        <LegacyExamRedirect mode="challenge" />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: 'exam/:examSlug/challenges/:challengeId',
     element: (
       <ProtectedRoute>
         <ExamChallengeDetail />

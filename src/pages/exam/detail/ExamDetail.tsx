@@ -187,13 +187,6 @@ const ExamDetail: React.FC = () => {
   const handlePasswordSubmit = async () => {
     if (!exam) return
 
-    // 1. Kiểm tra password ở phía Client trước (nếu có)
-    if (exam.password && password !== exam.password) {
-      setPasswordError('Incorrect password')
-      setPassword('') // Reset password field
-      return
-    }
-
     try {
       // 2. Gọi API Join Exam
       // Cần await ở đây để đảm bảo join thành công mới đi tiếp
