@@ -46,12 +46,23 @@ function extractApiErrorMessage(error: unknown, fallback: string) {
   ) {
     const response = (
       error as {
-        response?: { data?: { message?: unknown } }
+        response?: {
+          data?: {
+            message?: unknown
+            error?: {
+              message?: unknown
+            }
+          }
+        }
       }
     ).response
     const message = response?.data?.message
+    const nestedErrorMessage = response?.data?.error?.message
     if (typeof message === 'string' && message.trim()) {
       return message
+    }
+    if (typeof nestedErrorMessage === 'string' && nestedErrorMessage.trim()) {
+      return nestedErrorMessage
     }
   }
 
