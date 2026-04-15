@@ -7,17 +7,7 @@ import {
 } from '@/store/slices/adminSlice'
 import { RootState, AppDispatch } from '@/store/stores'
 import { formatDistanceToNow } from 'date-fns'
-
-interface BannedUser {
-  id: string
-  name: string
-  email: string
-  ban_reason: string
-  banned_at: string
-  bannedByAdmin?: {
-    name: string
-  }
-}
+import type { BannedUser } from '@/services/api/adminUser.service'
 
 export const BannedUsersList: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>()

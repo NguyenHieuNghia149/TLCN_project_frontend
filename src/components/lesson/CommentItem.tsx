@@ -23,14 +23,7 @@ interface CommentItemProps {
   commentData: CommentWithUser
   parentId?: string
   replies?: CommentWithUser[]
-  auth: {
-    isAuthenticated: boolean
-    user?: {
-      id: string
-      role?: string
-      [key: string]: unknown
-    } | null
-  }
+  auth: RootState['auth']['session']
   editingId: string | null
   editingContent: string
   replyingTo: string | null

@@ -32,6 +32,21 @@ const initialState: CommentState = {
   error: null,
 }
 
+interface ErrorPayload {
+  response?: {
+    data?: {
+      error?: {
+        message?: string
+      }
+    }
+  }
+}
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  const message = (error as ErrorPayload)?.response?.data?.error?.message
+  return typeof message === 'string' ? message : fallback
+}
+
 /**
  * Async Thunks
  */
@@ -47,12 +62,7 @@ export const asyncPinComment = createAsyncThunk(
         isPinned: response.data.isPinned,
       }
     } catch (error: unknown) {
-      const err = error as {
-        response?: { data?: { error?: { message?: string } } }
-      }
-      return rejectWithValue(
-        err.response?.data?.error?.message || 'Failed to pin comment'
-      )
+      return rejectWithValue(getErrorMessage(error, 'Failed to pin comment'))
     }
   }
 )
@@ -68,12 +78,7 @@ export const asyncUnpinComment = createAsyncThunk(
         isPinned: response.data.isPinned,
       }
     } catch (error: unknown) {
-      const err = error as {
-        response?: { data?: { error?: { message?: string } } }
-      }
-      return rejectWithValue(
-        err.response?.data?.error?.message || 'Failed to unpin comment'
-      )
+      return rejectWithValue(getErrorMessage(error, 'Failed to unpin comment'))
     }
   }
 )
@@ -90,12 +95,7 @@ export const asyncToggleLikeComment = createAsyncThunk(
         totalLikes: response.data.totalLikes,
       }
     } catch (error: unknown) {
-      const err = error as {
-        response?: { data?: { error?: { message?: string } } }
-      }
-      return rejectWithValue(
-        err.response?.data?.error?.message || 'Failed to toggle like'
-      )
+      return rejectWithValue(getErrorMessage(error, 'Failed to toggle like'))
     }
   }
 )
@@ -112,11 +112,8 @@ export const asyncGetCommentLikeStatus = createAsyncThunk(
         userHasLiked: response.data.userHasLiked,
       }
     } catch (error: unknown) {
-      const err = error as {
-        response?: { data?: { error?: { message?: string } } }
-      }
       return rejectWithValue(
-        err.response?.data?.error?.message || 'Failed to get like status'
+        getErrorMessage(error, 'Failed to get like status')
       )
     }
   }
@@ -130,11 +127,8 @@ export const asyncGetBatchLikeStatus = createAsyncThunk(
       const response = await commentApi.getBatchLikeStatus(commentIds)
       return response.data // { [commentId]: { totalLikes, userHasLiked } }
     } catch (error: unknown) {
-      const err = error as {
-        response?: { data?: { error?: { message?: string } } }
-      }
       return rejectWithValue(
-        err.response?.data?.error?.message || 'Failed to get batch like status'
+        getErrorMessage(error, 'Failed to get batch like status')
       )
     }
   }
@@ -158,9 +152,7 @@ const commentSlice = createSlice({
   initialState,
   reducers: {
     // Reset comment state
-    resetCommentState: () => {
-      return initialState
-    },
+    resetCommentState: () => initialState,
     // Clear error
     clearCommentError: state => {
       state.error = null
@@ -319,7 +311,7 @@ export const selectCommentsPinAndLikeState =
         ...acc,
         [id]: state.comments.byId[id] || {},
       }),
-      {} as Record<string, unknown>
+      {} as Record<string, CommentState['byId'][string]>
     )
   }
 

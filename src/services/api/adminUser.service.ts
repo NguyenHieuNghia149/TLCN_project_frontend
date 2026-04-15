@@ -1,5 +1,18 @@
 import { apiClient } from '@/config/axios.config'
 
+export interface BannedByAdmin {
+  name: string
+}
+
+export interface BannedUser {
+  id: string
+  name: string
+  email: string
+  ban_reason: string
+  banned_at: string
+  bannedByAdmin?: BannedByAdmin | null
+}
+
 export interface BanUserResponse {
   success: boolean
   userId: string
@@ -16,12 +29,24 @@ export interface UnbanUserResponse {
 }
 
 export interface BannedListResponse {
-  users: Record<string, unknown>[]
+  users: BannedUser[]
   pagination: {
     limit: number
     offset: number
     total: number
   }
+}
+
+interface ApiErrorResponse {
+  error?: {
+    message?: string
+  }
+}
+
+interface ApiResult<TData> {
+  success: boolean
+  data: TData
+  error: ApiErrorResponse | null
 }
 
 export const adminService = {
@@ -31,16 +56,14 @@ export const adminService = {
   async banUser(
     userId: string,
     reason: string
-  ): Promise<{ success: boolean; data: BanUserResponse; error: unknown }> {
+  ): Promise<ApiResult<BanUserResponse>> {
     return apiClient.post(`/admin/users/${userId}/ban`, { reason })
   },
 
   /**
    * Unban a user
    */
-  async unbanUser(
-    userId: string
-  ): Promise<{ success: boolean; data: UnbanUserResponse; error: unknown }> {
+  async unbanUser(userId: string): Promise<ApiResult<UnbanUserResponse>> {
     return apiClient.post(`/admin/users/${userId}/unban`)
   },
 
@@ -50,7 +73,7 @@ export const adminService = {
   async listBannedUsers(
     limit: number = 20,
     offset: number = 0
-  ): Promise<{ success: boolean; data: BannedListResponse; error: unknown }> {
+  ): Promise<ApiResult<BannedListResponse>> {
     return apiClient.get(`/admin/users/banned`, {
       params: { limit, offset },
     })
@@ -59,11 +82,7 @@ export const adminService = {
   /**
    * Get list of active users for banning
    */
-  async listActiveUsers(): Promise<{
-    success: boolean
-    data: { users: Record<string, unknown>[] }
-    error: unknown
-  }> {
+  async listActiveUsers(): Promise<ApiResult<{ users: BannedUser[] }>> {
     return apiClient.get(`/admin/users/active`)
   },
 }
