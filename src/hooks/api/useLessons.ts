@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useLocation } from 'react-router-dom'
 import { lessonAPI } from '../../services/api/lesson.service'
 import { Lesson, LessonFilters } from '@/types/lesson.types'
+import { LearnedLessonService } from '@/services/api/learned-lesson.service'
 
 export const useLessons = (filters: LessonFilters = {}) => {
   const location = useLocation()
@@ -15,6 +16,8 @@ export const useLessons = (filters: LessonFilters = {}) => {
     totalPages: 0,
   })
 
+  const learnedLessonService = useMemo(() => new LearnedLessonService(), [])
+
   const serializedFilters = useMemo(
     () => JSON.stringify(filters ?? {}),
     [filters]
@@ -25,12 +28,22 @@ export const useLessons = (filters: LessonFilters = {}) => {
       try {
         setLoading(true)
         setError(null)
-        const response = await lessonAPI.getAllLessons(filters)
-        setLessons(response.data)
+        const [lessonsResponse, completedLessonIds] = await Promise.all([
+          lessonAPI.getAllLessons(filters),
+          learnedLessonService.getCompletedLessons(),
+        ])
+
+        const completedSet = new Set(completedLessonIds)
+        const lessonsWithLearned = lessonsResponse.data.map(lesson => ({
+          ...lesson,
+          isLearned: completedSet.has(lesson.id),
+        }))
+
+        setLessons(lessonsWithLearned)
         setPagination({
           page: 1,
           limit: 10,
-          total: response.data.length,
+          total: lessonsWithLearned.length,
           totalPages: 1,
         })
       } catch (err) {
@@ -44,14 +57,22 @@ export const useLessons = (filters: LessonFilters = {}) => {
   }, [serializedFilters, location.pathname])
 
   const refetch = () => {
-    lessonAPI
-      .getAllLessons(filters)
-      .then(response => {
-        setLessons(response.data)
+    Promise.all([
+      lessonAPI.getAllLessons(filters),
+      learnedLessonService.getCompletedLessons(),
+    ])
+      .then(([lessonsResponse, completedLessonIds]) => {
+        const completedSet = new Set(completedLessonIds)
+        const lessonsWithLearned = lessonsResponse.data.map(lesson => ({
+          ...lesson,
+          isLearned: completedSet.has(lesson.id),
+        }))
+
+        setLessons(lessonsWithLearned)
         setPagination({
           page: 1,
           limit: 10,
-          total: response.data.length,
+          total: lessonsWithLearned.length,
           totalPages: 1,
         })
       })
