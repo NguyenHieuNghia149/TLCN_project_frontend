@@ -14,4 +14,3 @@ export function filterVisibleListExams(
 
   return exams.filter(item => item.accessMode !== 'invite_only')
 }
-

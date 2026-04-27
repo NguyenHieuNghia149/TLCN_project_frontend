@@ -1,7 +1,6 @@
 function toEpoch(value?: string | number | null): number | null {
   if (value === null || value === undefined) return null
-  const parsed =
-    typeof value === 'number' ? value : new Date(value).getTime()
+  const parsed = typeof value === 'number' ? value : new Date(value).getTime()
   return Number.isFinite(parsed) ? parsed : null
 }
 

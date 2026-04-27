@@ -53,7 +53,9 @@ type ApiErrorPayload = {
   errors?: ApiValidationErrors
 }
 
-function pickFirstValidationMessage(errors?: ApiValidationErrors): string | null {
+function pickFirstValidationMessage(
+  errors?: ApiValidationErrors
+): string | null {
   if (!errors) {
     return null
   }
@@ -132,8 +134,8 @@ function extractApiErrorMessage(error: unknown, fallback: string): string {
     'response' in error &&
     typeof (error as { response?: unknown }).response === 'object'
   ) {
-    const payload = (error as { response?: { data?: ApiErrorPayload } }).response
-      ?.data
+    const payload = (error as { response?: { data?: ApiErrorPayload } })
+      .response?.data
     if (payload) {
       const backendMessage = payload.error?.message || payload.message
       const detailMessage = pickDetailMessage(payload.error?.details)

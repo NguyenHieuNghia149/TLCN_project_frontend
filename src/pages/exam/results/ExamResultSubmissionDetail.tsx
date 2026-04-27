@@ -37,7 +37,9 @@ function asNumber(value: unknown, fallback = 0): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
 
-function normalizeSubmissionDetails(payload: unknown): SubmissionDetailViewModel {
+function normalizeSubmissionDetails(
+  payload: unknown
+): SubmissionDetailViewModel {
   const root = asRecord(payload)
   const user = asRecord(root.user)
 
@@ -187,9 +189,7 @@ const ExamResultSubmissionDetail: React.FC = () => {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-semibold">{exam.title}</h1>
-              <p className="mt-1 text-sm text-slate-400">
-                Submission details
-              </p>
+              <p className="mt-1 text-sm text-slate-400">Submission details</p>
             </div>
             <Button
               variant="secondary"
@@ -205,7 +205,9 @@ const ExamResultSubmissionDetail: React.FC = () => {
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
               Candidate
             </p>
-            <p className="mt-3 text-lg font-semibold">{details.participantName}</p>
+            <p className="mt-3 text-lg font-semibold">
+              {details.participantName}
+            </p>
             {details.participantEmail ? (
               <p className="mt-1 text-sm text-slate-400">
                 {details.participantEmail}

@@ -152,7 +152,8 @@ const ExamResultsAdmin: React.FC = () => {
             acc[problemId] = {
               obtained: Number.isFinite(obtained) ? obtained : 0,
               maxPoints:
-                typeof maxPointsRaw === 'number' && Number.isFinite(maxPointsRaw)
+                typeof maxPointsRaw === 'number' &&
+                Number.isFinite(maxPointsRaw)
                   ? maxPointsRaw
                   : null,
             }
@@ -276,7 +277,9 @@ const ExamResultsAdmin: React.FC = () => {
         <div className="rounded-2xl border border-white/10 bg-slate-900 px-8 py-10 text-center">
           <p className="text-lg font-semibold">{error || 'Exam not found'}</p>
           <Button className="mt-4" onClick={() => navigate(backTo)}>
-            {backTo === '/admin/exams' ? 'Back to admin exams' : 'Back to exams'}
+            {backTo === '/admin/exams'
+              ? 'Back to admin exams'
+              : 'Back to exams'}
           </Button>
         </div>
       </div>
@@ -295,10 +298,7 @@ const ExamResultsAdmin: React.FC = () => {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => navigate(backTo)}
-              >
+              <Button variant="secondary" onClick={() => navigate(backTo)}>
                 Back
               </Button>
               <Button
@@ -403,16 +403,17 @@ const ExamResultsAdmin: React.FC = () => {
                       <td className="py-3">
                         <div className="font-semibold">{row.displayName}</div>
                       </td>
-                      <td className="py-3">
-                        {row.email}
-                      </td>
+                      <td className="py-3">{row.email}</td>
                       <td className="py-3">
                         {formatDateTime(row.submittedAt)}
                       </td>
                       {challengeColumns.map(challenge => {
                         const score = row.perProblemScores[challenge.id]
                         return (
-                          <td key={`${row.id}-${challenge.id}`} className="py-3">
+                          <td
+                            key={`${row.id}-${challenge.id}`}
+                            className="py-3"
+                          >
                             {score
                               ? score.maxPoints !== null
                                 ? `${score.obtained}/${score.maxPoints}`

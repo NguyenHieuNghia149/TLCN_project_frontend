@@ -3,10 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { filterVisibleListExams } from '@/pages/exam/list/exam-list-visibility'
 import type { Exam } from '@/types/exam.types'
 
-const buildExam = (
-  id: string,
-  accessMode: Exam['accessMode']
-): Exam =>
+const buildExam = (id: string, accessMode: Exam['accessMode']): Exam =>
   ({
     id,
     title: `Exam ${id}`,
@@ -45,4 +42,3 @@ describe('filterVisibleListExams', () => {
     expect(visible.map(item => item.id)).toEqual(['open', 'invite'])
   })
 })
-

@@ -876,5 +876,3 @@ const ExamAccessPage: React.FC = () => {
 }
 
 export default ExamAccessPage
-
-

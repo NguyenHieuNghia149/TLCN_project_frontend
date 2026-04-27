@@ -642,55 +642,58 @@ const ExamChallengeDetail: React.FC = () => {
     resetOutput()
   }
 
-  const handleSubmitExam = useCallback(async (options?: { force?: boolean }) => {
-    if (
-      !options?.force &&
-      !window.confirm(
-        'Are you sure you want to submit the exam? This action cannot be undone.'
-      )
-    ) {
-      return
-    }
-
-    let submitted = false
-    try {
-      const participationId = reduxParticipationId
-      if (resolvedExamId && participationId) {
-        await examService.submitExam(resolvedExamId, participationId)
-        // Flush any pending autosave before navigating
-        try {
-          await flushAutosave()
-        } catch {
-          // ignore autosave flush errors on submit
-          void 0
-        }
-
-        // Clear participation from Redux since exam is completed
-        dispatch({ type: 'exam/clearParticipation' })
-        submitted = true
-      }
-    } catch {
-      if (!options?.force) {
-        alert('Failed to submit exam. Please try again.')
-      }
-      return
-    } finally {
-      if (submitted) {
-        navigate(
-          examSlug
-            ? `/exam/${examSlug}/results`
-            : `/exam/${resolvedExamId}/results`
+  const handleSubmitExam = useCallback(
+    async (options?: { force?: boolean }) => {
+      if (
+        !options?.force &&
+        !window.confirm(
+          'Are you sure you want to submit the exam? This action cannot be undone.'
         )
+      ) {
+        return
       }
-    }
-  }, [
-    dispatch,
-    examSlug,
-    flushAutosave,
-    navigate,
-    resolvedExamId,
-    reduxParticipationId,
-  ])
+
+      let submitted = false
+      try {
+        const participationId = reduxParticipationId
+        if (resolvedExamId && participationId) {
+          await examService.submitExam(resolvedExamId, participationId)
+          // Flush any pending autosave before navigating
+          try {
+            await flushAutosave()
+          } catch {
+            // ignore autosave flush errors on submit
+            void 0
+          }
+
+          // Clear participation from Redux since exam is completed
+          dispatch({ type: 'exam/clearParticipation' })
+          submitted = true
+        }
+      } catch {
+        if (!options?.force) {
+          alert('Failed to submit exam. Please try again.')
+        }
+        return
+      } finally {
+        if (submitted) {
+          navigate(
+            examSlug
+              ? `/exam/${examSlug}/results`
+              : `/exam/${resolvedExamId}/results`
+          )
+        }
+      }
+    },
+    [
+      dispatch,
+      examSlug,
+      flushAutosave,
+      navigate,
+      resolvedExamId,
+      reduxParticipationId,
+    ]
+  )
 
   // Initialize and manage countdown separately so hooks don't depend on `handleSubmitExam` definition order
   useEffect(() => {
@@ -737,7 +740,8 @@ const ExamChallengeDetail: React.FC = () => {
               part?.startAt ||
               part?.startTimestamp ||
               part?.startedAtMs
-            const serverExpires = part?.expiresAt || part?.expires_at || part?.expires
+            const serverExpires =
+              part?.expiresAt || part?.expires_at || part?.expires
             if (partId) {
               activeParticipationId = partId
               const startAtValue = serverStart ?? Date.now()
@@ -759,7 +763,9 @@ const ExamChallengeDetail: React.FC = () => {
               }
               // proceed as joined
             } else {
-              setJoinBlockedReason('You must start the exam from the entry page.')
+              setJoinBlockedReason(
+                'You must start the exam from the entry page.'
+              )
               setIsJoined(false)
               return
             }
@@ -867,9 +873,7 @@ const ExamChallengeDetail: React.FC = () => {
               participationUpdate.currentChallengeId = serverCurrentChallenge
             }
 
-            dispatch(
-              setParticipation(participationUpdate)
-            )
+            dispatch(setParticipation(participationUpdate))
           }
         } catch (e) {
           console.warn('Failed to recover participation from server', e)

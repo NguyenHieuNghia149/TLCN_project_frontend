@@ -7,7 +7,10 @@ import { useAuth } from '@/hooks/api/useAuth'
 import { isLegacyExamId } from '@/pages/exam/legacy/legacy-exam-redirect'
 import { examService } from '@/services/api/exam.service'
 import type { ExamAccessState, PublicExamLanding } from '@/types/exam.types'
-import { normalizeLearnerResultStatus, type ResultStatus } from './result-status'
+import {
+  normalizeLearnerResultStatus,
+  type ResultStatus,
+} from './result-status'
 import {
   normalizeLearnerBreakdown,
   type LearnerResultBreakdownItem,
@@ -100,9 +103,10 @@ const ExamResults: React.FC = () => {
   const [resultStatus, setResultStatus] = useState<ResultStatus>('pending')
   const [score, setScore] = useState<number | null>(null)
   const [breakdown, setBreakdown] = useState<LearnerResultBreakdownItem[]>([])
-  const [submissionPayload, setSubmissionPayload] = useState<
-    Record<string, unknown> | null
-  >(null)
+  const [submissionPayload, setSubmissionPayload] = useState<Record<
+    string,
+    unknown
+  > | null>(null)
 
   useEffect(() => {
     if (!examSlug) {
@@ -268,13 +272,16 @@ const ExamResults: React.FC = () => {
     }
 
     const perProblemScores: LearnerResultTableRow['perProblemScores'] =
-      breakdown.reduce((acc, item) => {
-        acc[item.problemId] = {
-          obtained: item.obtained,
-          maxPoints: item.maxPoints,
-        }
-        return acc
-      }, {} as LearnerResultTableRow['perProblemScores'])
+      breakdown.reduce(
+        (acc, item) => {
+          acc[item.problemId] = {
+            obtained: item.obtained,
+            maxPoints: item.maxPoints,
+          }
+          return acc
+        },
+        {} as LearnerResultTableRow['perProblemScores']
+      )
 
     const submission = submissionPayload
     const submissionUser = asRecord(submission?.user)
@@ -390,7 +397,9 @@ const ExamResults: React.FC = () => {
                 ) : (
                   <tr className="border-b border-emerald-300/25 bg-emerald-300/10">
                     <td className="py-3">{resultRow.index}</td>
-                    <td className="py-3 font-semibold text-emerald-100">{resultRow.email}</td>
+                    <td className="py-3 font-semibold text-emerald-100">
+                      {resultRow.email}
+                    </td>
                     <td className="py-3">
                       {resultRow.submittedAt
                         ? formatDateTime(resultRow.submittedAt)
@@ -399,7 +408,10 @@ const ExamResults: React.FC = () => {
                     {challengeColumns.map(column => {
                       const problemScore = resultRow.perProblemScores[column.id]
                       return (
-                        <td key={`${column.id}-${resultRow.index}`} className="py-3">
+                        <td
+                          key={`${column.id}-${resultRow.index}`}
+                          className="py-3"
+                        >
                           {problemScore
                             ? formatChallengeScore(
                                 problemScore.obtained,
@@ -410,7 +422,9 @@ const ExamResults: React.FC = () => {
                       )
                     })}
                     <td className="py-3 font-semibold">
-                      {resultRow.totalScore !== null ? resultRow.totalScore : '--'}
+                      {resultRow.totalScore !== null
+                        ? resultRow.totalScore
+                        : '--'}
                     </td>
                   </tr>
                 )}

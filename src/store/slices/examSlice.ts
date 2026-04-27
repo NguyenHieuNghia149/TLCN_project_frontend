@@ -99,7 +99,8 @@ const examSlice = createSlice({
       }
 
       if ('currentChallengeId' in payload) {
-        state.currentParticipationChallengeId = payload.currentChallengeId ?? null
+        state.currentParticipationChallengeId =
+          payload.currentChallengeId ?? null
       }
       state.isLoading = false
     },

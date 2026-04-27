@@ -58,7 +58,8 @@ export function normalizeSubmissionDetails(
   const solutions: SubmissionDetailSolutionViewModel[] = rawSolutions
     .filter(isRecord)
     .map(item => {
-      const challengeId = asStringOrNull(item.challengeId) || 'unknown-challenge'
+      const challengeId =
+        asStringOrNull(item.challengeId) || 'unknown-challenge'
       const challengeTitle = asStringOrNull(item.challengeTitle) || challengeId
       const language = asStringOrNull(item.language) || 'unknown'
       const code = typeof item.code === 'string' ? item.code : ''

@@ -221,9 +221,7 @@ function toParticipantRows(
   }))
 }
 
-function normalizeParticipantsList(
-  payload: unknown
-): AdminExamParticipant[] {
+function normalizeParticipantsList(payload: unknown): AdminExamParticipant[] {
   return Array.isArray(payload) ? (payload as AdminExamParticipant[]) : []
 }
 
@@ -336,17 +334,12 @@ const AdminCreateExam: React.FC = () => {
     Form.useWatch('allowExternalCandidates', form) ?? false
   const resolvedExamId = id ?? persistedExamId
 
-  const visibleParticipants = useMemo(
-    () => {
-      const participantList = normalizeParticipantsList(participants)
-      return (
-      showMergedParticipants
-        ? participantList
-        : participantList.filter(participant => !participant.isMerged)
-      )
-    },
-    [participants, showMergedParticipants]
-  )
+  const visibleParticipants = useMemo(() => {
+    const participantList = normalizeParticipantsList(participants)
+    return showMergedParticipants
+      ? participantList
+      : participantList.filter(participant => !participant.isMerged)
+  }, [participants, showMergedParticipants])
 
   const combinedParticipantRows = useMemo(
     () => toParticipantRows(visibleParticipants),
@@ -1142,7 +1135,9 @@ const AdminCreateExam: React.FC = () => {
 
       setCurrentStep(step => Math.min(step + 1, STEP_ITEMS.length - 1))
     } catch (error) {
-      const validationError = error as { errorFields?: Array<{ name: (string | number)[] }> }
+      const validationError = error as {
+        errorFields?: Array<{ name: (string | number)[] }>
+      }
       const firstErrorField = validationError.errorFields?.[0]?.name
       if (firstErrorField && firstErrorField.length > 0) {
         form.scrollToField(firstErrorField)
@@ -1957,12 +1952,8 @@ const AdminCreateExam: React.FC = () => {
       <div className="space-y-6">
         <Card title="Exam summary">
           <Descriptions column={1} bordered size="small">
-            <Descriptions.Item label="Title">
-              {titleValue}
-            </Descriptions.Item>
-            <Descriptions.Item label="Slug">
-              {slugValue}
-            </Descriptions.Item>
+            <Descriptions.Item label="Title">{titleValue}</Descriptions.Item>
+            <Descriptions.Item label="Slug">{slugValue}</Descriptions.Item>
             <Descriptions.Item label="Schedule">
               {startDateValue?.format('DD/MM/YYYY HH:mm') || '-'}
               {' -> '}
