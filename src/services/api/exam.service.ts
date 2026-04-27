@@ -209,6 +209,16 @@ export class ExamService {
     return normalizeAdminExam(unwrapResponseData<Exam>(response.data))
   }
 
+  async cancelAdminExam(id: string): Promise<Exam> {
+    const response = await apiClient.post(`/admin/exams/${id}/cancel`)
+    return normalizeAdminExam(unwrapResponseData<Exam>(response.data))
+  }
+
+  async archiveAdminExam(id: string): Promise<Exam> {
+    const response = await apiClient.post(`/admin/exams/${id}/archive`)
+    return normalizeAdminExam(unwrapResponseData<Exam>(response.data))
+  }
+
   async getAdminExamParticipants(
     examId: string
   ): Promise<AdminExamParticipant[]> {

@@ -16,7 +16,9 @@ import {
   DeleteOutlined,
   EditOutlined,
   EyeOutlined,
+  InboxOutlined,
   PlusOutlined,
+  StopOutlined,
   TeamOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -122,6 +124,25 @@ function pickDetailMessage(details: unknown): string | null {
         (details as { errors?: ApiValidationErrors }).errors
       )
     }
+
+    const context = details as {
+      currentStatus?: unknown
+      participantCount?: unknown
+      endDate?: unknown
+    }
+    const parts: string[] = []
+    if (typeof context.currentStatus === 'string') {
+      parts.push(`status=${context.currentStatus}`)
+    }
+    if (typeof context.participantCount === 'number') {
+      parts.push(`participants=${context.participantCount}`)
+    }
+    if (typeof context.endDate === 'string') {
+      parts.push(`endDate=${new Date(context.endDate).toLocaleString()}`)
+    }
+    if (parts.length > 0) {
+      return parts.join(', ')
+    }
   }
 
   return null
@@ -161,6 +182,29 @@ function extractApiErrorMessage(error: unknown, fallback: string): string {
   return fallback
 }
 
+function isExamEnded(endDate: string): boolean {
+  return new Date().getTime() > new Date(endDate).getTime()
+}
+
+function canPublishExam(exam: Exam): boolean {
+  return (exam.status || 'draft') === 'draft'
+}
+
+function canCancelExam(exam: Exam): boolean {
+  return (exam.status || 'draft') === 'published'
+}
+
+function canArchiveExam(exam: Exam): boolean {
+  const status = exam.status || 'draft'
+  if (status === 'cancelled') {
+    return true
+  }
+  if (status === 'published') {
+    return isExamEnded(exam.endDate)
+  }
+  return false
+}
+
 const AdminExamList: React.FC = () => {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -168,6 +212,8 @@ const AdminExamList: React.FC = () => {
 
   const [loading, setLoading] = useState(false)
   const [publishingExamId, setPublishingExamId] = useState<string | null>(null)
+  const [cancellingExamId, setCancellingExamId] = useState<string | null>(null)
+  const [archivingExamId, setArchivingExamId] = useState<string | null>(null)
   const [allExams, setAllExams] = useState<Exam[]>([])
   const [searchText, setSearchText] = useState(searchParams.get('q') || '')
   const [statusFilter, setStatusFilter] = useState(
@@ -357,15 +403,99 @@ const AdminExamList: React.FC = () => {
         placement: 'topRight',
       })
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
       notification.error({
         message: 'Error',
-        description: err.response?.data?.message || 'Failed to publish exam',
+        description: extractApiErrorMessage(error, 'Failed to publish exam'),
         placement: 'topRight',
       })
     } finally {
       setPublishingExamId(null)
     }
+  }
+
+  const handleCancel = (exam: Exam) => {
+    modal.confirm({
+      title: 'Cancel this exam?',
+      content:
+        'This action cannot be undone. The exam will become unavailable immediately and cannot be published again.',
+      okText: 'Cancel Exam',
+      okType: 'danger',
+      cancelText: 'Keep Exam',
+      onOk: async () => {
+        setCancellingExamId(exam.id)
+        try {
+          const cancelledExam = await examService.cancelAdminExam(exam.id)
+          setAllExams(current =>
+            current.map(item =>
+              item.id === exam.id
+                ? {
+                    ...item,
+                    status: cancelledExam.status,
+                    isVisible: cancelledExam.isVisible,
+                  }
+                : item
+            )
+          )
+          notification.success({
+            message: 'Success',
+            description: 'Exam cancelled successfully',
+            placement: 'topRight',
+          })
+        } catch (error: unknown) {
+          notification.error({
+            message: 'Error',
+            description: extractApiErrorMessage(error, 'Failed to cancel exam'),
+            placement: 'topRight',
+          })
+        } finally {
+          setCancellingExamId(null)
+        }
+      },
+    })
+  }
+
+  const handleArchive = (exam: Exam) => {
+    modal.confirm({
+      title: 'Archive this exam?',
+      content:
+        'This action cannot be undone. Archived exams remain read-only for history and reporting.',
+      okText: 'Archive Exam',
+      okType: 'danger',
+      cancelText: 'Keep Exam',
+      onOk: async () => {
+        setArchivingExamId(exam.id)
+        try {
+          const archivedExam = await examService.archiveAdminExam(exam.id)
+          setAllExams(current =>
+            current.map(item =>
+              item.id === exam.id
+                ? {
+                    ...item,
+                    status: archivedExam.status,
+                    isVisible: archivedExam.isVisible,
+                  }
+                : item
+            )
+          )
+          notification.success({
+            message: 'Success',
+            description: 'Exam archived successfully',
+            placement: 'topRight',
+          })
+        } catch (error: unknown) {
+          notification.error({
+            message: 'Error',
+            description: extractApiErrorMessage(
+              error,
+              'Failed to archive exam'
+            ),
+            placement: 'topRight',
+          })
+        } finally {
+          setArchivingExamId(null)
+        }
+      },
+    })
   }
 
   const columns = [
@@ -439,6 +569,7 @@ const AdminExamList: React.FC = () => {
       render: (visible: boolean, record: Exam) => (
         <Switch
           checked={visible}
+          disabled={(record.status || 'draft') !== 'published'}
           onChange={checked => {
             void handleToggleVisibility(record.id, checked)
           }}
@@ -466,7 +597,7 @@ const AdminExamList: React.FC = () => {
               }
             />
           </Tooltip>
-          {record.status !== 'published' ? (
+          {canPublishExam(record) ? (
             <Tooltip title="Publish">
               <Button
                 type="primary"
@@ -478,6 +609,47 @@ const AdminExamList: React.FC = () => {
                 disabled={publishingExamId !== null}
                 onClick={() => {
                   void handlePublish(record.id)
+                }}
+              />
+            </Tooltip>
+          ) : null}
+          {canCancelExam(record) ? (
+            <Tooltip title="Cancel exam">
+              <Button
+                type="primary"
+                danger
+                ghost
+                shape="circle"
+                icon={<StopOutlined />}
+                aria-label={`Cancel exam ${record.title}`}
+                loading={cancellingExamId === record.id}
+                disabled={
+                  publishingExamId !== null ||
+                  archivingExamId !== null ||
+                  cancellingExamId !== null
+                }
+                onClick={() => {
+                  handleCancel(record)
+                }}
+              />
+            </Tooltip>
+          ) : null}
+          {canArchiveExam(record) ? (
+            <Tooltip title="Archive exam">
+              <Button
+                type="primary"
+                ghost
+                shape="circle"
+                icon={<InboxOutlined />}
+                aria-label={`Archive exam ${record.title}`}
+                loading={archivingExamId === record.id}
+                disabled={
+                  publishingExamId !== null ||
+                  archivingExamId !== null ||
+                  cancellingExamId !== null
+                }
+                onClick={() => {
+                  handleArchive(record)
                 }}
               />
             </Tooltip>

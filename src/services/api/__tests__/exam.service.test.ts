@@ -239,4 +239,58 @@ describe('examService', () => {
     )
     expect(postMock.mock.calls[0]?.[1]).not.toHaveProperty('password')
   })
+
+  it('calls admin cancel endpoint and unwraps exam response', async () => {
+    postMock.mockResolvedValueOnce({
+      data: {
+        data: {
+          id: 'exam-1',
+          title: 'Midterm',
+          status: 'cancelled',
+          isVisible: false,
+          duration: 90,
+          startDate: '2026-01-01T00:00:00.000Z',
+          endDate: '2026-01-01T01:30:00.000Z',
+          maxAttempts: 1,
+          challenges: [],
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      },
+    })
+
+    await expect(examService.cancelAdminExam('exam-1')).resolves.toMatchObject({
+      id: 'exam-1',
+      status: 'cancelled',
+      isVisible: false,
+    })
+    expect(postMock).toHaveBeenCalledWith('/admin/exams/exam-1/cancel')
+  })
+
+  it('calls admin archive endpoint and unwraps exam response', async () => {
+    postMock.mockResolvedValueOnce({
+      data: {
+        data: {
+          id: 'exam-1',
+          title: 'Midterm',
+          status: 'archived',
+          isVisible: false,
+          duration: 90,
+          startDate: '2026-01-01T00:00:00.000Z',
+          endDate: '2026-01-01T01:30:00.000Z',
+          maxAttempts: 1,
+          challenges: [],
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      },
+    })
+
+    await expect(examService.archiveAdminExam('exam-1')).resolves.toMatchObject(
+      {
+        id: 'exam-1',
+        status: 'archived',
+        isVisible: false,
+      }
+    )
+    expect(postMock).toHaveBeenCalledWith('/admin/exams/exam-1/archive')
+  })
 })
