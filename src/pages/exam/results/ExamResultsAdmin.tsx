@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Calendar, Code, RefreshCw, Search } from 'lucide-react'
 import { Drawer } from 'antd'
@@ -6,6 +12,7 @@ import { Drawer } from 'antd'
 import Button from '@/components/common/Button/Button'
 import Input from '@/components/common/Input/Input'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
+import { AdminThemeContext } from '@/contexts/AdminThemeContextDef'
 import { examService } from '@/services/api/exam.service'
 import type { Exam } from '@/types/exam.types'
 import { normalizeAdminResultStatus, type ResultStatus } from './result-status'
@@ -31,6 +38,91 @@ type AdminResultRow = {
       maxPoints: number | null
     }
   >
+}
+
+type AdminResultsThemeStyles = {
+  page: React.CSSProperties
+  card: React.CSSProperties
+  mutedText: React.CSSProperties
+  metricLabel: React.CSSProperties
+  pendingCount: React.CSSProperties
+  scoredCount: React.CSSProperties
+  failedCount: React.CSSProperties
+  notice: React.CSSProperties
+  noticeBadge: React.CSSProperties
+  tableHeader: React.CSSProperties
+  tableRow: React.CSSProperties
+  drawerCard: React.CSSProperties
+  drawerMuted: React.CSSProperties
+  drawerStrong: React.CSSProperties
+  codeBlock: React.CSSProperties
+}
+
+function buildAdminResultsThemeStyles(
+  mode: 'light' | 'dark'
+): AdminResultsThemeStyles {
+  const isDark = mode === 'dark'
+
+  return {
+    page: {
+      backgroundColor: 'var(--admin-bg-primary)',
+      color: 'var(--admin-text-primary)',
+    },
+    card: {
+      backgroundColor: 'var(--admin-card-bg)',
+      borderColor: 'var(--admin-card-border)',
+      color: 'var(--admin-text-primary)',
+      boxShadow: 'var(--admin-card-shadow)',
+    },
+    mutedText: {
+      color: 'var(--admin-text-secondary)',
+    },
+    metricLabel: {
+      color: 'var(--admin-text-secondary)',
+    },
+    pendingCount: {
+      color: isDark ? '#fcd34d' : '#b45309',
+    },
+    scoredCount: {
+      color: isDark ? '#6ee7b7' : '#047857',
+    },
+    failedCount: {
+      color: isDark ? '#fda4af' : '#be123c',
+    },
+    notice: {
+      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.10)' : '#fffbeb',
+      borderColor: isDark ? 'rgba(251, 191, 36, 0.30)' : '#f59e0b',
+      color: isDark ? '#fde68a' : '#92400e',
+    },
+    noticeBadge: {
+      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.10)' : '#fffbeb',
+      borderColor: isDark ? 'rgba(251, 191, 36, 0.30)' : '#f59e0b',
+      color: isDark ? '#fde68a' : '#92400e',
+    },
+    tableHeader: {
+      borderColor: 'var(--admin-table-border)',
+      color: 'var(--admin-table-header-text)',
+    },
+    tableRow: {
+      borderColor: 'var(--admin-border-light)',
+    },
+    drawerCard: {
+      backgroundColor: 'var(--admin-bg-secondary)',
+      borderColor: 'var(--admin-card-border)',
+      color: 'var(--admin-text-primary)',
+    },
+    drawerMuted: {
+      color: 'var(--admin-text-secondary)',
+    },
+    drawerStrong: {
+      color: 'var(--admin-text-primary)',
+    },
+    codeBlock: {
+      backgroundColor: isDark ? '#020617' : '#0f172a',
+      borderColor: isDark ? 'rgba(148, 163, 184, 0.24)' : '#cbd5e1',
+      color: '#bbf7d0',
+    },
+  }
 }
 
 function formatDateTime(iso: string) {
@@ -74,6 +166,12 @@ const ExamResultsAdmin: React.FC = () => {
   const examId = id || examIdParam || ''
   const navigate = useNavigate()
   const location = useLocation()
+  const adminThemeContext = useContext(AdminThemeContext)
+  const adminTheme = adminThemeContext?.adminTheme ?? 'dark'
+  const themeStyles = useMemo(
+    () => buildAdminResultsThemeStyles(adminTheme),
+    [adminTheme]
+  )
   const backTo = location.pathname.startsWith('/admin/')
     ? '/admin/exams'
     : '/exam'
@@ -273,8 +371,14 @@ const ExamResultsAdmin: React.FC = () => {
 
   if (!exam || error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-slate-100">
-        <div className="rounded-2xl border border-white/10 bg-slate-900 px-8 py-10 text-center">
+      <div
+        className="flex min-h-screen items-center justify-center px-4 transition-colors duration-300"
+        style={themeStyles.page}
+      >
+        <div
+          className="rounded-2xl border px-8 py-10 text-center transition-colors duration-300"
+          style={themeStyles.card}
+        >
           <p className="text-lg font-semibold">{error || 'Exam not found'}</p>
           <Button className="mt-4" onClick={() => navigate(backTo)}>
             {backTo === '/admin/exams'
@@ -287,13 +391,19 @@ const ExamResultsAdmin: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100">
+    <div
+      className="min-h-screen px-4 py-10 transition-colors duration-300"
+      style={themeStyles.page}
+    >
       <div className="mx-auto max-w-7xl space-y-7">
-        <section className="rounded-3xl border border-white/10 bg-slate-900/90 p-7">
+        <section
+          className="rounded-3xl border p-7 transition-colors duration-300"
+          style={themeStyles.card}
+        >
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-semibold">{exam.title}</h1>
-              <p className="mt-1 text-sm text-slate-400">
+              <p className="mt-1 text-sm" style={themeStyles.mutedText}>
                 Admin results dashboard
               </p>
             </div>
@@ -317,39 +427,72 @@ const ExamResultsAdmin: React.FC = () => {
         </section>
 
         <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-white/10 bg-slate-900/90 p-5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <div
+            className="rounded-2xl border p-5 transition-colors duration-300"
+            style={themeStyles.card}
+          >
+            <p
+              className="text-xs font-semibold uppercase tracking-wide"
+              style={themeStyles.metricLabel}
+            >
               Pending scoring
             </p>
-            <p className="mt-3 text-3xl font-semibold text-amber-300">
+            <p
+              className="mt-3 text-3xl font-semibold"
+              style={themeStyles.pendingCount}
+            >
               {statusPills.pending}
             </p>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-slate-900/90 p-5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <div
+            className="rounded-2xl border p-5 transition-colors duration-300"
+            style={themeStyles.card}
+          >
+            <p
+              className="text-xs font-semibold uppercase tracking-wide"
+              style={themeStyles.metricLabel}
+            >
               Scored
             </p>
-            <p className="mt-3 text-3xl font-semibold text-emerald-300">
+            <p
+              className="mt-3 text-3xl font-semibold"
+              style={themeStyles.scoredCount}
+            >
               {statusPills.scored}
             </p>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-slate-900/90 p-5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <div
+            className="rounded-2xl border p-5 transition-colors duration-300"
+            style={themeStyles.card}
+          >
+            <p
+              className="text-xs font-semibold uppercase tracking-wide"
+              style={themeStyles.metricLabel}
+            >
               Failed scoring
             </p>
-            <p className="mt-3 text-3xl font-semibold text-rose-300">
+            <p
+              className="mt-3 text-3xl font-semibold"
+              style={themeStyles.failedCount}
+            >
               {statusPills.failed}
             </p>
           </div>
         </section>
 
-        <section className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm leading-relaxed text-amber-100">
+        <section
+          className="rounded-2xl border px-4 py-3 text-sm leading-relaxed transition-colors duration-300"
+          style={themeStyles.notice}
+        >
           `failed` means a technical scoring error, not a failed exam attempt.
           Scoring is processed asynchronously and this page auto-refreshes while
           pending rows exist.
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-slate-900/90 p-6">
+        <section
+          className="rounded-2xl border p-6 transition-colors duration-300"
+          style={themeStyles.card}
+        >
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="w-full max-w-md">
               <Input
@@ -360,7 +503,10 @@ const ExamResultsAdmin: React.FC = () => {
               />
             </div>
             {hasPendingRows ? (
-              <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-100">
+              <span
+                className="rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide"
+                style={themeStyles.noticeBadge}
+              >
                 Auto-refresh every 15s while tab is active
               </span>
             ) : null}
@@ -369,7 +515,7 @@ const ExamResultsAdmin: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-white/10 text-slate-400">
+                <tr className="border-b" style={themeStyles.tableHeader}>
                   <th className="pb-3">Name</th>
                   <th className="pb-3">Email</th>
                   <th className="pb-3">
@@ -391,7 +537,8 @@ const ExamResultsAdmin: React.FC = () => {
                 {filteredRows.length === 0 ? (
                   <tr>
                     <td
-                      className="py-6 text-slate-400"
+                      className="py-6"
+                      style={themeStyles.mutedText}
                       colSpan={5 + challengeColumns.length}
                     >
                       No result rows found.
@@ -399,7 +546,11 @@ const ExamResultsAdmin: React.FC = () => {
                   </tr>
                 ) : (
                   filteredRows.map(row => (
-                    <tr key={row.id} className="border-b border-white/5">
+                    <tr
+                      key={row.id}
+                      className="border-b"
+                      style={themeStyles.tableRow}
+                    >
                       <td className="py-3">
                         <div className="font-semibold">{row.displayName}</div>
                       </td>
@@ -459,67 +610,121 @@ const ExamResultsAdmin: React.FC = () => {
           {selectedParticipationId && submissionDetail ? (
             <div className="space-y-4">
               <section className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs font-semibold uppercase text-slate-500">
+                <div
+                  className="rounded-xl border p-3"
+                  style={themeStyles.drawerCard}
+                >
+                  <p
+                    className="text-xs font-semibold uppercase"
+                    style={themeStyles.drawerMuted}
+                  >
                     Candidate
                   </p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                  <p
+                    className="mt-1 text-sm font-semibold"
+                    style={themeStyles.drawerStrong}
+                  >
                     {submissionDetail.userName}
                   </p>
-                  <p className="mt-1 text-xs text-slate-600">
+                  <p className="mt-1 text-xs" style={themeStyles.drawerMuted}>
                     {submissionDetail.email}
                   </p>
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs font-semibold uppercase text-slate-500">
+                <div
+                  className="rounded-xl border p-3"
+                  style={themeStyles.drawerCard}
+                >
+                  <p
+                    className="text-xs font-semibold uppercase"
+                    style={themeStyles.drawerMuted}
+                  >
                     Participation
                   </p>
-                  <p className="mt-1 break-all text-sm text-slate-900">
+                  <p
+                    className="mt-1 break-all text-sm"
+                    style={themeStyles.drawerStrong}
+                  >
                     {submissionDetail.participationId}
                   </p>
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs font-semibold uppercase text-slate-500">
+                <div
+                  className="rounded-xl border p-3"
+                  style={themeStyles.drawerCard}
+                >
+                  <p
+                    className="text-xs font-semibold uppercase"
+                    style={themeStyles.drawerMuted}
+                  >
                     Started at
                   </p>
-                  <p className="mt-1 text-sm text-slate-900">
+                  <p className="mt-1 text-sm" style={themeStyles.drawerStrong}>
                     {formatOptionalDateTime(submissionDetail.startedAt)}
                   </p>
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs font-semibold uppercase text-slate-500">
+                <div
+                  className="rounded-xl border p-3"
+                  style={themeStyles.drawerCard}
+                >
+                  <p
+                    className="text-xs font-semibold uppercase"
+                    style={themeStyles.drawerMuted}
+                  >
                     Submitted at
                   </p>
-                  <p className="mt-1 text-sm text-slate-900">
+                  <p className="mt-1 text-sm" style={themeStyles.drawerStrong}>
                     {formatOptionalDateTime(submissionDetail.submittedAt)}
                   </p>
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs font-semibold uppercase text-slate-500">
+                <div
+                  className="rounded-xl border p-3"
+                  style={themeStyles.drawerCard}
+                >
+                  <p
+                    className="text-xs font-semibold uppercase"
+                    style={themeStyles.drawerMuted}
+                  >
                     Duration
                   </p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                  <p
+                    className="mt-1 text-sm font-semibold"
+                    style={themeStyles.drawerStrong}
+                  >
                     {submissionDetail.durationMinutes !== null
                       ? `${submissionDetail.durationMinutes} minutes`
                       : '--'}
                   </p>
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs font-semibold uppercase text-slate-500">
+                <div
+                  className="rounded-xl border p-3"
+                  style={themeStyles.drawerCard}
+                >
+                  <p
+                    className="text-xs font-semibold uppercase"
+                    style={themeStyles.drawerMuted}
+                  >
                     Total score
                   </p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                  <p
+                    className="mt-1 text-sm font-semibold"
+                    style={themeStyles.drawerStrong}
+                  >
                     {submissionDetail.totalScore ?? '--'}
                   </p>
                 </div>
               </section>
 
               <section>
-                <h3 className="text-sm font-semibold text-slate-800">
+                <h3
+                  className="text-sm font-semibold"
+                  style={themeStyles.drawerStrong}
+                >
                   Challenge details
                 </h3>
                 {submissionDetail.solutions.length === 0 ? (
-                  <p className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                  <p
+                    className="mt-2 rounded-lg border p-3 text-sm"
+                    style={themeStyles.drawerCard}
+                  >
                     No challenge submission data for this participation.
                   </p>
                 ) : (
@@ -527,14 +732,21 @@ const ExamResultsAdmin: React.FC = () => {
                     {submissionDetail.solutions.map(solution => (
                       <article
                         key={solution.challengeId}
-                        className="rounded-xl border border-slate-200 bg-white p-4"
+                        className="rounded-xl border p-4"
+                        style={themeStyles.drawerCard}
                       >
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <div>
-                            <p className="text-sm font-semibold text-slate-900">
+                            <p
+                              className="text-sm font-semibold"
+                              style={themeStyles.drawerStrong}
+                            >
                               {solution.challengeTitle}
                             </p>
-                            <p className="mt-0.5 text-xs text-slate-500">
+                            <p
+                              className="mt-0.5 text-xs"
+                              style={themeStyles.drawerMuted}
+                            >
                               {solution.challengeId}
                             </p>
                           </div>
@@ -543,7 +755,10 @@ const ExamResultsAdmin: React.FC = () => {
                           </span>
                         </div>
 
-                        <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-slate-600 md:grid-cols-3">
+                        <div
+                          className="mt-3 grid grid-cols-1 gap-2 text-xs md:grid-cols-3"
+                          style={themeStyles.drawerMuted}
+                        >
                           <p>
                             <span className="font-semibold">Language:</span>{' '}
                             {solution.language}
@@ -561,10 +776,16 @@ const ExamResultsAdmin: React.FC = () => {
                         </div>
 
                         <div className="mt-3">
-                          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          <p
+                            className="mb-1 text-xs font-semibold uppercase tracking-wide"
+                            style={themeStyles.drawerMuted}
+                          >
                             Code
                           </p>
-                          <pre className="max-h-64 overflow-auto rounded-lg border border-slate-200 bg-slate-950 p-3 text-xs text-emerald-200">
+                          <pre
+                            className="max-h-64 overflow-auto rounded-lg border p-3 text-xs"
+                            style={themeStyles.codeBlock}
+                          >
                             {solution.code.trim()
                               ? solution.code
                               : '// No code submitted'}
