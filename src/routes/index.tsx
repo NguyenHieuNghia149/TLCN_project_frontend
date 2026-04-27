@@ -23,6 +23,7 @@ import ExamList from '@/pages/exam/list/ExamList'
 import ExamAccessPage from '@/pages/exam/access/ExamAccessPage'
 import ExamResults from '@/pages/exam/results/ExamResults'
 import ExamResultsAdmin from '@/pages/exam/results/ExamResultsAdmin'
+import ExamResultSubmissionDetail from '@/pages/exam/results/ExamResultSubmissionDetail'
 import ExamChallengeDetail from '@/pages/exam/challenge/ExamChallengeDetail'
 import LegacyExamRedirect from '@/pages/exam/legacy/LegacyExamRedirect'
 import NotFound from '@/pages/NotFound'
@@ -224,6 +225,18 @@ export const router = createBrowserRouter([
     ),
   },
   {
+    path: 'admin/exams/:id/results/:participationId',
+    element: (
+      <AdminThemeProvider>
+        <TeacherRoute>
+          <AdminLayout>
+            <ExamResultSubmissionDetail />
+          </AdminLayout>
+        </TeacherRoute>
+      </AdminThemeProvider>
+    ),
+  },
+  {
     path: '/',
     element: <MainLayout />,
     children: [
@@ -288,6 +301,22 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'exam/:id/manage',
+        element: (
+          <TeacherRoute>
+            <AdminCreateExam />
+          </TeacherRoute>
+        ),
+      },
+      {
+        path: 'exam/:examId/results/manage',
+        element: (
+          <TeacherRoute>
+            <ExamResultsAdmin />
+          </TeacherRoute>
+        ),
+      },
+      {
         path: 'exam',
         element: (
           <ProtectedRoute>
@@ -318,16 +347,6 @@ export const router = createBrowserRouter([
   {
     path: 'exam/:examSlug/entry',
     element: <ExamAccessPage />,
-  },
-  {
-    path: 'exam/:examId/results/manage',
-    element: (
-      <AdminThemeProvider>
-        <TeacherRoute>
-          <LegacyExamRedirect mode="admin-results" />
-        </TeacherRoute>
-      </AdminThemeProvider>
-    ),
   },
   {
     path: 'exam/:examId/results',

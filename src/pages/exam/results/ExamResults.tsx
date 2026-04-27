@@ -3,17 +3,51 @@ import { useNavigate, useParams } from 'react-router-dom'
 
 import Button from '@/components/common/Button/Button'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
+import { useAuth } from '@/hooks/api/useAuth'
+import { isLegacyExamId } from '@/pages/exam/legacy/legacy-exam-redirect'
 import { examService } from '@/services/api/exam.service'
 import type { ExamAccessState, PublicExamLanding } from '@/types/exam.types'
+import { normalizeLearnerResultStatus, type ResultStatus } from './result-status'
 import {
-  normalizeLearnerResultStatus,
-  type ResultStatus,
-} from './result-status'
+  normalizeLearnerBreakdown,
+  type LearnerResultBreakdownItem,
+} from './result-breakdown'
 
-type ProblemBreakdown = {
-  problemId: string
-  obtained: number
-  maxPoints: number
+type LearnerResultTableColumn = {
+  id: string
+  title: string
+}
+
+type LearnerResultTableRow = {
+  index: number
+  email: string
+  submittedAt: string | null
+  totalScore: number | null
+  perProblemScores: Record<
+    string,
+    {
+      obtained: number
+      maxPoints: number | null
+    }
+  >
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object'
+    ? (value as Record<string, unknown>)
+    : null
+}
+
+function asNonEmptyString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null
+}
+
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString()
+}
+
+function formatChallengeScore(obtained: number, maxPoints: number | null) {
+  return maxPoints !== null ? `${obtained}/${maxPoints}` : `${obtained}`
 }
 
 function extractApiErrorStatus(error: unknown) {
@@ -57,6 +91,7 @@ function extractApiErrorMessage(error: unknown, fallback: string) {
 const ExamResults: React.FC = () => {
   const { examSlug = '' } = useParams<{ examSlug: string }>()
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -64,7 +99,10 @@ const ExamResults: React.FC = () => {
   const [accessState, setAccessState] = useState<ExamAccessState | null>(null)
   const [resultStatus, setResultStatus] = useState<ResultStatus>('pending')
   const [score, setScore] = useState<number | null>(null)
-  const [breakdown, setBreakdown] = useState<ProblemBreakdown[]>([])
+  const [breakdown, setBreakdown] = useState<LearnerResultBreakdownItem[]>([])
+  const [submissionPayload, setSubmissionPayload] = useState<
+    Record<string, unknown> | null
+  >(null)
 
   useEffect(() => {
     if (!examSlug) {
@@ -104,21 +142,20 @@ const ExamResults: React.FC = () => {
             details.scoreStatus,
             details.totalScore
           )
-          const perProblem = Array.isArray(details.perProblem)
-            ? (details.perProblem as ProblemBreakdown[])
-            : []
+          const perProblem = normalizeLearnerBreakdown(details)
+          setSubmissionPayload(details)
 
           if (normalized.status === 'pending') {
             setResultStatus('pending')
             setScore(null)
-            setBreakdown([])
+            setBreakdown(perProblem)
             return
           }
 
           if (normalized.status === 'failed') {
             setResultStatus('failed')
             setScore(null)
-            setBreakdown([])
+            setBreakdown(perProblem)
             return
           }
 
@@ -132,14 +169,27 @@ const ExamResults: React.FC = () => {
             setResultStatus('pending')
             setScore(null)
             setBreakdown([])
+            setSubmissionPayload(null)
             return
           }
           setResultStatus('failed')
           setScore(null)
           setBreakdown([])
+          setSubmissionPayload(null)
         }
       } catch (apiError: unknown) {
         if (cancelled) return
+        if (isLegacyExamId(examSlug)) {
+          try {
+            const legacyExam = await examService.getExamById(examSlug)
+            if (legacyExam?.slug && legacyExam.slug !== examSlug) {
+              navigate(`/exam/${legacyExam.slug}/results`, { replace: true })
+              return
+            }
+          } catch {
+            // Ignore fallback failures and surface original error below.
+          }
+        }
         setError(
           extractApiErrorMessage(apiError, 'Failed to load exam results')
         )
@@ -155,29 +205,110 @@ const ExamResults: React.FC = () => {
     return () => {
       cancelled = true
     }
-  }, [examSlug])
+  }, [examSlug, navigate])
 
-  const statusCopy = useMemo(() => {
-    if (resultStatus === 'scored') {
-      return {
-        title: 'Scored',
-        description: 'Your result is ready.',
-        colorClass: 'text-emerald-300 border-emerald-400/30 bg-emerald-400/10',
-      }
+  const challengeColumns = useMemo<LearnerResultTableColumn[]>(() => {
+    const fromBreakdown = breakdown.map(item => ({
+      id: item.problemId,
+      title: item.challengeTitle,
+    }))
+    if (fromBreakdown.length > 0) {
+      return fromBreakdown
+    }
+
+    const submission = submissionPayload
+    if (!submission) {
+      return []
+    }
+
+    const rawPerProblem = submission.perProblem
+    if (Array.isArray(rawPerProblem)) {
+      return rawPerProblem
+        .map((item, index) => {
+          const row = asRecord(item)
+          if (!row) return null
+          const problemId =
+            asNonEmptyString(row.problemId) ||
+            asNonEmptyString(row.challengeId) ||
+            `problem-${index + 1}`
+          const title =
+            asNonEmptyString(row.challengeTitle) ||
+            asNonEmptyString(row.title) ||
+            problemId
+          return { id: problemId, title }
+        })
+        .filter((item): item is LearnerResultTableColumn => item !== null)
+    }
+
+    const rawSolutions = submission.solutions
+    if (Array.isArray(rawSolutions)) {
+      return rawSolutions
+        .map((item, index) => {
+          const row = asRecord(item)
+          if (!row) return null
+          const problemId =
+            asNonEmptyString(row.challengeId) ||
+            asNonEmptyString(row.problemId) ||
+            `problem-${index + 1}`
+          const title =
+            asNonEmptyString(row.challengeTitle) ||
+            asNonEmptyString(row.title) ||
+            problemId
+          return { id: problemId, title }
+        })
+        .filter((item): item is LearnerResultTableColumn => item !== null)
+    }
+
+    return []
+  }, [breakdown, submissionPayload])
+
+  const resultRow = useMemo<LearnerResultTableRow | null>(() => {
+    if (!accessState?.participationId) {
+      return null
+    }
+
+    const perProblemScores: LearnerResultTableRow['perProblemScores'] =
+      breakdown.reduce((acc, item) => {
+        acc[item.problemId] = {
+          obtained: item.obtained,
+          maxPoints: item.maxPoints,
+        }
+        return acc
+      }, {} as LearnerResultTableRow['perProblemScores'])
+
+    const submission = submissionPayload
+    const submissionUser = asRecord(submission?.user)
+    const email =
+      asNonEmptyString(submissionUser?.email) ||
+      asNonEmptyString(submission?.email) ||
+      user?.email ||
+      '--'
+    const submittedAt = asNonEmptyString(submission?.submittedAt)
+
+    return {
+      index: 1,
+      email,
+      submittedAt,
+      totalScore: resultStatus === 'scored' ? (score ?? 0) : null,
+      perProblemScores,
+    }
+  }, [
+    accessState?.participationId,
+    breakdown,
+    resultStatus,
+    score,
+    submissionPayload,
+    user?.email,
+  ])
+
+  const statusHint = useMemo(() => {
+    if (resultStatus === 'pending') {
+      return 'Submission has been received and is currently being scored.'
     }
     if (resultStatus === 'failed') {
-      return {
-        title: 'Scoring failed',
-        description:
-          'A technical scoring error occurred. Please refresh later.',
-        colorClass: 'text-rose-200 border-rose-400/30 bg-rose-400/10',
-      }
+      return 'Scoring is temporarily unavailable due to a technical error. Please refresh later.'
     }
-    return {
-      title: 'Pending scoring',
-      description: 'Your submission is received and waiting for scoring.',
-      colorClass: 'text-amber-100 border-amber-400/30 bg-amber-400/10',
-    }
+    return null
   }, [resultStatus])
 
   if (loading) {
@@ -201,70 +332,91 @@ const ExamResults: React.FC = () => {
     <div className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100">
       <div className="mx-auto max-w-5xl space-y-6">
         <section className="rounded-3xl border border-white/10 bg-slate-900/90 p-8">
-          <h1 className="text-3xl font-semibold">{exam.title}</h1>
-          <p className="mt-2 text-sm text-slate-400">Exam results</p>
-        </section>
-
-        <section className={`rounded-2xl border p-6 ${statusCopy.colorClass}`}>
-          <h2 className="text-xl font-semibold">{statusCopy.title}</h2>
-          <p className="mt-2 text-sm">{statusCopy.description}</p>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-semibold">{exam.title}</h1>
+              <p className="mt-2 text-sm text-slate-400">Exam results</p>
+              {statusHint ? (
+                <p className="mt-3 text-sm text-amber-200">{statusHint}</p>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={() => navigate('/exam')} variant="secondary">
+                Back to exams
+              </Button>
+              <Button onClick={() => navigate(`/exam/${examSlug}`)}>
+                Go to exam landing
+              </Button>
+            </div>
+          </div>
           {accessState?.participationId ? (
-            <p className="mt-2 text-xs opacity-80">
+            <p className="mt-4 text-xs text-slate-400">
               Participation: {accessState.participationId}
             </p>
           ) : null}
         </section>
 
-        {resultStatus === 'scored' ? (
-          <section className="rounded-2xl border border-white/10 bg-slate-900/90 p-6">
-            <h2 className="text-lg font-semibold">Total score</h2>
-            <p className="mt-3 text-4xl font-bold text-emerald-300">
-              {score ?? 0}
-            </p>
-            {score === 0 ? (
-              <p className="mt-2 text-sm text-slate-400">
-                Score is zero and already scored. This is not a pending state.
-              </p>
-            ) : null}
-          </section>
-        ) : null}
+        <section className="rounded-2xl border border-white/10 bg-slate-900/90 p-6">
+          <h2 className="text-lg font-semibold">Result table</h2>
+          <p className="mt-2 text-sm text-slate-400">
+            Learner view only contains your own submission row.
+          </p>
 
-        {resultStatus === 'scored' && breakdown.length > 0 ? (
-          <section className="rounded-2xl border border-white/10 bg-slate-900/90 p-6">
-            <h2 className="text-lg font-semibold">Per challenge breakdown</h2>
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-white/10 text-slate-400">
-                    <th className="pb-3">Challenge</th>
-                    <th className="pb-3">Score</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {breakdown.map(item => (
-                    <tr
-                      key={item.problemId}
-                      className="border-b border-white/5"
-                    >
-                      <td className="py-3">{item.problemId}</td>
-                      <td className="py-3">
-                        {item.obtained}/{item.maxPoints}
-                      </td>
-                    </tr>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-white/10 text-slate-400">
+                  <th className="pb-3">STT</th>
+                  <th className="pb-3">Email</th>
+                  <th className="pb-3">Submitted</th>
+                  {challengeColumns.map(column => (
+                    <th key={column.id} className="pb-3">
+                      {column.title}
+                    </th>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        ) : null}
-
-        <section className="flex flex-wrap gap-3">
-          <Button onClick={() => navigate('/exam')} variant="secondary">
-            Back to exams
-          </Button>
-          <Button onClick={() => navigate(`/exam/${examSlug}`)}>
-            Go to exam landing
-          </Button>
+                  <th className="pb-3">Total score</th>
+                </tr>
+              </thead>
+              <tbody>
+                {!resultRow ? (
+                  <tr>
+                    <td
+                      className="py-4 text-slate-400"
+                      colSpan={4 + challengeColumns.length}
+                    >
+                      No submission row yet.
+                    </td>
+                  </tr>
+                ) : (
+                  <tr className="border-b border-emerald-300/25 bg-emerald-300/10">
+                    <td className="py-3">{resultRow.index}</td>
+                    <td className="py-3 font-semibold text-emerald-100">{resultRow.email}</td>
+                    <td className="py-3">
+                      {resultRow.submittedAt
+                        ? formatDateTime(resultRow.submittedAt)
+                        : '--'}
+                    </td>
+                    {challengeColumns.map(column => {
+                      const problemScore = resultRow.perProblemScores[column.id]
+                      return (
+                        <td key={`${column.id}-${resultRow.index}`} className="py-3">
+                          {problemScore
+                            ? formatChallengeScore(
+                                problemScore.obtained,
+                                problemScore.maxPoints
+                              )
+                            : '--'}
+                        </td>
+                      )
+                    })}
+                    <td className="py-3 font-semibold">
+                      {resultRow.totalScore !== null ? resultRow.totalScore : '--'}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </section>
       </div>
     </div>

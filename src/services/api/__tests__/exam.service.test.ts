@@ -122,6 +122,47 @@ describe('examService', () => {
     )
   })
 
+  it('unwraps nested admin exam list payload into an array', async () => {
+    getMock.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: {
+          data: [
+            {
+              id: 'admin-exam-1',
+              title: 'Admin Midterm',
+              duration: 120,
+              startDate: '2026-01-02T00:00:00.000Z',
+              endDate: '2026-01-02T02:00:00.000Z',
+              isVisible: true,
+              maxAttempts: 1,
+              challenges: [],
+              createdAt: '2026-01-02T00:00:00.000Z',
+            },
+          ],
+          total: 1,
+        },
+      },
+    })
+
+    await expect(examService.getAdminExams(500, 0)).resolves.toEqual({
+      data: [
+        {
+          id: 'admin-exam-1',
+          title: 'Admin Midterm',
+          duration: 120,
+          startDate: '2026-01-02T00:00:00.000Z',
+          endDate: '2026-01-02T02:00:00.000Z',
+          isVisible: true,
+          maxAttempts: 1,
+          challenges: [],
+          createdAt: '2026-01-02T00:00:00.000Z',
+        },
+      ],
+      total: 1,
+    })
+  })
+
   it('parses admin user lookup payloads for participant binding', async () => {
     getMock.mockResolvedValueOnce({
       data: {

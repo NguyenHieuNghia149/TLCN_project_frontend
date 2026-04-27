@@ -110,6 +110,27 @@ function unwrapResponseData<T>(payload: unknown): T {
   return payload as T
 }
 
+function unwrapArrayResponse<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) {
+    return payload as T[]
+  }
+
+  if (payload && typeof payload === 'object' && 'data' in payload) {
+    const nested = (payload as { data?: unknown }).data
+    if (Array.isArray(nested)) {
+      return nested as T[]
+    }
+    if (nested && typeof nested === 'object' && 'data' in nested) {
+      const deepNested = (nested as { data?: unknown }).data
+      if (Array.isArray(deepNested)) {
+        return deepNested as T[]
+      }
+    }
+  }
+
+  return []
+}
+
 export class ExamService {
   async getAdminExams(
     limit = 10,
@@ -119,12 +140,49 @@ export class ExamService {
     const response = await apiClient.get('/admin/exams', {
       params: { limit, offset, search },
     })
-    const payload = response.data?.data
-      ? response.data
-      : { data: response.data }
+    const payload = response.data as
+      | Exam[]
+      | {
+          data?:
+            | Exam[]
+            | {
+                data?: Exam[]
+                total?: number
+              }
+          total?: number
+        }
+    const topLevelData =
+      payload && typeof payload === 'object' && !Array.isArray(payload)
+        ? payload.data
+        : undefined
+    const nestedData =
+      topLevelData &&
+      typeof topLevelData === 'object' &&
+      !Array.isArray(topLevelData)
+        ? topLevelData.data
+        : undefined
+    const items = Array.isArray(payload)
+      ? payload
+      : Array.isArray(topLevelData)
+        ? topLevelData
+        : Array.isArray(nestedData)
+          ? nestedData
+          : []
+    const total =
+      payload && typeof payload === 'object' && !Array.isArray(payload)
+        ? typeof payload.total === 'number'
+          ? payload.total
+          : topLevelData &&
+              typeof topLevelData === 'object' &&
+              !Array.isArray(topLevelData) &&
+              typeof topLevelData.total === 'number'
+            ? topLevelData.total
+            : items.length
+        : items.length
+
     return {
-      data: payload.data ?? [],
-      total: payload.total ?? payload.data?.length ?? 0,
+      data: items,
+      total,
     }
   }
 
@@ -155,7 +213,7 @@ export class ExamService {
     examId: string
   ): Promise<AdminExamParticipant[]> {
     const response = await apiClient.get(`/admin/exams/${examId}/participants`)
-    return response.data?.data ?? []
+    return unwrapArrayResponse<AdminExamParticipant>(response.data)
   }
 
   async addAdminExamParticipants(
@@ -172,7 +230,7 @@ export class ExamService {
       `/admin/exams/${examId}/participants`,
       payload
     )
-    return response.data?.data ?? []
+    return unwrapArrayResponse<AdminExamParticipant>(response.data)
   }
 
   async importAdminExamParticipants(
@@ -189,7 +247,7 @@ export class ExamService {
       `/admin/exams/${examId}/participants/import`,
       payload
     )
-    return response.data?.data ?? []
+    return unwrapArrayResponse<AdminExamParticipant>(response.data)
   }
 
   async approveAdminExamParticipant(

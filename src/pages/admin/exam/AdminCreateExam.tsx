@@ -221,12 +221,62 @@ function toParticipantRows(
   }))
 }
 
+function normalizeParticipantsList(
+  payload: unknown
+): AdminExamParticipant[] {
+  return Array.isArray(payload) ? (payload as AdminExamParticipant[]) : []
+}
+
+function extractErrorMessage(fallbackMessage: string, error: unknown): string {
+  if (typeof error === 'string' && error.trim().length > 0) {
+    return error
+  }
+
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message
+  }
+
+  if (typeof error === 'object' && error !== null && 'response' in error) {
+    const responsePayload = (
+      error as {
+        response?: {
+          data?: {
+            message?: string
+            error?: {
+              message?: string
+              details?: unknown
+            }
+          }
+        }
+      }
+    ).response?.data
+
+    if (responsePayload?.error?.message) {
+      return responsePayload.error.message
+    }
+
+    if (responsePayload?.message) {
+      return responsePayload.message
+    }
+  }
+
+  return fallbackMessage
+}
+
 const AdminCreateExam: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { id } = useParams<{ id: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const returnPage = location.state?.returnPage
+  const isClientManageRoute = location.pathname.startsWith('/exam/')
+  const examListPath = isClientManageRoute ? '/exam' : '/admin/exams'
+  const pageBackgroundColor = isClientManageRoute
+    ? 'transparent'
+    : 'var(--admin-bg-primary)'
+  const pageTextColor = isClientManageRoute
+    ? 'inherit'
+    : 'var(--admin-text-primary)'
   const [form] = Form.useForm<ExamFormValues>()
   const { notification } = App.useApp()
 
@@ -235,6 +285,7 @@ const AdminCreateExam: React.FC = () => {
     STEP_ITEMS.map(item => item.key)
   )
   const [currentStep, setCurrentStep] = useState(initialStep)
+  const stepQueryValue = searchParams.get('step')
   const currentStepKey: WizardStepKey = STEP_ITEMS[currentStep]?.key ?? 'basic'
   const [loadingExam, setLoadingExam] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -286,10 +337,14 @@ const AdminCreateExam: React.FC = () => {
   const resolvedExamId = id ?? persistedExamId
 
   const visibleParticipants = useMemo(
-    () =>
+    () => {
+      const participantList = normalizeParticipantsList(participants)
+      return (
       showMergedParticipants
-        ? participants
-        : participants.filter(participant => !participant.isMerged),
+        ? participantList
+        : participantList.filter(participant => !participant.isMerged)
+      )
+    },
     [participants, showMergedParticipants]
   )
 
@@ -361,16 +416,7 @@ const AdminCreateExam: React.FC = () => {
   }
 
   const handleError = (fallbackMessage: string, error: unknown) => {
-    const message =
-      typeof error === 'object' &&
-      error !== null &&
-      'response' in error &&
-      typeof (error as { response?: { data?: { message?: string } } }).response
-        ?.data?.message === 'string'
-        ? (error as { response?: { data?: { message?: string } } }).response
-            ?.data?.message
-        : fallbackMessage
-
+    const message = extractErrorMessage(fallbackMessage, error)
     notification.error({
       message: 'Error',
       description: message,
@@ -391,7 +437,7 @@ const AdminCreateExam: React.FC = () => {
     setParticipantsLoading(true)
     try {
       const response = await examService.getAdminExamParticipants(examId)
-      setParticipants(response)
+      setParticipants(normalizeParticipantsList(response))
     } catch (error) {
       handleError('Failed to load participants', error)
     } finally {
@@ -415,13 +461,13 @@ const AdminCreateExam: React.FC = () => {
 
   useEffect(() => {
     const targetStep = resolveWizardStepIndex(
-      searchParams.get('step'),
+      stepQueryValue,
       STEP_ITEMS.map(item => item.key)
     )
-    if (targetStep !== currentStep) {
-      setCurrentStep(targetStep)
-    }
-  }, [currentStep, searchParams])
+    setCurrentStep(previousStep =>
+      previousStep === targetStep ? previousStep : targetStep
+    )
+  }, [stepQueryValue])
 
   useEffect(() => {
     setSearchParams(
@@ -451,7 +497,7 @@ const AdminCreateExam: React.FC = () => {
   }
 
   const navigateBackToList = () => {
-    navigate(returnPage ? `/admin/exams?page=${returnPage}` : '/admin/exams')
+    navigate(returnPage ? `${examListPath}?page=${returnPage}` : examListPath)
   }
 
   const syncToEditRouteIfNeeded = (
@@ -459,7 +505,11 @@ const AdminCreateExam: React.FC = () => {
     nextStep: WizardStepKey = currentStepKey
   ) => {
     if (!id) {
-      navigate(`/admin/exams/edit/${examId}?step=${nextStep}`, {
+      const editRoute = isClientManageRoute
+        ? `/exam/${examId}/manage?step=${nextStep}`
+        : `/admin/exams/edit/${examId}?step=${nextStep}`
+
+      navigate(editRoute, {
         replace: true,
         state: { returnPage },
       })
@@ -690,15 +740,18 @@ const AdminCreateExam: React.FC = () => {
     setPublishing(true)
     try {
       const savedExam = await persistExam()
-      const publishedExam =
-        savedExam.status === 'published'
-          ? savedExam
-          : await examService.publishAdminExam(savedExam.id)
+      const wasPublishedBefore =
+        savedExam.status === 'published' || examRecord?.status === 'published'
+      const publishedExam = wasPublishedBefore
+        ? savedExam
+        : await examService.publishAdminExam(savedExam.id)
 
       setExamRecord(publishedExam)
       notification.success({
-        message: 'Exam published',
-        description: `${publishedExam.title} is now live and visible to participants.`,
+        message: wasPublishedBefore ? 'Settings saved' : 'Exam published',
+        description: wasPublishedBefore
+          ? `${publishedExam.title} settings were updated successfully.`
+          : `${publishedExam.title} is now live and visible to participants.`,
         placement: 'topRight',
       })
       syncToEditRouteIfNeeded(publishedExam.id, 'notifications')
@@ -714,17 +767,29 @@ const AdminCreateExam: React.FC = () => {
     try {
       const savedExam = await persistExam()
       const publishedExam =
-        savedExam.status === 'published'
+        savedExam.status === 'published' || examRecord?.status === 'published'
           ? savedExam
           : await examService.publishAdminExam(savedExam.id)
       setExamRecord(publishedExam)
 
+      if ((publishedExam.accessMode ?? accessMode) === 'open_registration') {
+        notification.info({
+          message: 'Invite delivery not applicable',
+          description:
+            'Open-registration exams do not use invite delivery. Participants join through registration flow.',
+          placement: 'topRight',
+        })
+        return
+      }
+
       const latestParticipants = await examService.getAdminExamParticipants(
         publishedExam.id
       )
-      setParticipants(latestParticipants)
+      const normalizedLatestParticipants =
+        normalizeParticipantsList(latestParticipants)
+      setParticipants(normalizedLatestParticipants)
 
-      const inviteCandidates = latestParticipants.filter(
+      const inviteCandidates = normalizedLatestParticipants.filter(
         participant =>
           participant.approvalStatus === 'approved' &&
           participant.canUseInviteLink &&
@@ -1076,7 +1141,17 @@ const AdminCreateExam: React.FC = () => {
       }
 
       setCurrentStep(step => Math.min(step + 1, STEP_ITEMS.length - 1))
-    } catch {
+    } catch (error) {
+      const validationError = error as { errorFields?: Array<{ name: (string | number)[] }> }
+      const firstErrorField = validationError.errorFields?.[0]?.name
+      if (firstErrorField && firstErrorField.length > 0) {
+        form.scrollToField(firstErrorField)
+      }
+      notification.warning({
+        message: 'Cannot move to next step',
+        description: 'Please complete required fields in this step first.',
+        placement: 'topRight',
+      })
       return
     }
   }
@@ -1744,6 +1819,15 @@ const AdminCreateExam: React.FC = () => {
       ? `${window.location.origin}/exam/${examSlug}`
       : null
     const isPublished = (examRecord?.status || 'draft') === 'published'
+    const inviteDeliverySupported = accessMode !== 'open_registration'
+    const inviteDispatchDisabledReason = !inviteDeliverySupported
+      ? 'Invite delivery is only available for invite-only and hybrid exams.'
+      : participantStats.inviteReady === 0
+        ? 'No approved invite-ready participants yet.'
+        : null
+    const dispatchButtonLabel = isPublished
+      ? 'Send approved invites'
+      : 'Publish and send approved invites'
 
     return (
       <>
@@ -1809,17 +1893,22 @@ const AdminCreateExam: React.FC = () => {
                   void handlePublishExam()
                 }}
               >
-                {isPublished ? 'Republish settings' : 'Save and publish'}
+                {isPublished ? 'Save published settings' : 'Save and publish'}
               </Button>
-              <Button
-                icon={<SendOutlined />}
-                loading={bulkInviteLoading}
-                onClick={() => {
-                  void handleSendApprovedInvites()
-                }}
-              >
-                Publish and send approved invites
-              </Button>
+              <Tooltip title={inviteDispatchDisabledReason || ''}>
+                <span>
+                  <Button
+                    icon={<SendOutlined />}
+                    loading={bulkInviteLoading}
+                    disabled={Boolean(inviteDispatchDisabledReason)}
+                    onClick={() => {
+                      void handleSendApprovedInvites()
+                    }}
+                  >
+                    {dispatchButtonLabel}
+                  </Button>
+                </span>
+              </Tooltip>
             </Space>
 
             <Typography.Paragraph className="!mb-0 text-sm opacity-75">
@@ -1834,12 +1923,32 @@ const AdminCreateExam: React.FC = () => {
   }
 
   const renderReviewStep = () => {
-    const values = form.getFieldsValue()
+    const values = form.getFieldsValue(true) as Partial<ExamFormValues>
+    const titleValue = values.title?.trim() || examRecord?.title || '-'
+    const slugValue = values.slug?.trim() || examRecord?.slug || '-'
+    const startDateValue =
+      values.startDate ||
+      (examRecord?.startDate ? dayjs(examRecord.startDate) : null)
+    const endDateValue =
+      values.endDate || (examRecord?.endDate ? dayjs(examRecord.endDate) : null)
+    const durationValue = values.duration ?? examRecord?.duration ?? 0
+    const accessModeValue =
+      values.accessMode || examRecord?.accessMode || 'open_registration'
+    const registrationOpenAtValue =
+      values.registrationOpenAt ||
+      (examRecord?.registrationOpenAt
+        ? dayjs(examRecord.registrationOpenAt)
+        : null)
+    const registrationCloseAtValue =
+      values.registrationCloseAt ||
+      (examRecord?.registrationCloseAt
+        ? dayjs(examRecord.registrationCloseAt)
+        : null)
     const registrationWindow =
-      values.registrationOpenAt || values.registrationCloseAt
-        ? `${values.registrationOpenAt ? values.registrationOpenAt.format('DD/MM/YYYY HH:mm') : 'Always open'} -> ${
-            values.registrationCloseAt
-              ? values.registrationCloseAt.format('DD/MM/YYYY HH:mm')
+      registrationOpenAtValue || registrationCloseAtValue
+        ? `${registrationOpenAtValue ? registrationOpenAtValue.format('DD/MM/YYYY HH:mm') : 'Always open'} -> ${
+            registrationCloseAtValue
+              ? registrationCloseAtValue.format('DD/MM/YYYY HH:mm')
               : 'Until exam end'
           }`
         : 'No registration window restriction'
@@ -1849,21 +1958,21 @@ const AdminCreateExam: React.FC = () => {
         <Card title="Exam summary">
           <Descriptions column={1} bordered size="small">
             <Descriptions.Item label="Title">
-              {values.title || '-'}
+              {titleValue}
             </Descriptions.Item>
             <Descriptions.Item label="Slug">
-              {values.slug || '-'}
+              {slugValue}
             </Descriptions.Item>
             <Descriptions.Item label="Schedule">
-              {values.startDate?.format('DD/MM/YYYY HH:mm')}
+              {startDateValue?.format('DD/MM/YYYY HH:mm') || '-'}
               {' -> '}
-              {values.endDate?.format('DD/MM/YYYY HH:mm')}
+              {endDateValue?.format('DD/MM/YYYY HH:mm') || '-'}
             </Descriptions.Item>
             <Descriptions.Item label="Duration">
-              {values.duration || 0} minutes
+              {durationValue} minutes
             </Descriptions.Item>
             <Descriptions.Item label="Access mode">
-              {values.accessMode?.replace('_', ' ')}
+              {accessModeValue.replace('_', ' ')}
             </Descriptions.Item>
             <Descriptions.Item label="Registration window">
               {registrationWindow}
@@ -1984,8 +2093,8 @@ const AdminCreateExam: React.FC = () => {
     <div
       className="min-h-screen p-6 transition-colors duration-300"
       style={{
-        backgroundColor: 'var(--admin-bg-primary)',
-        color: 'var(--admin-text-primary)',
+        backgroundColor: pageBackgroundColor,
+        color: pageTextColor,
       }}
     >
       <div className="mb-6 flex items-center justify-between gap-4">

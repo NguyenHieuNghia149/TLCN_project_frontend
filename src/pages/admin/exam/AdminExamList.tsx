@@ -39,6 +39,126 @@ const accessColorMap: Record<string, string> = {
   hybrid: '#0891b2',
 }
 
+type ApiValidationErrors = {
+  formErrors?: string[]
+  fieldErrors?: Record<string, string[]>
+}
+
+type ApiErrorPayload = {
+  message?: string
+  error?: {
+    message?: string
+    details?: unknown
+  }
+  errors?: ApiValidationErrors
+}
+
+function pickFirstValidationMessage(errors?: ApiValidationErrors): string | null {
+  if (!errors) {
+    return null
+  }
+
+  const firstFormError = errors.formErrors?.find(
+    item => typeof item === 'string' && item.trim().length > 0
+  )
+  if (firstFormError) {
+    return firstFormError
+  }
+
+  const fieldEntries = Object.entries(errors.fieldErrors ?? {})
+  for (const [field, messages] of fieldEntries) {
+    if (!Array.isArray(messages)) {
+      continue
+    }
+
+    const firstMessage = messages.find(
+      message => typeof message === 'string' && message.trim().length > 0
+    )
+    if (firstMessage) {
+      return `${field}: ${firstMessage}`
+    }
+  }
+
+  return null
+}
+
+function pickDetailMessage(details: unknown): string | null {
+  if (typeof details === 'string' && details.trim().length > 0) {
+    return details
+  }
+
+  if (Array.isArray(details)) {
+    for (const detail of details) {
+      if (typeof detail === 'string' && detail.trim().length > 0) {
+        return detail
+      }
+      if (
+        detail &&
+        typeof detail === 'object' &&
+        'message' in detail &&
+        typeof (detail as { message?: unknown }).message === 'string'
+      ) {
+        return (detail as { message: string }).message
+      }
+    }
+  }
+
+  if (details && typeof details === 'object') {
+    if (
+      'message' in details &&
+      typeof (details as { message?: unknown }).message === 'string'
+    ) {
+      return (details as { message: string }).message
+    }
+
+    if (
+      'errors' in details &&
+      (details as { errors?: unknown }).errors &&
+      typeof (details as { errors?: unknown }).errors === 'object'
+    ) {
+      return pickFirstValidationMessage(
+        (details as { errors?: ApiValidationErrors }).errors
+      )
+    }
+  }
+
+  return null
+}
+
+function extractApiErrorMessage(error: unknown, fallback: string): string {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'response' in error &&
+    typeof (error as { response?: unknown }).response === 'object'
+  ) {
+    const payload = (error as { response?: { data?: ApiErrorPayload } }).response
+      ?.data
+    if (payload) {
+      const backendMessage = payload.error?.message || payload.message
+      const detailMessage = pickDetailMessage(payload.error?.details)
+      const validationMessage = pickFirstValidationMessage(payload.errors)
+
+      if (
+        backendMessage &&
+        detailMessage &&
+        detailMessage !== backendMessage &&
+        !backendMessage.toLowerCase().includes('validation')
+      ) {
+        return `${backendMessage}: ${detailMessage}`
+      }
+
+      return detailMessage || validationMessage || backendMessage || fallback
+    }
+  }
+
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message
+  }
+
+  return fallback
+}
+
 const AdminExamList: React.FC = () => {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -68,11 +188,11 @@ const AdminExamList: React.FC = () => {
           0,
           search || undefined
         )
-        setAllExams(response.data)
-      } catch {
+        setAllExams(Array.isArray(response.data) ? response.data : [])
+      } catch (error: unknown) {
         notification.error({
           message: 'Error',
-          description: 'Failed to load exams',
+          description: extractApiErrorMessage(error, 'Failed to load exams'),
           placement: 'topRight',
         })
       } finally {
@@ -165,11 +285,12 @@ const AdminExamList: React.FC = () => {
         placement: 'topRight',
       })
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
       notification.error({
         message: 'Error',
-        description:
-          err.response?.data?.message || 'Failed to update visibility',
+        description: extractApiErrorMessage(
+          error,
+          'Failed to update visibility'
+        ),
         placement: 'topRight',
       })
     }

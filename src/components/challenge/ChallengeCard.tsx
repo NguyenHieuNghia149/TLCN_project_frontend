@@ -41,7 +41,7 @@ const ChallengeCard: React.FC<Props> = ({ challenge, onFavoriteToggle }) => {
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 transition-colors hover:border-border/80 hover:bg-accent/10 hover:shadow-md">
+    <div className="group rounded-2xl border border-border/80 bg-card p-5 transition-all duration-200 hover:border-[#4c4f63] hover:bg-[#353746]">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <h3 className="mb-1 text-lg font-semibold text-foreground">
@@ -66,7 +66,7 @@ const ChallengeCard: React.FC<Props> = ({ challenge, onFavoriteToggle }) => {
             disabled={isToggling}
             aria-label={isFavorite ? 'Unfavorite' : 'Favorite'}
             title={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
-            className="rounded p-1.5 transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded p-1.5 transition-all duration-200 hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
           >
             <span
               className={

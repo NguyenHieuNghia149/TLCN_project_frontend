@@ -83,12 +83,24 @@ const examSlice = createSlice({
         currentChallengeId?: string | null
       }>
     ) => {
-      state.currentParticipationId = action.payload.participationId
-      state.currentParticipationExamId = action.payload.examId ?? null
-      state.currentParticipationStartAt = action.payload.startAt ?? null
-      state.currentParticipationExpiresAt = action.payload.expiresAt ?? null
-      state.currentParticipationChallengeId =
-        action.payload.currentChallengeId ?? null
+      const payload = action.payload
+      state.currentParticipationId = payload.participationId
+
+      if ('examId' in payload) {
+        state.currentParticipationExamId = payload.examId ?? null
+      }
+
+      if ('startAt' in payload) {
+        state.currentParticipationStartAt = payload.startAt ?? null
+      }
+
+      if ('expiresAt' in payload) {
+        state.currentParticipationExpiresAt = payload.expiresAt ?? null
+      }
+
+      if ('currentChallengeId' in payload) {
+        state.currentParticipationChallengeId = payload.currentChallengeId ?? null
+      }
       state.isLoading = false
     },
 

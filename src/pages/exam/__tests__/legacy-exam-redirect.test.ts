@@ -1,15 +1,24 @@
 import { describe, expect, it } from 'vitest'
 
-import { resolveLegacyRedirectTarget } from '@/pages/exam/legacy/legacy-exam-redirect'
+import {
+  isLegacyExamId,
+  resolveLegacyRedirectTarget,
+} from '@/pages/exam/legacy/legacy-exam-redirect'
 
 describe('resolveLegacyRedirectTarget', () => {
-  it('returns admin result path for admin-results mode', () => {
+  it('detects legacy UUID exam identifiers', () => {
+    expect(isLegacyExamId('779ef365-0bda-4e9f-9ca7-859a741cae51')).toBe(true)
+    expect(isLegacyExamId('spring-midterm-2026')).toBe(false)
+    expect(isLegacyExamId('')).toBe(false)
+  })
+
+  it('returns client manage result path for admin-results mode', () => {
     expect(
       resolveLegacyRedirectTarget({
         mode: 'admin-results',
         examId: 'exam-1',
       })
-    ).toBe('/admin/exams/exam-1/results')
+    ).toBe('/exam/exam-1/results/manage')
   })
 
   it('returns null when exam slug is missing for learner legacy routes', () => {

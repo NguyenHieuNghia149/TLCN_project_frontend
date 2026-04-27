@@ -6,8 +6,8 @@ import {
   requireExamAccessE2EEnv,
 } from './helpers/examWorkspaceFlow'
 
-test.describe('admin results drawer', () => {
-  test('opens and closes submission details drawer', async ({ page }) => {
+test.describe('admin results details page', () => {
+  test('opens submission details in drawer', async ({ page }) => {
     const env = requireExamAccessE2EEnv()
     const exam = await createAdminExamFixture(page, env, {
       accessMode: 'open_registration',
@@ -63,11 +63,10 @@ test.describe('admin results drawer', () => {
     await ensureAuthenticatedPage(page, env, `/admin/exams/${exam.id}/results`)
 
     await expect(page.getByText('Drawer Candidate')).toBeVisible()
-    await page.getByRole('button', { name: 'View code' }).click()
+    await page.getByRole('button', { name: 'View details' }).click()
 
     await expect(page.getByText('Submission details')).toBeVisible()
     await expect(page.getByText('drawer-test')).toBeVisible()
-
     await page.keyboard.press('Escape')
     await expect(page.getByText('Submission details')).not.toBeVisible()
   })

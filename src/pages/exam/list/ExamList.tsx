@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   // Plus,
@@ -16,6 +16,8 @@ import LoadingSpinner from '@/components/common/LoadingSpinner'
 import Button from '@/components/common/Button/Button'
 import { examService } from '@/services/api/exam.service'
 import { isTeacherOrOwner } from '@/utils/roleUtils'
+import { getLearnerExamCardState } from '@/pages/exam/list/exam-card-state'
+import { filterVisibleListExams } from '@/pages/exam/list/exam-list-visibility'
 import './ExamList.scss'
 
 const PAGE_SIZE = 6
@@ -31,13 +33,101 @@ const ExamList: React.FC = () => {
   const [exams, setExams] = useState<Exam[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '')
+  const initialSearchTerm = searchParams.get('q') || ''
+  const [searchInput, setSearchInput] = useState(initialSearchTerm)
+  const [searchTerm, setSearchTerm] = useState(initialSearchTerm)
+  const [isSearchDebouncing, setIsSearchDebouncing] = useState(false)
   const [filterType, setFilterType] = useState<'all' | 'participated'>(
     normalizedFilter
   )
   const [page, setPage] = useState(initialPage)
   const [error, setError] = useState<string | null>(null)
   const [reloadTick, setReloadTick] = useState(0)
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
+  const accessModeCacheRef = useRef<
+    Map<string, NonNullable<Exam['accessMode']>>
+  >(new Map())
+  const [participatedExamIds, setParticipatedExamIds] = useState<Set<string>>(
+    () => new Set()
+  )
+  const canManageExam = isTeacherOrOwner(user)
+
+  const hydrateLearnerAccessModes = useCallback(
+    async (items: Exam[]): Promise<Exam[]> => {
+      if (canManageExam || items.length === 0) {
+        return items
+      }
+
+      const unresolved = items.filter(item => !item.accessMode && !!item.slug)
+      if (unresolved.length === 0) {
+        return items
+      }
+
+      const resolvedById = new Map<string, NonNullable<Exam['accessMode']>>()
+
+      await Promise.all(
+        unresolved.map(async item => {
+          const cacheKey = item.id || item.slug!
+          const cachedMode = accessModeCacheRef.current.get(cacheKey)
+          if (cachedMode) {
+            resolvedById.set(cacheKey, cachedMode)
+            return
+          }
+
+          try {
+            const publicExam = await examService.getPublicExam(item.slug!)
+            if (publicExam?.accessMode) {
+              accessModeCacheRef.current.set(cacheKey, publicExam.accessMode)
+              resolvedById.set(cacheKey, publicExam.accessMode)
+            }
+          } catch {
+            // Keep item unchanged; fallback only.
+          }
+        })
+      )
+
+      if (resolvedById.size === 0) {
+        return items
+      }
+
+      return items.map(item => {
+        if (item.accessMode) {
+          return item
+        }
+
+        const cacheKey = item.id || item.slug || ''
+        const resolvedMode =
+          resolvedById.get(cacheKey) || accessModeCacheRef.current.get(cacheKey)
+
+        if (!resolvedMode) {
+          return item
+        }
+
+        return {
+          ...item,
+          accessMode: resolvedMode,
+        }
+      })
+    },
+    [canManageExam]
+  )
+
+  useEffect(() => {
+    if (searchInput === searchTerm) {
+      setIsSearchDebouncing(false)
+      return
+    }
+
+    setIsSearchDebouncing(true)
+    const debounceTimer = window.setTimeout(() => {
+      setSearchTerm(searchInput)
+      setIsSearchDebouncing(false)
+    }, 350)
+
+    return () => {
+      window.clearTimeout(debounceTimer)
+    }
+  }, [searchInput, searchTerm])
 
   useEffect(() => {
     const fetchExams = async () => {
@@ -51,7 +141,8 @@ const ExamList: React.FC = () => {
           filterType,
           true // isVisible=true for student view
         )
-        const items: Exam[] = json?.data || []
+        let items: Exam[] = json?.data || []
+        items = await hydrateLearnerAccessModes(items)
         setExams(items)
         setTotal(Number(json?.total || 0))
       } catch (apiErr) {
@@ -61,16 +152,60 @@ const ExamList: React.FC = () => {
         setTotal(0)
       } finally {
         setLoading(false)
+        setHasLoadedOnce(true)
       }
     }
 
     fetchExams()
-  }, [filterType, page, reloadTick, searchTerm])
+  }, [filterType, hydrateLearnerAccessModes, page, reloadTick, searchTerm])
 
-  const canManageExam = isTeacherOrOwner(user)
+  useEffect(() => {
+    let cancelled = false
 
-  // Server-side search & filter: exams already reflect searchTerm/filterType
-  const filteredExams = useMemo(() => exams, [exams])
+    const fetchParticipatedExamIds = async () => {
+      try {
+        const limit = 100
+        let offset = 0
+        let total = 0
+        const ids = new Set<string>()
+
+        do {
+          const response = await examService.getExams(
+            limit,
+            offset,
+            undefined,
+            'participated',
+            true
+          )
+
+          ;(response.data || []).forEach(item => ids.add(item.id))
+          total = Number(response.total || 0)
+          offset += limit
+        } while (offset < total)
+
+        if (!cancelled) {
+          setParticipatedExamIds(ids)
+        }
+      } catch (participatedErr) {
+        console.error('Failed to load participated exams', participatedErr)
+        if (!cancelled) {
+          setParticipatedExamIds(new Set())
+        }
+      }
+    }
+
+    fetchParticipatedExamIds()
+
+    return () => {
+      cancelled = true
+    }
+  }, [reloadTick, user?.id])
+
+  // Learner list must hide invite-only exams (invite path is link-driven).
+  const filteredExams = useMemo(
+    () => filterVisibleListExams(exams, canManageExam),
+    [canManageExam, exams]
+  )
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
@@ -82,7 +217,7 @@ const ExamList: React.FC = () => {
   // Reset to page 1 when search term or filter changes
   useEffect(() => {
     setPage(1)
-  }, [searchTerm, filterType])
+  }, [filterType, searchTerm])
 
   useEffect(() => {
     const next = new URLSearchParams()
@@ -107,14 +242,22 @@ const ExamList: React.FC = () => {
     // total comes from server pagination
     total: total,
     // upcoming/active are calculated from current page items; not global counts
-    upcoming: exams.filter(
+    upcoming: filteredExams.filter(
       exam => Date.now() < new Date(exam.startDate).getTime()
     ).length,
-    active: exams.filter(exam => Date.now() < new Date(exam.endDate).getTime())
-      .length,
+    active: filteredExams.filter(exam => {
+      const now = Date.now()
+      const start = new Date(exam.startDate).getTime()
+      const end = new Date(exam.endDate).getTime()
+      return (
+        now >= start &&
+        now <= end &&
+        (exam.status === 'published' || exam.status === undefined)
+      )
+    }).length,
   }
 
-  if (loading) {
+  if (loading && !hasLoadedOnce) {
     return <LoadingSpinner />
   }
 
@@ -193,12 +336,20 @@ const ExamList: React.FC = () => {
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex-1">
                 <Input
-                  value={searchTerm}
-                  onChange={event => setSearchTerm(event.target.value)}
+                  value={searchInput}
+                  onChange={event => setSearchInput(event.target.value)}
                   placeholder="Search exam by title..."
                   icon={<Search size={18} />}
                   className="w-full"
                 />
+                {isSearchDebouncing ? (
+                  <p
+                    className="mt-2 text-xs"
+                    style={{ color: 'var(--muted-text)' }}
+                  >
+                    Updating results...
+                  </p>
+                ) : null}
               </div>
               <div className="flex flex-wrap gap-3">
                 <FilterChip
@@ -275,23 +426,35 @@ const ExamList: React.FC = () => {
           ) : (
             <>
               <div className="grid gap-6 md:grid-cols-2">
-                {displayedExams.map(exam => (
-                  <ExamCard
-                    key={exam.id}
-                    exam={exam}
-                    isOwner={exam.createdBy === user?.id}
-                    onView={() =>
-                      exam.createdBy === user?.id
-                        ? navigate(`/admin/exams/edit/${exam.id}`)
-                        : navigate(`/exam/${exam.slug || exam.id}`)
-                    }
-                    onResults={() =>
-                      exam.createdBy === user?.id
-                        ? navigate(`/admin/exams/${exam.id}/results`)
-                        : navigate(`/exam/${exam.slug || exam.id}/results`)
-                    }
-                  />
-                ))}
+                {displayedExams.map(exam => {
+                  const canManageThisExam =
+                    canManageExam || exam.createdBy === user?.id
+                  return (
+                    <ExamCard
+                      key={exam.id}
+                      exam={exam}
+                      isOwner={canManageThisExam}
+                      canViewResults={
+                        canManageThisExam ||
+                        filterType === 'participated' ||
+                        participatedExamIds.has(exam.id)
+                      }
+                      onView={() =>
+                        canManageThisExam
+                          ? navigate(`/exam/${exam.id}/manage`)
+                          : navigate(`/exam/${exam.slug || exam.id}`)
+                      }
+                      onResults={() =>
+                        canManageThisExam
+                          ? navigate(`/exam/${exam.id}/results/manage`)
+                          : navigate(`/exam/${exam.slug || exam.id}/results`)
+                      }
+                      onTryExam={() =>
+                        navigate(`/exam/${exam.slug || exam.id}`)
+                      }
+                    />
+                  )
+                })}
               </div>
 
               {/* Pagination */}
@@ -404,18 +567,21 @@ const ExamList: React.FC = () => {
 interface ExamCardProps {
   exam: Exam
   isOwner: boolean
+  canViewResults: boolean
   onView: () => void
   onResults: () => void
+  onTryExam: () => void
 }
 
 const ExamCard: React.FC<ExamCardProps> = ({
   exam,
   isOwner,
+  canViewResults,
   onView,
   onResults,
+  onTryExam,
 }) => {
   const [showMenu, setShowMenu] = useState(false)
-  const navigate = useNavigate()
 
   const formatDate = (dateString: string) =>
     new Date(dateString).toLocaleDateString('en-US', {
@@ -424,15 +590,65 @@ const ExamCard: React.FC<ExamCardProps> = ({
       year: 'numeric',
     })
 
-  const isActive = Date.now() < new Date(exam.endDate).getTime()
+  const examState = getLearnerExamCardState({
+    examStatus: exam.status,
+    startDate: exam.startDate,
+    endDate: exam.endDate,
+  })
+  const isHardBlockedLifecycle =
+    examState.lifecycle === 'closed' ||
+    examState.lifecycle === 'cancelled' ||
+    examState.lifecycle === 'archived' ||
+    examState.lifecycle === 'draft'
+  const isLearnerEnterDisabled = !isOwner && isHardBlockedLifecycle
+  const learnerCtaLabel =
+    examState.lifecycle === 'active' ? 'Enter exam' : 'View exam'
+
+  const statusStylesByLifecycle: Record<
+    ReturnType<typeof getLearnerExamCardState>['lifecycle'],
+    { border: string; background: string; color: string }
+  > = {
+    active: {
+      border: 'rgba(16, 185, 129, 0.4)',
+      background: 'rgba(16, 185, 129, 0.1)',
+      color: '#10b981',
+    },
+    upcoming: {
+      border: 'rgba(245, 158, 11, 0.4)',
+      background: 'rgba(245, 158, 11, 0.1)',
+      color: '#f59e0b',
+    },
+    closed: {
+      border: 'rgba(248, 113, 113, 0.35)',
+      background: 'rgba(248, 113, 113, 0.08)',
+      color: '#f87171',
+    },
+    cancelled: {
+      border: 'rgba(244, 63, 94, 0.35)',
+      background: 'rgba(244, 63, 94, 0.08)',
+      color: '#fb7185',
+    },
+    draft: {
+      border: 'rgba(148, 163, 184, 0.35)',
+      background: 'rgba(148, 163, 184, 0.08)',
+      color: '#cbd5e1',
+    },
+    archived: {
+      border: 'rgba(148, 163, 184, 0.35)',
+      background: 'rgba(148, 163, 184, 0.08)',
+      color: '#94a3b8',
+    },
+  }
+
+  const statusStyle = statusStylesByLifecycle[examState.lifecycle]
 
   return (
     <div
-      className="group relative overflow-hidden rounded-lg border p-6 transition-all duration-200 hover:-translate-y-0.5"
+      className="group relative overflow-hidden rounded-2xl border p-6 transition-all duration-200 hover:-translate-y-0.5"
       style={{
         borderColor: 'var(--surface-border)',
         backgroundColor: 'var(--card-color)',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+        boxShadow: '0 14px 28px rgba(0, 0, 0, 0.14)',
       }}
     >
       <div className="relative z-10 space-y-5">
@@ -473,7 +689,7 @@ const ExamCard: React.FC<ExamCardProps> = ({
                 >
                   <Button
                     className="flex w-full items-center rounded-xl px-3 py-2 text-left"
-                    onClick={() => navigate(`/admin/exams/edit/${exam.id}`)}
+                    onClick={onView}
                     variant="ghost"
                     style={{ color: 'var(--text-color)' }}
                   >
@@ -484,6 +700,7 @@ const ExamCard: React.FC<ExamCardProps> = ({
                     onClick={onResults}
                     variant="ghost"
                     style={{ color: 'var(--text-color)' }}
+                    disabled={!canViewResults}
                   >
                     View results
                   </Button>
@@ -542,38 +759,53 @@ const ExamCard: React.FC<ExamCardProps> = ({
           <span
             className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wider"
             style={{
-              borderColor: isActive
-                ? 'rgba(16, 185, 129, 0.4)'
-                : 'rgba(239, 68, 68, 0.4)',
-              backgroundColor: isActive
-                ? 'rgba(16, 185, 129, 0.1)'
-                : 'rgba(239, 68, 68, 0.1)',
-              color: isActive ? '#10b981' : '#ef4444',
+              borderColor: statusStyle.border,
+              backgroundColor: statusStyle.background,
+              color: statusStyle.color,
             }}
           >
-            {isActive ? 'Active' : 'Closed'}
+            {examState.badgeLabel}
           </span>
           <div className="flex items-center gap-2">
-            <Button
-              onClick={onResults}
-              variant="secondary"
-              size="sm"
-              className="inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold"
-              aria-label="View results"
-            >
-              View results
-            </Button>
+            {isOwner && examState.canEnter ? (
+              <Button
+                onClick={onTryExam}
+                variant="secondary"
+                size="sm"
+                className="inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold"
+                aria-label="Try exam"
+              >
+                Try exam
+              </Button>
+            ) : null}
+            {canViewResults ? (
+              <Button
+                onClick={onResults}
+                variant="secondary"
+                size="sm"
+                className="inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold"
+                aria-label="View results"
+              >
+                View results
+              </Button>
+            ) : null}
             <Button
               onClick={onView}
               variant="primary"
               size="sm"
               className="inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold"
+              disabled={isLearnerEnterDisabled}
               aria-label={isOwner ? 'Manage exam' : 'Enter exam'}
             >
-              {isOwner ? 'Manage exam' : 'Enter exam'}
+              {isOwner ? 'Manage exam' : learnerCtaLabel}
             </Button>
           </div>
         </div>
+        {isLearnerEnterDisabled ? (
+          <p className="mt-2 text-xs" style={{ color: 'var(--muted-text)' }}>
+            Exam is not enterable in current state.
+          </p>
+        ) : null}
       </div>
     </div>
   )

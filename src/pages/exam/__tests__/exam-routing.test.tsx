@@ -36,6 +36,7 @@ describe('exam routing contract', () => {
       'exam',
       'exam/:examSlug',
       'exam/:examSlug/entry',
+      'exam/:id/manage',
       'exam/:examSlug/challenges/:challengeId',
       'exam/:examSlug/results',
       'admin/exams',

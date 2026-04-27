@@ -25,6 +25,8 @@ import {
 import { examService } from '@/services/api/exam.service'
 import useAutosaveSession from '@/hooks/useAutosaveSession'
 import { useTheme } from '@/contexts/useTheme'
+import { canResumeExamWorkspace } from './exam-workspace-access'
+import { computeExamRemainingSeconds } from './exam-countdown'
 
 type MobileWorkspacePanel = 'problem' | 'editor' | 'output' | 'challenges'
 
@@ -48,6 +50,9 @@ const ExamChallengeDetail: React.FC = () => {
   >(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [joinBlockedReason, setJoinBlockedReason] = useState<string | null>(
+    null
+  )
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
   const [showTimeWarning, setShowTimeWarning] = useState(false)
   const [isJoined, setIsJoined] = useState(false)
@@ -88,6 +93,9 @@ const ExamChallengeDetail: React.FC = () => {
   )
   const reduxStartAt = useSelector(
     (s: RootState) => s.exam?.currentParticipationStartAt
+  )
+  const reduxExpiresAt = useSelector(
+    (s: RootState) => s.exam?.currentParticipationExpiresAt
   )
   const mobileWorkspacePanelStorageKey =
     resolvedExamId && reduxParticipationId
@@ -634,8 +642,9 @@ const ExamChallengeDetail: React.FC = () => {
     resetOutput()
   }
 
-  const handleSubmitExam = useCallback(async () => {
+  const handleSubmitExam = useCallback(async (options?: { force?: boolean }) => {
     if (
+      !options?.force &&
       !window.confirm(
         'Are you sure you want to submit the exam? This action cannot be undone.'
       )
@@ -643,6 +652,7 @@ const ExamChallengeDetail: React.FC = () => {
       return
     }
 
+    let submitted = false
     try {
       const participationId = reduxParticipationId
       if (resolvedExamId && participationId) {
@@ -657,16 +667,21 @@ const ExamChallengeDetail: React.FC = () => {
 
         // Clear participation from Redux since exam is completed
         dispatch({ type: 'exam/clearParticipation' })
+        submitted = true
       }
     } catch {
-      alert('Failed to submit exam. Please try again.')
+      if (!options?.force) {
+        alert('Failed to submit exam. Please try again.')
+      }
       return
     } finally {
-      navigate(
-        examSlug
-          ? `/exam/${examSlug}/results`
-          : `/exam/${resolvedExamId}/results`
-      )
+      if (submitted) {
+        navigate(
+          examSlug
+            ? `/exam/${examSlug}/results`
+            : `/exam/${resolvedExamId}/results`
+        )
+      }
     }
   }, [
     dispatch,
@@ -684,30 +699,58 @@ const ExamChallengeDetail: React.FC = () => {
     let cancelled = false
 
     const init = async () => {
-      const participationId = reduxParticipationId
+      let activeParticipationId = reduxParticipationId ?? null
       const startAtRaw = reduxStartAt
-      const totalSeconds = (exam.duration || 0) * 60
+      const expiresAtRaw = reduxExpiresAt
+      const resultPath = examSlug
+        ? `/exam/${examSlug}/results`
+        : `/exam/${resolvedExamId}/results`
+
+      const checkResumePermission = (input: {
+        status?: string | null
+        expiresAt?: string | number | null
+      }) =>
+        canResumeExamWorkspace({
+          participationStatus: input.status,
+          examEndDate: exam.endDate,
+          participationExpiresAt: input.expiresAt,
+        })
 
       // Check if user joined. If Redux lacks participation, try server-backed resume.
-      if (!participationId) {
+      if (!activeParticipationId) {
         try {
           if (resolvedExamId) {
             const part = await examService.getMyParticipation(resolvedExamId)
             const partId = part?.id || part?.participationId
+            const canResume = checkResumePermission({
+              status: part?.status,
+              expiresAt: part?.expiresAt || part?.expires_at,
+            })
+
+            if (partId && !canResume) {
+              dispatch({ type: 'exam/clearParticipation' })
+              navigate(resultPath, { replace: true })
+              return
+            }
             const serverStart =
               part?.startedAt ||
               part?.startAt ||
               part?.startTimestamp ||
               part?.startedAtMs
+            const serverExpires = part?.expiresAt || part?.expires_at || part?.expires
             if (partId) {
+              activeParticipationId = partId
               const startAtValue = serverStart ?? Date.now()
               try {
                 dispatch(
                   setParticipation({
                     participationId: partId,
+                    examId: resolvedExamId,
                     startAt: startAtValue,
+                    expiresAt: serverExpires ?? null,
                   })
                 )
+                setJoinBlockedReason(null)
               } catch (e) {
                 console.warn(
                   'Failed to dispatch recovered participation to redux',
@@ -716,10 +759,12 @@ const ExamChallengeDetail: React.FC = () => {
               }
               // proceed as joined
             } else {
+              setJoinBlockedReason('You must start the exam from the entry page.')
               setIsJoined(false)
               return
             }
           } else {
+            setJoinBlockedReason('Exam identifier is missing.')
             setIsJoined(false)
             return
           }
@@ -730,95 +775,112 @@ const ExamChallengeDetail: React.FC = () => {
           return
         }
       } else {
-        // participation already present in Redux; continue with existing session
-        void 0
+        try {
+          if (resolvedExamId) {
+            const existing = await examService.getParticipation(
+              resolvedExamId,
+              activeParticipationId
+            )
+            const canResume = checkResumePermission({
+              status: existing?.status,
+              expiresAt: existing?.expiresAt || existing?.expires_at,
+            })
+            if (!canResume) {
+              dispatch({ type: 'exam/clearParticipation' })
+              navigate(resultPath, { replace: true })
+              return
+            }
+
+            const existingExpires =
+              existing?.expiresAt || existing?.expires_at || existing?.expires
+            if (existingExpires) {
+              dispatch(
+                setParticipation({
+                  participationId: activeParticipationId,
+                  expiresAt: existingExpires,
+                })
+              )
+            }
+          }
+        } catch (verificationError) {
+          console.warn(
+            'Failed to verify current participation status',
+            verificationError
+          )
+          setJoinBlockedReason('Unable to verify current exam session state.')
+          setIsJoined(false)
+          return
+        }
       }
 
       setIsJoined(true)
+      setJoinBlockedReason(null)
 
-      let startAtMs: number | null = null
-      if (startAtRaw) {
-        const asNumber = Number(startAtRaw)
-        if (!Number.isNaN(asNumber) && isFinite(asNumber)) {
-          startAtMs = asNumber
-        } else {
-          const parsed =
-            typeof startAtRaw === 'string'
-              ? Date.parse(startAtRaw)
-              : Number(startAtRaw)
-          if (!Number.isNaN(parsed)) startAtMs = parsed
-        }
-      } else {
-        // Try to recover session info from server if startAt missing
+      let effectiveStartAt: number | string | null = startAtRaw ?? null
+      let effectiveExpiresAt: number | string | null = expiresAtRaw ?? null
+
+      // Recover missing timing metadata from server so resume keeps the canonical countdown.
+      if (
+        (!effectiveStartAt || !effectiveExpiresAt) &&
+        resolvedExamId &&
+        activeParticipationId
+      ) {
         try {
-          if (resolvedExamId && participationId) {
-            const partData = await examService.getParticipation(
-              resolvedExamId,
-              participationId
-            )
-            const serverStart =
-              partData?.startedAt ||
-              partData?.startAt ||
-              partData?.startTimestamp ||
-              partData?.startedAtMs
+          const partData = await examService.getParticipation(
+            resolvedExamId,
+            activeParticipationId
+          )
+          const serverStart =
+            partData?.startedAt ||
+            partData?.startAt ||
+            partData?.startTimestamp ||
+            partData?.startedAtMs
+          const serverExpires =
+            partData?.expiresAt || partData?.expires_at || partData?.expires
+          const serverCurrentChallenge =
+            partData?.currentChallengeId || partData?.currentChallenge
+
+          if (serverStart) {
+            effectiveStartAt = serverStart
+          }
+          if (serverExpires) {
+            effectiveExpiresAt = serverExpires
+          }
+
+          if (serverStart || serverExpires || serverCurrentChallenge) {
+            const participationUpdate: {
+              participationId: string
+              startAt?: number | string | null
+              expiresAt?: number | string | null
+              currentChallengeId?: string | null
+            } = {
+              participationId: activeParticipationId,
+            }
+
             if (serverStart) {
-              // Persist recovered start into Redux only (in-memory, NOT localStorage)
-              try {
-                // ensure we pass null when undefined to match slice typing
-                dispatch(
-                  setParticipation({
-                    participationId: participationId ?? null,
-                    startAt:
-                      typeof serverStart === 'number'
-                        ? serverStart
-                        : Date.parse(String(serverStart)),
-                  })
-                )
-              } catch (err) {
-                console.warn(
-                  'Failed to dispatch recovered startAt to redux',
-                  err
-                )
-              }
-              // Do NOT persist recovered startAt to localStorage for privacy/security.
-              const asNumber = Number(serverStart)
-              if (!Number.isNaN(asNumber) && isFinite(asNumber)) {
-                startAtMs = asNumber
-              } else if (typeof serverStart === 'string') {
-                const parsed = Date.parse(serverStart)
-                if (!Number.isNaN(parsed)) startAtMs = parsed
-              }
+              participationUpdate.startAt = serverStart
             }
-            // recover current challenge id if server provides
-            const serverCurrentChallenge =
-              partData?.currentChallengeId || partData?.currentChallenge
+            if (serverExpires) {
+              participationUpdate.expiresAt = serverExpires
+            }
             if (serverCurrentChallenge) {
-              // Do NOT persist recovered currentChallengeId to localStorage for privacy/security.
-              try {
-                dispatch(
-                  setParticipation({
-                    participationId: participationId ?? null,
-                    startAt: serverStart ?? null,
-                    currentChallengeId: serverCurrentChallenge,
-                  })
-                )
-              } catch (e) {
-                console.warn(
-                  'Failed to dispatch recovered currentChallenge to redux',
-                  e
-                )
-              }
+              participationUpdate.currentChallengeId = serverCurrentChallenge
             }
+
+            dispatch(
+              setParticipation(participationUpdate)
+            )
           }
         } catch (e) {
           console.warn('Failed to recover participation from server', e)
         }
       }
 
-      const elapsed = startAtMs
-        ? Math.floor((Date.now() - startAtMs) / 1000)
-        : 0
-      let remaining = Math.max(0, totalSeconds - elapsed)
+      let remaining = computeExamRemainingSeconds({
+        startAt: effectiveStartAt,
+        expiresAt: effectiveExpiresAt,
+        durationMinutes: exam.duration || 0,
+      })
       if (cancelled) return
       setTimeRemaining(remaining)
 
@@ -830,7 +892,7 @@ const ExamChallengeDetail: React.FC = () => {
 
       // If time already up -> auto submit
       if (remaining <= 0) {
-        handleSubmitExam()
+        void handleSubmitExam({ force: true })
         return
       }
 
@@ -849,7 +911,7 @@ const ExamChallengeDetail: React.FC = () => {
             window.clearInterval(countdownRef.current)
             countdownRef.current = null
           }
-          handleSubmitExam()
+          void handleSubmitExam({ force: true })
         }
       }, 1000)
     }
@@ -866,11 +928,15 @@ const ExamChallengeDetail: React.FC = () => {
   }, [
     exam?.id,
     exam?.duration,
+    exam?.endDate,
+    examSlug,
     resolvedExamId,
     handleSubmitExam,
     dispatch,
+    navigate,
     reduxParticipationId,
     reduxStartAt,
+    reduxExpiresAt,
   ])
 
   if (loading) {
@@ -902,7 +968,8 @@ const ExamChallengeDetail: React.FC = () => {
       >
         <div className="text-center">
           <p className="mb-4" style={{ color: '#f59e0b' }}>
-            You must join the exam first before accessing challenges.
+            {joinBlockedReason ||
+              'You must join the exam first before accessing challenges.'}
           </p>
           <Button
             onClick={() => navigate(examWorkspaceBasePath)}

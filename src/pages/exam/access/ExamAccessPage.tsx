@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/api/useAuth'
 import ExamEntryLobbyPanel from '@/pages/exam/access/components/ExamEntryLobbyPanel'
 import ExamEntryStatusPanel from '@/pages/exam/access/components/ExamEntryStatusPanel'
 import ExamEntryVerificationPanel from '@/pages/exam/access/components/ExamEntryVerificationPanel'
+import { isLegacyExamId } from '@/pages/exam/legacy/legacy-exam-redirect'
 import { examService } from '@/services/api/exam.service'
 import { tokenManager } from '@/services/auth/token.service'
 import { setParticipation } from '@/store/slices/examSlice'
@@ -148,6 +149,20 @@ const ExamAccessPage: React.FC = () => {
         await refreshAccessState()
       } catch (err: unknown) {
         if (cancelled) return
+        if (isLegacyExamId(examSlug)) {
+          try {
+            const legacyExam = await examService.getExamById(examSlug)
+            if (legacyExam?.slug && legacyExam.slug !== examSlug) {
+              const legacyPath = isEntryRoute
+                ? `/exam/${legacyExam.slug}/entry${location.search}`
+                : `/exam/${legacyExam.slug}${location.search}`
+              navigate(legacyPath, { replace: true })
+              return
+            }
+          } catch {
+            // Ignore fallback failures and surface original error below.
+          }
+        }
         setError(extractApiErrorMessage(err, 'Failed to load exam details'))
       } finally {
         if (!cancelled) {
@@ -161,7 +176,7 @@ const ExamAccessPage: React.FC = () => {
     return () => {
       cancelled = true
     }
-  }, [examSlug, refreshAccessState])
+  }, [examSlug, isEntryRoute, location.search, navigate, refreshAccessState])
 
   useEffect(() => {
     if (!examSlug || !inviteToken) {
@@ -274,6 +289,18 @@ const ExamAccessPage: React.FC = () => {
       return
     }
 
+    const nowMs = Date.now()
+    const examEndMs = new Date(exam.endDate).getTime()
+    const examBlocked =
+      exam.status !== 'published' ||
+      nowMs > examEndMs ||
+      accessState?.accessStatus === 'completed' ||
+      accessState?.accessStatus === 'revoked'
+    if (examBlocked) {
+      setError('Exam is closed. You can no longer enter the workspace.')
+      return
+    }
+
     try {
       setActionLoading(true)
       setError(null)
@@ -286,7 +313,6 @@ const ExamAccessPage: React.FC = () => {
         setParticipation({
           participationId: result.participationId,
           examId: exam.id,
-          startAt: Date.now(),
           expiresAt: result.expiresAt,
           currentChallengeId: result.firstChallengeId,
         })
@@ -329,6 +355,10 @@ const ExamAccessPage: React.FC = () => {
     navigate(`/exam/${examSlug}`)
   }
 
+  const handleGoToResults = () => {
+    navigate(`/exam/${examSlug}/results`)
+  }
+
   const now = Date.now()
   const registrationNotOpenYet =
     !!exam?.registrationOpenAt &&
@@ -344,6 +374,15 @@ const ExamAccessPage: React.FC = () => {
   const hasStartedParticipation =
     !!accessState?.participationId ||
     accessState?.entrySessionStatus === 'started'
+  const examHasEnded = exam ? now > new Date(exam.endDate).getTime() : false
+  const examIsPublished = exam?.status === 'published'
+  const examIsCancelled = exam?.status === 'cancelled'
+  const examLifecycleBlocked =
+    !exam || examHasEnded || !examIsPublished || examIsCancelled
+  const showClosedWithAttemptPanel =
+    !examIsCancelled && examHasEnded && hasStartedParticipation
+  const showClosedWithoutAttemptPanel =
+    !examIsCancelled && examHasEnded && !hasStartedParticipation
 
   const requiresLoginRaw = Boolean(
     accessState?.requiresLogin || inviteState?.requiresLogin
@@ -397,9 +436,9 @@ const ExamAccessPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100">
+    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-950 to-slate-900 px-4 py-10 text-slate-100">
       <div className="mx-auto max-w-5xl space-y-6">
-        <section className="rounded-3xl border border-white/10 bg-slate-900/90 p-8">
+        <section className="rounded-3xl border border-white/10 bg-gradient-to-r from-slate-900/95 to-slate-800/70 p-8 shadow-[0_18px_45px_rgba(2,6,23,0.4)]">
           <div className="flex flex-wrap items-start justify-between gap-6">
             <div className="space-y-3">
               <span className="inline-flex rounded-full border border-emerald-300/30 bg-emerald-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-200">
@@ -437,6 +476,62 @@ const ExamAccessPage: React.FC = () => {
             </div>
           </div>
         </section>
+
+        {examIsCancelled ? (
+          <ExamEntryStatusPanel
+            title="Exam cancelled"
+            description="This exam was cancelled by the organizer and can no longer be entered."
+            tone="danger"
+          >
+            <button
+              type="button"
+              onClick={handleGoToResults}
+              className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950"
+            >
+              Go to results
+            </button>
+          </ExamEntryStatusPanel>
+        ) : null}
+
+        {!examIsCancelled && !examIsPublished ? (
+          <ExamEntryStatusPanel
+            title="Exam is not open"
+            description="This exam is not in published state yet, so entering is disabled."
+            tone="warning"
+          />
+        ) : null}
+
+        {showClosedWithAttemptPanel ? (
+          <ExamEntryStatusPanel
+            title="Exam closed"
+            description="The exam has ended and your previous attempt can no longer be resumed."
+            tone="warning"
+          >
+            <button
+              type="button"
+              onClick={handleGoToResults}
+              className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950"
+            >
+              View results
+            </button>
+          </ExamEntryStatusPanel>
+        ) : null}
+
+        {showClosedWithoutAttemptPanel ? (
+          <ExamEntryStatusPanel
+            title="Exam closed"
+            description="The exam end time has passed. You can no longer enter the workspace."
+            tone="warning"
+          >
+            <button
+              type="button"
+              onClick={handleGoToResults}
+              className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950"
+            >
+              View results
+            </button>
+          </ExamEntryStatusPanel>
+        ) : null}
 
         {error ? (
           <section className="rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
@@ -592,20 +687,34 @@ const ExamAccessPage: React.FC = () => {
           </section>
         ) : null}
 
-        {hasStartedParticipation ? (
+        {hasStartedParticipation && !showClosedWithAttemptPanel ? (
           <ExamEntryStatusPanel
             title="Exam in progress"
-            description="Your exam session has already started."
-            tone="success"
+            description={
+              examLifecycleBlocked
+                ? 'This session can no longer be resumed because the exam is closed.'
+                : 'Your exam session has already started.'
+            }
+            tone={examLifecycleBlocked ? 'warning' : 'success'}
           >
-            <button
-              type="button"
-              onClick={handleStartOrResume}
-              disabled={actionLoading}
-              className="rounded-full bg-emerald-300 px-5 py-3 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-200"
-            >
-              {actionLoading ? 'Opening...' : 'Resume exam'}
-            </button>
+            {examLifecycleBlocked ? (
+              <button
+                type="button"
+                onClick={handleGoToResults}
+                className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950"
+              >
+                View results
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleStartOrResume}
+                disabled={actionLoading}
+                className="rounded-full bg-emerald-300 px-5 py-3 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-200"
+              >
+                {actionLoading ? 'Opening...' : 'Resume exam'}
+              </button>
+            )}
           </ExamEntryStatusPanel>
         ) : null}
 
@@ -742,6 +851,15 @@ const ExamAccessPage: React.FC = () => {
           >
             Back to exams
           </button>
+          {accessState?.accessStatus === 'completed' || examHasEnded ? (
+            <button
+              type="button"
+              onClick={handleGoToResults}
+              className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-950"
+            >
+              View results
+            </button>
+          ) : null}
           {hasAccessRecord && isApproved && !hasStartedParticipation ? (
             <button
               type="button"
@@ -758,3 +876,5 @@ const ExamAccessPage: React.FC = () => {
 }
 
 export default ExamAccessPage
+
+
