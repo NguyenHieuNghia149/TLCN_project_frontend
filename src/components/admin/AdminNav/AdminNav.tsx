@@ -65,6 +65,12 @@ const AdminNav: React.FC<AdminNavProps> = ({ isCollapsed, onToggle }) => {
       icon: <FileText size={20} />,
     },
     {
+      id: 'roadmaps',
+      label: 'Manage Roadmaps',
+      path: '/admin/roadmaps',
+      icon: <FileText size={20} />,
+    },
+    {
       id: 'challenges',
       label: 'Manage Challenges',
       path: '/admin/challenges',

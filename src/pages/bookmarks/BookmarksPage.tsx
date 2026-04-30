@@ -119,10 +119,18 @@ const BookmarksPage: React.FC = () => {
             }))
             .filter(l => l.id)
         } else {
-          console.error(
-            '[BookmarksPage] Error fetching lessons:',
-            lessonsRes.reason
-          )
+          if (lessonsRes.status === 'rejected') {
+            console.error(
+              '[BookmarksPage] Error fetching lessons:',
+              lessonsRes.reason
+            )
+          }
+          if (completedLessonsRes.status === 'rejected') {
+            console.error(
+              '[BookmarksPage] Error fetching completed lessons:',
+              completedLessonsRes.reason
+            )
+          }
         }
 
         setChallenges(transformedChallenges)

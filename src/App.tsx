@@ -59,7 +59,7 @@ function App() {
             background: theme === 'dark' ? '#141414' : '#ffffff',
           }}
         >
-          <Spin size="large" tip="Loading..." />
+          <Spin size="large" />
         </div>
       </ConfigProvider>
     )
