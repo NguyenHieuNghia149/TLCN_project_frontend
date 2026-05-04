@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import type { RootState } from '@/store/stores'
 import { setParticipation } from '@/store/slices/examSlice'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Clock, List, Sun, Moon } from 'lucide-react'
+import { Clock, List, Sun, Moon, AlertTriangle } from 'lucide-react'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import Button from '@/components/common/Button/Button'
 import { Exam } from '@/types/exam.types'
@@ -12,29 +12,56 @@ import CodeEditorSection from '@/components/editor/CodeEditorSection'
 import ChallengePicker from '@/components/exam/ChallengePicker'
 import { ProblemDetailResponse } from '@/types/challenge.types'
 import { useLanguageDrafts } from '@/hooks/useLanguageDrafts'
+import { useLanguages } from '@/hooks/api/useLanguages'
 import { useSubmissionExecution } from '@/hooks/useSubmissionExecution'
 import type { SupportedLanguage } from '@/types/submission.types'
 import type { TestCase } from '@/types/editor.types'
 import './ExamChallengeDetail.scss'
+import {
+  buildSubmissionLanguageOptions,
+  DEFAULT_SUBMISSION_LANGUAGE,
+} from '@/constants/submissionLanguages'
 // mocks removed: use real API only
 import { examService } from '@/services/api/exam.service'
 import useAutosaveSession from '@/hooks/useAutosaveSession'
 import { useTheme } from '@/contexts/useTheme'
+import { canResumeExamWorkspace } from './exam-workspace-access'
+import { computeExamRemainingSeconds } from './exam-countdown'
+
+type MobileWorkspacePanel = 'problem' | 'editor' | 'output' | 'challenges'
 
 const ExamChallengeDetail: React.FC = () => {
-  const { examId, challengeId } = useParams<{
-    examId: string
+  const {
+    examId: routeExamId,
+    examSlug,
+    challengeId,
+  } = useParams<{
+    examId?: string
+    examSlug?: string
     challengeId: string
   }>()
   const navigate = useNavigate()
+  const [resolvedExamId, setResolvedExamId] = useState<string | null>(
+    routeExamId || null
+  )
   const [exam, setExam] = useState<Exam | null>(null)
   const [problemData, setProblemData] = useState<
     ProblemDetailResponse['data'] | null
   >(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [joinBlockedReason, setJoinBlockedReason] = useState<string | null>(
+    null
+  )
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
   const [showTimeWarning, setShowTimeWarning] = useState(false)
+  const [showOneMinuteWarning, setShowOneMinuteWarning] = useState(false)
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false)
+  const [answeredChallengeIds, setAnsweredChallengeIds] = useState<Set<string>>(
+    new Set()
+  )
+  const submitConfirmDialogRef = useRef<HTMLDivElement | null>(null)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
   const [isJoined, setIsJoined] = useState(false)
   const [autosaveEnabled, setAutosaveEnabled] = useState(false)
   const [activeTab, setActiveTab] = useState<'question' | 'submissions'>(
@@ -44,8 +71,29 @@ const ExamChallengeDetail: React.FC = () => {
   const [showChallengeList, setShowChallengeList] = useState(false)
   const [yourScore, setYourScore] = useState<number | null>(null)
   // const [yourPoints, setYourPoints] = useState<number | null>(null)
+  const [isMobileWorkspace, setIsMobileWorkspace] = useState(() =>
+    typeof window !== 'undefined'
+      ? window.matchMedia('(max-width: 1023px)').matches
+      : false
+  )
+  const [mobileWorkspacePanel, setMobileWorkspacePanel] =
+    useState<MobileWorkspacePanel>('problem')
 
   const [problemPanelWidth, setProblemPanelWidth] = useState(60)
+  const examWorkspaceBasePath = examSlug
+    ? `/exam/${examSlug}`
+    : resolvedExamId
+      ? `/exam/${resolvedExamId}`
+      : '/exam'
+  const { data: languages } = useLanguages()
+  const languageOptions = React.useMemo(
+    () => buildSubmissionLanguageOptions(languages),
+    [languages]
+  )
+  const activeLanguages = React.useMemo(
+    () => languageOptions.map(option => option.value),
+    [languageOptions]
+  )
   const dispatch = useDispatch()
   const reduxParticipationId = useSelector(
     (s: RootState) => s.exam?.currentParticipationId
@@ -53,12 +101,86 @@ const ExamChallengeDetail: React.FC = () => {
   const reduxStartAt = useSelector(
     (s: RootState) => s.exam?.currentParticipationStartAt
   )
+  const reduxExpiresAt = useSelector(
+    (s: RootState) => s.exam?.currentParticipationExpiresAt
+  )
+  const mobileWorkspacePanelStorageKey =
+    resolvedExamId && reduxParticipationId
+      ? `exam_workspace_mobile_panel_${resolvedExamId}_${reduxParticipationId}`
+      : null
+
+  useEffect(() => {
+    if (!showSubmitConfirm) return
+
+    previousFocusRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null
+
+    const dialog = submitConfirmDialogRef.current
+    const focusableSelector =
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+
+    const getFocusableElements = () =>
+      dialog
+        ? Array.from(
+            dialog.querySelectorAll<HTMLElement>(focusableSelector)
+          ).filter(element => !element.hasAttribute('disabled'))
+        : []
+
+    const focusFirstControl = () => {
+      const firstFocusable = getFocusableElements()[0]
+      ;(firstFocusable ?? dialog)?.focus()
+    }
+
+    window.setTimeout(focusFirstControl, 0)
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setShowSubmitConfirm(false)
+        return
+      }
+
+      if (event.key !== 'Tab' || !dialog) return
+
+      const focusableElements = getFocusableElements()
+      if (focusableElements.length === 0) {
+        event.preventDefault()
+        dialog.focus()
+        return
+      }
+
+      const firstElement = focusableElements[0]
+      const lastElement = focusableElements[focusableElements.length - 1]
+
+      if (!dialog.contains(document.activeElement)) {
+        event.preventDefault()
+        firstElement.focus()
+        return
+      }
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault()
+        lastElement.focus()
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault()
+        firstElement.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      previousFocusRef.current?.focus()
+    }
+  }, [showSubmitConfirm])
 
   const refreshSubmissionData = useCallback(async () => {
-    if (!examId || !reduxParticipationId) return
+    if (!resolvedExamId || !reduxParticipationId) return
     try {
       const details = await examService.getSubmissionDetails(
-        examId,
+        resolvedExamId,
         reduxParticipationId
       )
       if (!details) return
@@ -92,24 +214,24 @@ const ExamChallengeDetail: React.FC = () => {
     } catch {
       // ignore refresh errors; UI will simply not update scores
     }
-  }, [examId, reduxParticipationId])
+  }, [resolvedExamId, reduxParticipationId])
 
   const resolveSupportedLanguage = (
     value?: string | null
   ): SupportedLanguage => {
-    if (value === 'cpp' || value === 'java' || value === 'python') {
+    if (value && activeLanguages.includes(value)) {
       return value
     }
-    return 'cpp'
+    return activeLanguages[0] ?? DEFAULT_SUBMISSION_LANGUAGE
   }
 
   const editorStorageKey =
-    examId && challengeId
-      ? `exam_${examId}_challenge_${challengeId}_editor_state`
+    resolvedExamId && challengeId
+      ? `exam_${resolvedExamId}_challenge_${challengeId}_editor_state`
       : undefined
   const legacyCodeStorageKey =
-    examId && challengeId
-      ? `exam_${examId}_challenge_${challengeId}_code`
+    resolvedExamId && challengeId
+      ? `exam_${resolvedExamId}_challenge_${challengeId}_code`
       : undefined
 
   const {
@@ -122,6 +244,7 @@ const ExamChallengeDetail: React.FC = () => {
   } = useLanguageDrafts({
     storageKey: editorStorageKey,
     legacyCodeStorageKey,
+    languages: activeLanguages,
     starterCodeByLanguage: problemData?.problem.starterCodeByLanguage,
   })
 
@@ -194,6 +317,53 @@ const ExamChallengeDetail: React.FC = () => {
     }
   }, [updateSplitFromClientX])
 
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 1023px)')
+    const onViewportChange = (event: MediaQueryListEvent) => {
+      setIsMobileWorkspace(event.matches)
+      if (!event.matches && showChallengeList) {
+        setShowChallengeList(false)
+      }
+    }
+
+    setIsMobileWorkspace(mediaQuery.matches)
+    mediaQuery.addEventListener('change', onViewportChange)
+    return () => mediaQuery.removeEventListener('change', onViewportChange)
+  }, [showChallengeList])
+
+  useEffect(() => {
+    if (!isMobileWorkspace || !mobileWorkspacePanelStorageKey) {
+      return
+    }
+
+    const storedPanel = window.localStorage.getItem(
+      mobileWorkspacePanelStorageKey
+    ) as MobileWorkspacePanel | null
+    if (
+      storedPanel === 'problem' ||
+      storedPanel === 'editor' ||
+      storedPanel === 'output'
+    ) {
+      setMobileWorkspacePanel(storedPanel)
+      return
+    }
+
+    setMobileWorkspacePanel('problem')
+  }, [isMobileWorkspace, mobileWorkspacePanelStorageKey])
+
+  useEffect(() => {
+    if (!isMobileWorkspace || !mobileWorkspacePanelStorageKey) {
+      return
+    }
+    if (mobileWorkspacePanel === 'challenges') {
+      return
+    }
+    window.localStorage.setItem(
+      mobileWorkspacePanelStorageKey,
+      mobileWorkspacePanel
+    )
+  }, [isMobileWorkspace, mobileWorkspacePanel, mobileWorkspacePanelStorageKey])
+
   const startDraggingSplit = (
     event: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>
   ) => {
@@ -231,6 +401,15 @@ const ExamChallengeDetail: React.FC = () => {
   // Trigger autosave on code change (integrated in useAutosaveSession effect)
   useEffect(() => {
     if (!autosaveEnabled) return
+    // Track current challenge as "answered" when code is non-empty
+    if (challengeId && code.trim().length > 0) {
+      setAnsweredChallengeIds(prev => {
+        if (prev.has(challengeId)) return prev
+        const next = new Set(prev)
+        next.add(challengeId)
+        return next
+      })
+    }
   }, [code, autosaveEnabled, challengeId])
 
   // Flush pending autosave on unmount
@@ -275,8 +454,42 @@ const ExamChallengeDetail: React.FC = () => {
   }
 
   useEffect(() => {
+    if (routeExamId) {
+      setResolvedExamId(routeExamId)
+      return
+    }
+
+    if (!examSlug) {
+      setResolvedExamId(null)
+      return
+    }
+
+    let cancelled = false
+
+    const resolveExamIdFromSlug = async () => {
+      try {
+        const publicExam = await examService.getPublicExam(examSlug)
+        if (!cancelled) {
+          setResolvedExamId(publicExam.id)
+        }
+      } catch (err) {
+        console.error('Failed to resolve exam from slug', err)
+        if (!cancelled) {
+          setResolvedExamId(null)
+          setError('Failed to resolve exam')
+        }
+      }
+    }
+
+    void resolveExamIdFromSlug()
+    return () => {
+      cancelled = true
+    }
+  }, [examSlug, routeExamId])
+
+  useEffect(() => {
     const fetchData = async () => {
-      if (!challengeId || !examId) return
+      if (!challengeId || !resolvedExamId) return
       // If we already have loaded the same challenge, skip to prevent redundant fetches
       if (problemData && problemData.problem?.id === challengeId) {
         return
@@ -288,7 +501,7 @@ const ExamChallengeDetail: React.FC = () => {
 
         // Fetch exam basic info (to populate challenge list)
         try {
-          const apiExam = await examService.getExamById(examId)
+          const apiExam = await examService.getExamById(resolvedExamId)
           setExam(apiExam)
         } catch (apiErr) {
           console.error('Failed to fetch exam from API', apiErr)
@@ -299,7 +512,7 @@ const ExamChallengeDetail: React.FC = () => {
         // Fetch challenge details from exam endpoint (lazy load per challenge)
         try {
           const response = await examService.getExamChallenge(
-            examId,
+            resolvedExamId,
             challengeId
           )
           if (response && response.success) {
@@ -351,12 +564,12 @@ const ExamChallengeDetail: React.FC = () => {
     }
 
     fetchData()
-  }, [examId, challengeId, problemData])
+  }, [challengeId, problemData, resolvedExamId])
 
   // When participation becomes available, attempt to refresh per-problem data and recover saved code for the current challenge
   useEffect(() => {
     const runOnParticipantReady = async () => {
-      if (!reduxParticipationId || !examId || !challengeId) return
+      if (!reduxParticipationId || !resolvedExamId || !challengeId) return
       try {
         await refreshSubmissionData()
       } catch (err) {
@@ -368,7 +581,7 @@ const ExamChallengeDetail: React.FC = () => {
 
       try {
         const partData = await examService.getParticipation(
-          examId,
+          resolvedExamId,
           reduxParticipationId
         )
         const answers = partData?.currentAnswers || partData?.answers || {}
@@ -388,7 +601,7 @@ const ExamChallengeDetail: React.FC = () => {
     }
 
     void runOnParticipantReady()
-  }, [reduxParticipationId, examId, challengeId, refreshSubmissionData])
+  }, [reduxParticipationId, resolvedExamId, challengeId, refreshSubmissionData])
 
   // keep latest code in ref for use in unload/save handlers
   useEffect(() => {
@@ -435,7 +648,7 @@ const ExamChallengeDetail: React.FC = () => {
       if (!participationId || !current) return
       try {
         const payload = JSON.stringify({
-          sessionId: participationId,
+          participationId,
           answers: {
             [current]: {
               sourceCode: codeRef.current,
@@ -443,7 +656,6 @@ const ExamChallengeDetail: React.FC = () => {
               updatedAt: new Date().toISOString(),
             },
           },
-          clientTimestamp: new Date().toISOString(),
         })
         if (typeof navigator !== 'undefined') {
           type BeaconNav = {
@@ -513,37 +725,58 @@ const ExamChallengeDetail: React.FC = () => {
     resetOutput()
   }
 
-  const handleSubmitExam = useCallback(async () => {
-    if (
-      !window.confirm(
-        'Are you sure you want to submit the exam? This action cannot be undone.'
-      )
-    ) {
-      return
-    }
-
-    try {
-      const participationId = reduxParticipationId
-      if (examId && participationId) {
-        await examService.submitExam(examId, participationId)
-        // Flush any pending autosave before navigating
-        try {
-          await flushAutosave()
-        } catch {
-          // ignore autosave flush errors on submit
-          void 0
-        }
-
-        // Clear participation from Redux since exam is completed
-        dispatch({ type: 'exam/clearParticipation' })
+  const handleSubmitExam = useCallback(
+    async (options?: { force?: boolean }) => {
+      if (
+        !options?.force &&
+        !window.confirm(
+          'Are you sure you want to submit the exam? This action cannot be undone.'
+        )
+      ) {
+        return
       }
-    } catch {
-      alert('Failed to submit exam. Please try again.')
-      return
-    } finally {
-      navigate(`/exam/${examId}/results`)
-    }
-  }, [navigate, examId, reduxParticipationId, dispatch, flushAutosave])
+
+      let submitted = false
+      try {
+        const participationId = reduxParticipationId
+        if (resolvedExamId && participationId) {
+          await examService.submitExam(resolvedExamId, participationId)
+          // Flush any pending autosave before navigating
+          try {
+            await flushAutosave()
+          } catch {
+            // ignore autosave flush errors on submit
+            void 0
+          }
+
+          // Clear participation from Redux since exam is completed
+          dispatch({ type: 'exam/clearParticipation' })
+          submitted = true
+        }
+      } catch {
+        if (!options?.force) {
+          alert('Failed to submit exam. Please try again.')
+        }
+        return
+      } finally {
+        if (submitted) {
+          navigate(
+            examSlug
+              ? `/exam/${examSlug}/results`
+              : `/exam/${resolvedExamId}/results`
+          )
+        }
+      }
+    },
+    [
+      dispatch,
+      examSlug,
+      flushAutosave,
+      navigate,
+      resolvedExamId,
+      reduxParticipationId,
+    ]
+  )
 
   // Initialize and manage countdown separately so hooks don't depend on `handleSubmitExam` definition order
   useEffect(() => {
@@ -552,30 +785,59 @@ const ExamChallengeDetail: React.FC = () => {
     let cancelled = false
 
     const init = async () => {
-      const participationId = reduxParticipationId
+      let activeParticipationId = reduxParticipationId ?? null
       const startAtRaw = reduxStartAt
-      const totalSeconds = (exam.duration || 0) * 60
+      const expiresAtRaw = reduxExpiresAt
+      const resultPath = examSlug
+        ? `/exam/${examSlug}/results`
+        : `/exam/${resolvedExamId}/results`
+
+      const checkResumePermission = (input: {
+        status?: string | null
+        expiresAt?: string | number | null
+      }) =>
+        canResumeExamWorkspace({
+          participationStatus: input.status,
+          examEndDate: exam.endDate,
+          participationExpiresAt: input.expiresAt,
+        })
 
       // Check if user joined. If Redux lacks participation, try server-backed resume.
-      if (!participationId) {
+      if (!activeParticipationId) {
         try {
-          if (examId) {
-            const part = await examService.getMyParticipation(examId)
+          if (resolvedExamId) {
+            const part = await examService.getMyParticipation(resolvedExamId)
             const partId = part?.id || part?.participationId
+            const canResume = checkResumePermission({
+              status: part?.status,
+              expiresAt: part?.expiresAt || part?.expires_at,
+            })
+
+            if (partId && !canResume) {
+              dispatch({ type: 'exam/clearParticipation' })
+              navigate(resultPath, { replace: true })
+              return
+            }
             const serverStart =
               part?.startedAt ||
               part?.startAt ||
               part?.startTimestamp ||
               part?.startedAtMs
+            const serverExpires =
+              part?.expiresAt || part?.expires_at || part?.expires
             if (partId) {
+              activeParticipationId = partId
               const startAtValue = serverStart ?? Date.now()
               try {
                 dispatch(
                   setParticipation({
                     participationId: partId,
+                    examId: resolvedExamId,
                     startAt: startAtValue,
+                    expiresAt: serverExpires ?? null,
                   })
                 )
+                setJoinBlockedReason(null)
               } catch (e) {
                 console.warn(
                   'Failed to dispatch recovered participation to redux',
@@ -584,10 +846,14 @@ const ExamChallengeDetail: React.FC = () => {
               }
               // proceed as joined
             } else {
+              setJoinBlockedReason(
+                'You must start the exam from the entry page.'
+              )
               setIsJoined(false)
               return
             }
           } else {
+            setJoinBlockedReason('Exam identifier is missing.')
             setIsJoined(false)
             return
           }
@@ -598,95 +864,123 @@ const ExamChallengeDetail: React.FC = () => {
           return
         }
       } else {
-        // participation already present in Redux; continue with existing session
-        void 0
+        try {
+          if (resolvedExamId) {
+            const existing = await examService.getParticipation(
+              resolvedExamId,
+              activeParticipationId
+            )
+            const canResume = checkResumePermission({
+              status: existing?.status,
+              expiresAt: existing?.expiresAt || existing?.expires_at,
+            })
+            if (!canResume) {
+              dispatch({ type: 'exam/clearParticipation' })
+              navigate(resultPath, { replace: true })
+              return
+            }
+
+            const existingExpires =
+              existing?.expiresAt || existing?.expires_at || existing?.expires
+            if (existingExpires) {
+              dispatch(
+                setParticipation({
+                  participationId: activeParticipationId,
+                  expiresAt: existingExpires,
+                })
+              )
+            }
+          }
+        } catch (verificationError) {
+          console.warn(
+            'Failed to verify current participation status',
+            verificationError
+          )
+          setJoinBlockedReason('Unable to verify current exam session state.')
+          setIsJoined(false)
+          return
+        }
       }
 
       setIsJoined(true)
+      setJoinBlockedReason(null)
 
-      let startAtMs: number | null = null
-      if (startAtRaw) {
-        const asNumber = Number(startAtRaw)
-        if (!Number.isNaN(asNumber) && isFinite(asNumber)) {
-          startAtMs = asNumber
-        } else {
-          const parsed =
-            typeof startAtRaw === 'string'
-              ? Date.parse(startAtRaw)
-              : Number(startAtRaw)
-          if (!Number.isNaN(parsed)) startAtMs = parsed
-        }
-      } else {
-        // Try to recover session info from server if startAt missing
+      let effectiveStartAt: number | string | null = startAtRaw ?? null
+      let effectiveExpiresAt: number | string | null = expiresAtRaw ?? null
+
+      // Recover missing timing metadata from server so resume keeps the canonical countdown.
+      if (
+        (!effectiveStartAt || !effectiveExpiresAt) &&
+        resolvedExamId &&
+        activeParticipationId
+      ) {
         try {
-          if (examId && participationId) {
-            const partData = await examService.getParticipation(
-              examId,
-              participationId
-            )
-            const serverStart =
-              partData?.startedAt ||
-              partData?.startAt ||
-              partData?.startTimestamp ||
-              partData?.startedAtMs
+          const partData = await examService.getParticipation(
+            resolvedExamId,
+            activeParticipationId
+          )
+          const serverStart =
+            partData?.startedAt ||
+            partData?.startAt ||
+            partData?.startTimestamp ||
+            partData?.startedAtMs
+          const serverExpires =
+            partData?.expiresAt || partData?.expires_at || partData?.expires
+          const serverCurrentChallenge =
+            partData?.currentChallengeId || partData?.currentChallenge
+
+          if (serverStart) {
+            effectiveStartAt = serverStart
+          }
+          if (serverExpires) {
+            effectiveExpiresAt = serverExpires
+          }
+
+          if (serverStart || serverExpires || serverCurrentChallenge) {
+            const participationUpdate: {
+              participationId: string
+              startAt?: number | string | null
+              expiresAt?: number | string | null
+              currentChallengeId?: string | null
+            } = {
+              participationId: activeParticipationId,
+            }
+
             if (serverStart) {
-              // Persist recovered start into Redux only (in-memory, NOT localStorage)
-              try {
-                // ensure we pass null when undefined to match slice typing
-                dispatch(
-                  setParticipation({
-                    participationId: participationId ?? null,
-                    startAt:
-                      typeof serverStart === 'number'
-                        ? serverStart
-                        : Date.parse(String(serverStart)),
-                  })
-                )
-              } catch (err) {
-                console.warn(
-                  'Failed to dispatch recovered startAt to redux',
-                  err
-                )
-              }
-              // Do NOT persist recovered startAt to localStorage for privacy/security.
-              const asNumber = Number(serverStart)
-              if (!Number.isNaN(asNumber) && isFinite(asNumber)) {
-                startAtMs = asNumber
-              } else if (typeof serverStart === 'string') {
-                const parsed = Date.parse(serverStart)
-                if (!Number.isNaN(parsed)) startAtMs = parsed
-              }
+              participationUpdate.startAt = serverStart
             }
-            // recover current challenge id if server provides
-            const serverCurrentChallenge =
-              partData?.currentChallengeId || partData?.currentChallenge
+            if (serverExpires) {
+              participationUpdate.expiresAt = serverExpires
+            }
             if (serverCurrentChallenge) {
-              // Do NOT persist recovered currentChallengeId to localStorage for privacy/security.
-              try {
-                dispatch(
-                  setParticipation({
-                    participationId: participationId ?? null,
-                    startAt: serverStart ?? null,
-                    currentChallengeId: serverCurrentChallenge,
-                  })
-                )
-              } catch (e) {
-                console.warn(
-                  'Failed to dispatch recovered currentChallenge to redux',
-                  e
-                )
+              participationUpdate.currentChallengeId = serverCurrentChallenge
+            }
+
+            dispatch(setParticipation(participationUpdate))
+          }
+
+          // Track answered challenges for mini-nav indicators
+          const currentAns = partData?.currentAnswers || partData?.answers || {}
+          if (currentAns && typeof currentAns === 'object') {
+            const ids = new Set<string>()
+            for (const [cid, val] of Object.entries(currentAns)) {
+              const entry = val as { sourceCode?: string } | undefined
+              if (entry?.sourceCode && entry.sourceCode.trim().length > 0) {
+                ids.add(cid)
               }
             }
+            setAnsweredChallengeIds(ids)
           }
         } catch (e) {
           console.warn('Failed to recover participation from server', e)
         }
       }
 
-      const elapsed = startAtMs
-        ? Math.floor((Date.now() - startAtMs) / 1000)
-        : 0
-      let remaining = Math.max(0, totalSeconds - elapsed)
+      let remaining = computeExamRemainingSeconds({
+        startAt: effectiveStartAt,
+        expiresAt: effectiveExpiresAt,
+        durationMinutes: exam.duration || 0,
+      })
       if (cancelled) return
       setTimeRemaining(remaining)
 
@@ -695,10 +989,15 @@ const ExamChallengeDetail: React.FC = () => {
         setShowTimeWarning(true)
         setTimeout(() => setShowTimeWarning(false), 5000)
       }
+      // Check for 1 minute warning
+      if (remaining === 60) {
+        setShowOneMinuteWarning(true)
+        setTimeout(() => setShowOneMinuteWarning(false), 5000)
+      }
 
       // If time already up -> auto submit
       if (remaining <= 0) {
-        handleSubmitExam()
+        void handleSubmitExam({ force: true })
         return
       }
 
@@ -712,12 +1011,17 @@ const ExamChallengeDetail: React.FC = () => {
           setShowTimeWarning(true)
           setTimeout(() => setShowTimeWarning(false), 5000)
         }
+        // Check for 1 minute warning
+        if (remaining === 60) {
+          setShowOneMinuteWarning(true)
+          setTimeout(() => setShowOneMinuteWarning(false), 5000)
+        }
         if (remaining <= 0) {
           if (countdownRef.current) {
             window.clearInterval(countdownRef.current)
             countdownRef.current = null
           }
-          handleSubmitExam()
+          void handleSubmitExam({ force: true })
         }
       }, 1000)
     }
@@ -734,11 +1038,15 @@ const ExamChallengeDetail: React.FC = () => {
   }, [
     exam?.id,
     exam?.duration,
-    examId,
+    exam?.endDate,
+    examSlug,
+    resolvedExamId,
     handleSubmitExam,
     dispatch,
+    navigate,
     reduxParticipationId,
     reduxStartAt,
+    reduxExpiresAt,
   ])
 
   if (loading) {
@@ -770,10 +1078,11 @@ const ExamChallengeDetail: React.FC = () => {
       >
         <div className="text-center">
           <p className="mb-4" style={{ color: '#f59e0b' }}>
-            You must join the exam first before accessing challenges.
+            {joinBlockedReason ||
+              'You must join the exam first before accessing challenges.'}
           </p>
           <Button
-            onClick={() => navigate(`/exam/${examId}`)}
+            onClick={() => navigate(examWorkspaceBasePath)}
             variant="secondary"
             size="md"
           >
@@ -798,7 +1107,7 @@ const ExamChallengeDetail: React.FC = () => {
             {error || 'Challenge not found'}
           </p>
           <Button
-            onClick={() => navigate(`/exam/${examId}`)}
+            onClick={() => navigate(examWorkspaceBasePath)}
             variant="secondary"
             size="md"
           >
@@ -859,11 +1168,19 @@ const ExamChallengeDetail: React.FC = () => {
           </div>
           <div className="flex items-center gap-3">
             <div
-              className="flex items-center gap-2 rounded-lg px-3 py-2"
+              className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-all ${
+                timeRemaining !== null && timeRemaining <= 300
+                  ? 'exam-timer--critical'
+                  : timeRemaining !== null && timeRemaining <= 600
+                    ? 'exam-timer--warning'
+                    : 'exam-timer--normal'
+              }`}
               style={{
-                backgroundColor: 'var(--exam-toolbar-bg)',
                 border: '1px solid var(--surface-border)',
               }}
+              role="timer"
+              aria-live="polite"
+              aria-label={`Time remaining: ${timeRemaining !== null ? formatSeconds(timeRemaining) : 'calculating'}`}
             >
               <Clock size={16} style={{ color: 'var(--accent)' }} />
               <span className="text-sm" style={{ color: 'var(--muted-text)' }}>
@@ -874,6 +1191,14 @@ const ExamChallengeDetail: React.FC = () => {
                     ? formatSeconds((exam.duration || 0) * 60)
                     : '00:00'}
               </span>
+              {timeRemaining !== null && timeRemaining <= 300 && (
+                <span
+                  className="text-xs font-semibold"
+                  style={{ color: 'var(--exam-danger)' }}
+                >
+                  Time running low
+                </span>
+              )}
               {/* {lastSavedAt && (
                 <div className="text-xs" style={{ color: 'var(--muted-text)', marginLeft: 8 }}>
                   Last saved: {formatTimeShort(lastSavedAt)}
@@ -899,7 +1224,12 @@ const ExamChallengeDetail: React.FC = () => {
               )}
             </button>
             <Button
-              onClick={() => setShowChallengeList(true)}
+              onClick={() => {
+                if (isMobileWorkspace) {
+                  setMobileWorkspacePanel('challenges')
+                }
+                setShowChallengeList(true)
+              }}
               variant="secondary"
               size="sm"
               icon={<List size={16} />}
@@ -907,83 +1237,258 @@ const ExamChallengeDetail: React.FC = () => {
             >
               View All Challenges
             </Button>
+            <Button
+              onClick={() => setShowSubmitConfirm(true)}
+              variant="secondary"
+              size="sm"
+              icon={<AlertTriangle size={16} />}
+              aria-label="Submit exam"
+              style={{
+                borderColor: 'var(--exam-danger)',
+                color: 'var(--exam-danger)',
+              }}
+            >
+              Submit Exam
+            </Button>
           </div>
+
+          {/* Mini challenge nav — desktop only */}
+          {!isMobileWorkspace &&
+            exam?.challenges &&
+            exam.challenges.length > 0 && (
+              <div
+                className="flex items-center gap-1 overflow-x-auto px-3 py-1.5"
+                style={{ scrollbarWidth: 'none' }}
+                role="tablist"
+                aria-label="Challenge navigation"
+              >
+                {exam.challenges.map((ch, index) => {
+                  const isCurrent = ch.id === challengeId
+                  const isAnswered = answeredChallengeIds.has(ch.id)
+                  return (
+                    <button
+                      key={ch.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={isCurrent}
+                      aria-label={`Challenge ${index + 1}${isAnswered ? ' (answered)' : ''}`}
+                      onClick={() => {
+                        navigate(
+                          `${examWorkspaceBasePath}${examSlug ? '/challenges' : '/challenge'}/${ch.id}`
+                        )
+                      }}
+                      className="relative flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-xs font-semibold transition-all"
+                      style={{
+                        backgroundColor: isCurrent
+                          ? 'var(--exam-accent)'
+                          : 'transparent',
+                        color: isCurrent ? '#fff' : 'var(--muted-text)',
+                        border: isCurrent
+                          ? 'none'
+                          : '1px solid var(--surface-border)',
+                      }}
+                    >
+                      {index + 1}
+                      {isAnswered && !isCurrent && (
+                        <span
+                          className="absolute -bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full"
+                          style={{ backgroundColor: 'var(--exam-success)' }}
+                        />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
         </div>
       </header>
 
       {/* Main Content */}
-      <div
-        ref={splitPaneRef}
-        className="flex min-h-0 flex-1 flex-col lg:flex-row"
-        style={{ borderTop: '1px solid var(--surface-border)' }}
-      >
+      {isMobileWorkspace ? (
         <div
-          className="flex h-full min-h-0 min-w-[280px] flex-col overflow-hidden lg:border-r"
-          style={{
-            borderColor: 'var(--surface-border)',
-            flexBasis: `${problemPanelWidth}%`,
-            maxWidth: `${problemPanelWidth}%`,
-          }}
+          className="flex min-h-0 flex-1 flex-col"
+          style={{ borderTop: '1px solid var(--surface-border)' }}
         >
-          <ExamProblemSection
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            problemData={problemData}
-          />
+          <div
+            className="sticky top-[73px] z-20 flex gap-2 overflow-x-auto border-b px-3 py-2"
+            style={{
+              backgroundColor: 'var(--exam-panel-bg)',
+              borderColor: 'var(--surface-border)',
+            }}
+          >
+            {(
+              [
+                { key: 'problem', label: 'Problem' },
+                { key: 'editor', label: 'Editor' },
+                { key: 'output', label: 'Output' },
+                { key: 'challenges', label: 'Challenges' },
+              ] as Array<{ key: MobileWorkspacePanel; label: string }>
+            ).map(tab => (
+              <button
+                key={tab.key}
+                type="button"
+                className="rounded-xl border px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-all"
+                style={{
+                  borderColor:
+                    mobileWorkspacePanel === tab.key
+                      ? 'var(--exam-accent)'
+                      : 'var(--surface-border)',
+                  backgroundColor:
+                    mobileWorkspacePanel === tab.key
+                      ? 'var(--exam-accent-subtle)'
+                      : 'transparent',
+                  color:
+                    mobileWorkspacePanel === tab.key
+                      ? 'var(--exam-accent)'
+                      : 'var(--muted-text)',
+                }}
+                onClick={() => {
+                  setMobileWorkspacePanel(tab.key)
+                  if (tab.key === 'challenges') {
+                    setShowChallengeList(true)
+                  }
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-hidden">
+            {mobileWorkspacePanel === 'problem' ? (
+              <ExamProblemSection
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                problemData={problemData}
+              />
+            ) : null}
+
+            {mobileWorkspacePanel === 'editor' ||
+            mobileWorkspacePanel === 'output' ? (
+              <div className="flex h-full min-h-0 flex-col">
+                {mobileWorkspacePanel === 'output' ? (
+                  <div
+                    className="border-b px-3 py-2 text-xs"
+                    style={{
+                      borderColor: 'var(--surface-border)',
+                      color: 'var(--muted-text)',
+                    }}
+                  >
+                    Output is shown in the console area below the editor.
+                  </div>
+                ) : null}
+                <div className="min-h-0 flex-1">
+                  <CodeEditorSection
+                    code={code}
+                    onCodeChange={onCodeChange}
+                    selectedLanguage={selectedLanguage}
+                    onLanguageChange={setSelectedLanguage}
+                    languageOptions={languageOptions}
+                    testCases={testCases}
+                    selectedTestCase={selectedTestCase}
+                    onTestCaseSelect={setSelectedTestCase}
+                    output={output}
+                    onRun={handleRun}
+                    onSubmit={handleSubmit}
+                    onReset={handleReset}
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            {mobileWorkspacePanel === 'challenges' ? (
+              <div className="flex h-full items-center justify-center px-6 text-center text-sm text-slate-300">
+                Challenge list is opened as a bottom sheet.
+              </div>
+            ) : null}
+          </div>
         </div>
-
+      ) : (
         <div
-          className="hidden w-1 cursor-col-resize select-none lg:block"
-          style={{ backgroundColor: 'var(--surface-border)' }}
-          onMouseDown={startDraggingSplit}
-          onTouchStart={startDraggingSplit}
-          onDoubleClick={resetSplit}
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize panels"
-          tabIndex={-1}
-        />
-
-        <div
-          className="flex h-full min-h-0 min-w-[320px] flex-1 overflow-hidden"
-          style={{
-            flexBasis: `${100 - problemPanelWidth}%`,
-            maxWidth: `${100 - problemPanelWidth}%`,
-          }}
+          ref={splitPaneRef}
+          className="flex min-h-0 flex-1 flex-col lg:flex-row"
+          style={{ borderTop: '1px solid var(--surface-border)' }}
         >
-          <CodeEditorSection
-            code={code}
-            onCodeChange={onCodeChange}
-            selectedLanguage={selectedLanguage}
-            onLanguageChange={setSelectedLanguage}
-            testCases={testCases}
-            selectedTestCase={selectedTestCase}
-            onTestCaseSelect={setSelectedTestCase}
-            output={output}
-            onRun={handleRun}
-            onSubmit={handleSubmit}
-            onReset={handleReset}
+          <div
+            className="flex h-full min-h-0 min-w-[280px] flex-col overflow-hidden lg:border-r"
+            style={{
+              borderColor: 'var(--surface-border)',
+              flexBasis: `${problemPanelWidth}%`,
+              maxWidth: `${problemPanelWidth}%`,
+            }}
+          >
+            <ExamProblemSection
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              problemData={problemData}
+            />
+          </div>
+
+          <div
+            className="hidden w-1 cursor-col-resize select-none lg:block"
+            style={{ backgroundColor: 'var(--surface-border)' }}
+            onMouseDown={startDraggingSplit}
+            onTouchStart={startDraggingSplit}
+            onDoubleClick={resetSplit}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize panels"
+            tabIndex={-1}
           />
+
+          <div
+            className="flex h-full min-h-0 min-w-[320px] flex-1 overflow-hidden"
+            style={{
+              flexBasis: `${100 - problemPanelWidth}%`,
+              maxWidth: `${100 - problemPanelWidth}%`,
+            }}
+          >
+            <CodeEditorSection
+              code={code}
+              onCodeChange={onCodeChange}
+              selectedLanguage={selectedLanguage}
+              onLanguageChange={setSelectedLanguage}
+              languageOptions={languageOptions}
+              testCases={testCases}
+              selectedTestCase={selectedTestCase}
+              onTestCaseSelect={setSelectedTestCase}
+              output={output}
+              onRun={handleRun}
+              onSubmit={handleSubmit}
+              onReset={handleReset}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {showChallengeList &&
         exam &&
         exam.challenges &&
         exam.challenges.length > 0 && (
           <ChallengePicker
+            mobile={isMobileWorkspace}
             challenges={exam.challenges}
             currentIndex={
               exam.challenges.findIndex(c => c.id === challengeId) >= 0
                 ? exam.challenges.findIndex(c => c.id === challengeId)
                 : 0
             }
-            onClose={() => setShowChallengeList(false)}
+            onClose={() => {
+              setShowChallengeList(false)
+              if (isMobileWorkspace) {
+                setMobileWorkspacePanel('problem')
+              }
+            }}
             onSelectChallenge={index => {
               const selectedChallenge = exam.challenges[index]
               if (selectedChallenge) {
-                navigate(`/exam/${examId}/challenge/${selectedChallenge.id}`)
+                navigate(
+                  `${examWorkspaceBasePath}${examSlug ? '/challenges' : '/challenge'}/${selectedChallenge.id}`
+                )
                 setShowChallengeList(false)
+                if (isMobileWorkspace) {
+                  setMobileWorkspacePanel('problem')
+                }
               }
             }}
             // totalPoints={exam.challenges.reduce(
@@ -995,6 +1500,127 @@ const ExamChallengeDetail: React.FC = () => {
             onSubmitExam={handleSubmitExam}
           />
         )}
+
+      {/* 1-minute warning modal */}
+      {showOneMinuteWarning && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+        >
+          <div
+            className="mx-4 w-full max-w-sm rounded-xl border p-6 text-center"
+            style={{
+              backgroundColor: 'var(--background-color)',
+              borderColor: 'var(--exam-danger)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+            }}
+            role="alertdialog"
+            aria-label="One minute warning"
+          >
+            <AlertTriangle
+              size={36}
+              style={{ color: 'var(--exam-danger)', margin: '0 auto' }}
+            />
+            <h2
+              className="mt-3 text-lg font-semibold"
+              style={{ color: 'var(--text-color)' }}
+            >
+              1 Minute Remaining
+            </h2>
+            <p className="mt-2 text-sm" style={{ color: 'var(--muted-text)' }}>
+              Your exam will be automatically submitted when time runs out.
+            </p>
+            <Button
+              onClick={() => setShowOneMinuteWarning(false)}
+              variant="secondary"
+              size="sm"
+              className="mt-4"
+            >
+              Dismiss
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Submit confirm modal */}
+      {showSubmitConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+        >
+          <div
+            ref={submitConfirmDialogRef}
+            className="mx-4 w-full max-w-sm rounded-xl border p-6 shadow-2xl"
+            style={{
+              backgroundColor: 'var(--background-color)',
+              borderColor: 'var(--exam-card-border)',
+            }}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="submit-confirm-title"
+            aria-describedby="submit-confirm-description"
+            tabIndex={-1}
+          >
+            <div className="text-center">
+              <AlertTriangle
+                size={36}
+                style={{ color: 'var(--exam-warning)', margin: '0 auto' }}
+              />
+              <h2
+                id="submit-confirm-title"
+                className="mt-3 text-lg font-semibold"
+                style={{ color: 'var(--text-color)' }}
+              >
+                Submit Exam?
+              </h2>
+              <p
+                id="submit-confirm-description"
+                className="mt-2 text-sm"
+                style={{ color: 'var(--muted-text)' }}
+              >
+                You have attempted {answeredChallengeIds.size}/
+                {exam?.challenges?.length || 0} challenges.
+                {timeRemaining !== null && exam?.duration && (
+                  <>
+                    {' '}
+                    Time spent:{' '}
+                    {Math.round((exam.duration * 60 - timeRemaining) / 60)}{' '}
+                    minutes.
+                  </>
+                )}
+              </p>
+              <p
+                className="mt-2 text-xs font-medium"
+                style={{ color: 'var(--exam-danger)' }}
+              >
+                This action cannot be undone.
+              </p>
+            </div>
+            <div className="mt-5 flex items-center justify-center gap-3">
+              <Button
+                type="button"
+                onClick={() => setShowSubmitConfirm(false)}
+                variant="secondary"
+                size="sm"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  setShowSubmitConfirm(false)
+                  void handleSubmitExam({ force: true })
+                }}
+                variant="primary"
+                size="sm"
+                style={{ backgroundColor: 'var(--exam-danger)' }}
+              >
+                Submit Now
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

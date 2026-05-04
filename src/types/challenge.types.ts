@@ -29,12 +29,16 @@ export interface TestCase {
   updatedAt: string
 }
 
+export interface CodeVariant {
+  language: string
+  sourceCode: string
+}
+
 export interface SolutionApproach {
   id: string
   title: string
   description: string
-  sourceCode: string
-  language: string
+  codeVariants: CodeVariant[]
   timeComplexity: string
   spaceComplexity: string
   explanation: string

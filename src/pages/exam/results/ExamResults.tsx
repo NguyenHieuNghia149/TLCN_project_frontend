@@ -1,199 +1,308 @@
-import React, { useState, useEffect, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import {
-  Search,
-  ChevronLeft,
-  ChevronRight,
-  Trophy,
-  Users,
-  Calendar,
-} from 'lucide-react'
-import Input from '@/components/common/Input/Input'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+
 import Button from '@/components/common/Button/Button'
-import { ExamSubmission, Exam } from '@/types/exam.types'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import { useAuth } from '@/hooks/api/useAuth'
+import { isLegacyExamId } from '@/pages/exam/legacy/legacy-exam-redirect'
 import { examService } from '@/services/api/exam.service'
+import type { ExamAccessState, PublicExamLanding } from '@/types/exam.types'
+import {
+  normalizeLearnerResultStatus,
+  type ResultStatus,
+} from './result-status'
+import {
+  normalizeLearnerBreakdown,
+  type LearnerResultBreakdownItem,
+} from './result-breakdown'
 
-const PAGE_SIZE = 10
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object'
+    ? (value as Record<string, unknown>)
+    : null
+}
+
+function asNonEmptyString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null
+}
+
+function asFiniteNumberOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString()
+}
+
+function extractApiErrorStatus(error: unknown) {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    typeof (error as { response?: unknown }).response === 'object'
+  ) {
+    const response = (error as { response?: { status?: unknown } }).response
+    if (typeof response?.status === 'number') {
+      return response.status
+    }
+  }
+  return null
+}
+
+function extractApiErrorMessage(error: unknown, fallback: string) {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    typeof (error as { response?: unknown }).response === 'object'
+  ) {
+    const response = (
+      error as {
+        response?: { data?: { message?: unknown } }
+      }
+    ).response
+    const message = response?.data?.message
+    if (typeof message === 'string' && message.trim()) {
+      return message
+    }
+  }
+  if (error instanceof Error && error.message.trim()) {
+    return error.message
+  }
+  return fallback
+}
+
+/* ─── Score animation hook ─── */
+function useScoreAnimation(targetPct: number, duration = 1200) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!ref.current) return
+    // Respect prefers-reduced-motion
+    const prefersReduced = window.matchMedia(
+      '(prefers-reduced-motion: reduce)'
+    ).matches
+    if (prefersReduced) {
+      ref.current.style.setProperty('--score-pct', String(targetPct))
+      return
+    }
+    const start = performance.now()
+    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
+    let raf: number
+    const animate = (now: number) => {
+      const elapsed = now - start
+      const progress = Math.min(elapsed / duration, 1)
+      const value = easeOutCubic(progress) * targetPct
+      ref.current?.style.setProperty('--score-pct', String(value))
+      if (progress < 1) {
+        raf = requestAnimationFrame(animate)
+      }
+    }
+    raf = requestAnimationFrame(animate)
+    return () => cancelAnimationFrame(raf)
+  }, [targetPct, duration])
+  return ref
+}
+
+/* ─── Color helper for progress bars ─── */
+function getScoreColor(ratio: number): string {
+  if (ratio >= 0.8) return 'var(--exam-success)'
+  if (ratio >= 0.4) return 'var(--exam-warning)'
+  return 'var(--exam-danger)'
+}
+
+function getStatusLabel(status: ResultStatus): {
+  label: string
+  color: string
+} {
+  switch (status) {
+    case 'scored':
+      return { label: 'Scored', color: 'var(--exam-success)' }
+    case 'pending':
+      return { label: 'Pending', color: 'var(--exam-warning)' }
+    case 'failed':
+      return { label: 'Scoring Error', color: 'var(--exam-danger)' }
+    default:
+      return { label: 'Unknown', color: 'var(--exam-muted)' }
+  }
+}
 
 const ExamResults: React.FC = () => {
-  const { examId } = useParams<{ examId: string }>()
+  const { examSlug = '' } = useParams<{ examSlug: string }>()
   const navigate = useNavigate()
-  const [exam, setExam] = useState<Exam | null>(null)
-  const [submissions, setSubmissions] = useState<ExamSubmission[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [page, setPage] = useState(1)
-  const [, setError] = useState<string | null>(null)
   const { user } = useAuth()
 
-  const getParticipationIdFromSubmission = (
-    submission: unknown
-  ): string | undefined => {
-    const s = submission as Record<string, unknown>
-    const toStringIfDefined = (v: unknown) =>
-      v === undefined || v === null ? undefined : String(v)
-    const candidate1 = toStringIfDefined(s['id'])
-    if (candidate1) return candidate1
-    const candidate2 = toStringIfDefined(s['submissionId'])
-    if (candidate2) return candidate2
-    const candidate3 = toStringIfDefined(s['participationId'])
-    if (candidate3) return candidate3
-    const partVal = s['participation'] as Record<string, unknown> | undefined
-    const candidate4 = partVal ? toStringIfDefined(partVal['id']) : undefined
-    if (candidate4) return candidate4
-    return undefined
-  }
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [exam, setExam] = useState<PublicExamLanding | null>(null)
+  const [accessState, setAccessState] = useState<ExamAccessState | null>(null)
+  const [resultStatus, setResultStatus] = useState<ResultStatus>('pending')
+  const [score, setScore] = useState<number | null>(null)
+  const [breakdown, setBreakdown] = useState<LearnerResultBreakdownItem[]>([])
+  const [submissionPayload, setSubmissionPayload] = useState<Record<
+    string,
+    unknown
+  > | null>(null)
 
   useEffect(() => {
-    const fetchData = async () => {
+    if (!examSlug) {
+      return
+    }
+
+    let cancelled = false
+
+    const load = async () => {
       try {
         setLoading(true)
         setError(null)
-        if (examId) {
-          const apiExam = await examService.getExamById(examId)
-          setExam(apiExam)
 
-          const lb = await examService.getLeaderboard(examId, 200, 0)
-          const items = lb?.data || lb || []
-          const normalized = (items as unknown[]).map(s => {
-            const sRec = s as Record<string, unknown>
-            const idFromCandidates = getParticipationIdFromSubmission(s)
-            const idFromRaw = sRec['id'] ? String(sRec['id']) : undefined
-            let id = idFromCandidates || idFromRaw
-            // Fallback to a deterministic unique id if none provided (userId-submittedAt)
-            if (!id) {
-              const userObj = sRec['user'] as
-                | Record<string, unknown>
-                | undefined
-              const uid = String(
-                sRec['userId'] || (userObj && userObj['id']) || 'unknown'
-              )
-              const submittedAt = String(sRec['submittedAt'] || Date.now())
-              id = `${uid}-${submittedAt}`
-            }
-            return {
-              ...(sRec as Record<string, unknown>),
-              id,
-            } as unknown as ExamSubmission
-          })
-          setSubmissions(normalized)
+        const [publicExam, currentAccess] = await Promise.all([
+          examService.getPublicExam(examSlug),
+          examService.getExamAccessState(examSlug),
+        ])
+
+        if (cancelled) return
+
+        setExam(publicExam)
+        setAccessState(currentAccess)
+
+        if (!currentAccess.participationId) {
+          setResultStatus('pending')
+          return
         }
-      } catch (err) {
-        console.error('Failed to fetch exam results:', err)
-        setError('Failed to load exam results')
+
+        try {
+          const details = await examService.getSubmissionDetails(
+            publicExam.id,
+            currentAccess.participationId
+          )
+          if (cancelled) return
+
+          const normalized = normalizeLearnerResultStatus(
+            details.scoreStatus,
+            details.totalScore
+          )
+          const perProblem = normalizeLearnerBreakdown(details)
+          setSubmissionPayload(details)
+
+          if (normalized.status === 'pending') {
+            setResultStatus('pending')
+            setScore(null)
+            setBreakdown(perProblem)
+            return
+          }
+
+          if (normalized.status === 'failed') {
+            setResultStatus('failed')
+            setScore(null)
+            setBreakdown(perProblem)
+            return
+          }
+
+          setResultStatus('scored')
+          setScore(normalized.score ?? 0)
+          setBreakdown(perProblem)
+        } catch (submissionError: unknown) {
+          if (cancelled) return
+          const statusCode = extractApiErrorStatus(submissionError)
+          if (statusCode === 404 || statusCode === 409) {
+            setResultStatus('pending')
+            setScore(null)
+            setBreakdown([])
+            setSubmissionPayload(null)
+            return
+          }
+          setResultStatus('failed')
+          setScore(null)
+          setBreakdown([])
+          setSubmissionPayload(null)
+        }
+      } catch (apiError: unknown) {
+        if (cancelled) return
+        if (isLegacyExamId(examSlug)) {
+          try {
+            const legacyExam = await examService.getExamById(examSlug)
+            if (legacyExam?.slug && legacyExam.slug !== examSlug) {
+              navigate(`/exam/${legacyExam.slug}/results`, { replace: true })
+              return
+            }
+          } catch {
+            // Ignore fallback failures and surface original error below.
+          }
+        }
+        setError(
+          extractApiErrorMessage(apiError, 'Failed to load exam results')
+        )
       } finally {
-        setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+        }
       }
     }
 
-    fetchData()
-  }, [examId])
+    void load()
 
-  const formatDateTime = (value: string) =>
-    new Date(value).toLocaleString(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    })
-
-  const getDisplayName = (
-    firstname?: string,
-    lastname?: string,
-    fallbackEmailOrId?: string
-  ) => {
-    const name = [firstname, lastname].filter(Boolean).join(' ')
-    if (name) return { displayName: name, isFallback: false }
-    if (fallbackEmailOrId)
-      return { displayName: fallbackEmailOrId, isFallback: true }
-    return { displayName: 'Unknown student', isFallback: true }
-  }
-
-  const scoreColor = (score: number) => {
-    if (score >= 90) return '#10b981' // emerald-500
-    if (score >= 70) return '#f59e0b' // amber-500
-    return '#ef4444' // rose-500
-  }
-
-  const filteredSubmissions = useMemo(() => {
-    return submissions
-      .filter(submission => {
-        const nameInfo = getDisplayName(
-          submission.user?.firstname,
-          submission.user?.lastname,
-          submission.user?.email || submission.userId
-        )
-        return nameInfo.displayName
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase())
-      })
-      .sort(
-        (a, b) =>
-          new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
-      )
-  }, [submissions, searchTerm])
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredSubmissions.length / PAGE_SIZE)
-  )
-
-  const paginatedSubmissions = useMemo(() => {
-    const startIndex = (page - 1) * PAGE_SIZE
-    const endIndex = startIndex + PAGE_SIZE
-    return filteredSubmissions.slice(startIndex, endIndex)
-  }, [filteredSubmissions, page])
-
-  useEffect(() => {
-    setPage(1)
-  }, [searchTerm])
-
-  const allProblemIds = useMemo(() => {
-    const ids = new Set<string>()
-    submissions.forEach(sub => {
-      sub.perProblem?.forEach(p => ids.add(p.problemId))
-    })
-    return Array.from(ids)
-  }, [submissions])
-
-  // const stats = useMemo(() => {
-  //   if (submissions.length === 0) return { avgScore: 0, highestScore: 0, totalStudents: 0 }
-  //   const avgScore = submissions.reduce((sum, s) => sum + s.totalScore, 0) / submissions.length
-  //   const highestScore = Math.max(...submissions.map(s => s.totalScore))
-  //   return {
-  //     avgScore: Math.round(avgScore),
-  //     highestScore,
-  //     totalStudents: submissions.length
-  //   }
-  // }, [submissions])
-
-  useEffect(() => {
-    const resultsTable = document.getElementById('results-table')
-    if (resultsTable) {
-      resultsTable.scrollIntoView({ behavior: 'smooth' })
+    return () => {
+      cancelled = true
     }
-  }, [page])
+  }, [examSlug, navigate])
+
+  /* ─── Computed data ─── */
+
+  const maxScore = useMemo(() => {
+    const payloadMax = asFiniteNumberOrNull(submissionPayload?.totalMaxScore)
+    if (payloadMax !== null) return payloadMax
+    if (breakdown.length === 0) return 0
+    return breakdown.reduce((sum, item) => sum + (item.maxPoints ?? 0), 0)
+  }, [breakdown, submissionPayload])
+
+  const scorePct = useMemo(() => {
+    if (score === null || maxScore === 0) return 0
+    return Math.round((score / maxScore) * 100)
+  }, [score, maxScore])
+
+  const scoreCircleRef = useScoreAnimation(scorePct)
+  const statusInfo = getStatusLabel(resultStatus)
+
+  const submittedAt = useMemo(() => {
+    if (!submissionPayload) return null
+    return asNonEmptyString(submissionPayload.submittedAt)
+  }, [submissionPayload])
+
+  const resultRow = useMemo(() => {
+    if (!accessState?.participationId) return null
+    const submission = submissionPayload
+    const submissionUser = asRecord(submission?.user)
+    return (
+      asNonEmptyString(submissionUser?.email as string) ||
+      asNonEmptyString(submission?.email as string) ||
+      user?.email ||
+      '--'
+    )
+  }, [accessState?.participationId, submissionPayload, user?.email])
 
   if (loading) {
     return <LoadingSpinner />
   }
 
-  if (!exam) {
+  if (error || !exam) {
     return (
       <div
-        className="flex min-h-screen items-center justify-center"
-        style={{ backgroundColor: 'var(--background-color)' }}
+        className="flex min-h-screen items-center justify-center px-4"
+        style={{
+          backgroundColor: 'var(--background-color)',
+          color: 'var(--text-color)',
+        }}
       >
         <div
-          className="rounded-xl border px-8 py-10 text-center shadow-sm"
+          className="rounded-2xl border px-8 py-10 text-center"
           style={{
-            borderColor: 'var(--surface-border)',
-            color: 'var(--text-color)',
+            borderColor: 'var(--exam-card-border)',
+            backgroundColor: 'var(--exam-card-bg)',
           }}
         >
-          <p className="text-lg font-semibold">Exam not found</p>
-          <Button className="mt-4" onClick={() => navigate(-1)}>
-            Go back
+          <p className="text-lg font-semibold">{error || 'Exam not found'}</p>
+          <Button className="mt-4" onClick={() => navigate('/exam')}>
+            Back to exams
           </Button>
         </div>
       </div>
@@ -202,333 +311,236 @@ const ExamResults: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen"
+      className="min-h-screen px-4 py-10"
       style={{
         backgroundColor: 'var(--background-color)',
         color: 'var(--text-color)',
+        transition: 'background-color 200ms ease, color 200ms ease',
       }}
     >
-      <div className="mx-auto max-w-7xl px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="mb-2 flex items-center gap-2">
-            <Trophy size={20} style={{ color: 'var(--accent)' }} />
-            <p
-              className="text-xs font-semibold uppercase tracking-wider"
-              style={{ color: 'var(--accent)' }}
-            >
-              Exam Results
-            </p>
-          </div>
-          <h1 className="mb-1 text-3xl font-bold">{exam.title}</h1>
-          <p className="text-sm" style={{ color: 'var(--muted-text)' }}>
-            View and analyze student performance
-          </p>
-        </div>
-
-        {/* Results Table Section */}
+      <div className="mx-auto max-w-3xl space-y-6">
+        {/* ─── Header ─── */}
         <section
-          className="rounded-xl border shadow-sm"
+          className="rounded-2xl border p-8"
           style={{
-            borderColor: 'var(--surface-border)',
-            backgroundColor: 'var(--surface-color)',
+            borderColor: 'var(--exam-card-border)',
+            backgroundColor: 'var(--exam-card-bg)',
+            boxShadow: 'var(--exam-card-shadow)',
           }}
         >
-          <div
-            className="border-b p-6"
-            style={{ borderColor: 'var(--surface-border)' }}
-          >
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="max-w-md flex-1">
-                <Input
-                  icon={<Search size={16} />}
-                  placeholder="Search by student name..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-              </div>
-
-              <div
-                className="flex items-center gap-2 text-sm"
-                style={{ color: 'var(--muted-text)' }}
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h1
+                className="text-3xl font-semibold"
+                style={{ color: 'var(--text-color)' }}
               >
-                <Users size={16} />
-                <span className="font-medium">
-                  {filteredSubmissions.length} submission
-                  {filteredSubmissions.length === 1 ? '' : 's'}
+                {exam.title}
+              </h1>
+              <p
+                className="mt-2 text-sm"
+                style={{ color: 'var(--exam-muted)' }}
+              >
+                Exam results
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={() => navigate('/exam')} variant="secondary">
+                Back to exams
+              </Button>
+              <Button onClick={() => navigate(`/exam/${examSlug}`)}>
+                Go to exam landing
+              </Button>
+            </div>
+          </div>
+        </section>
+
+        {/* ─── Score Summary ─── */}
+        <section
+          className="rounded-2xl border p-6"
+          style={{
+            borderColor: 'var(--exam-card-border)',
+            backgroundColor: 'var(--exam-card-bg)',
+            animation: 'exam-fade-in 0.4s ease both',
+          }}
+        >
+          <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center">
+            {/* Score circle */}
+            <div
+              ref={scoreCircleRef}
+              className="relative flex h-[120px] w-[120px] flex-shrink-0 items-center justify-center rounded-full"
+              style={{
+                ['--score-pct' as string]: '0',
+                background: `conic-gradient(${getScoreColor(scorePct / 100)} calc(var(--score-pct) * 1%), var(--exam-card-border) 0)`,
+                animation: 'exam-score-appear 0.5s ease both',
+              }}
+            >
+              <div
+                className="flex h-[96px] w-[96px] items-center justify-center rounded-full"
+                style={{ backgroundColor: 'var(--exam-card-bg)' }}
+              >
+                <div className="text-center">
+                  <span
+                    className="text-2xl font-bold"
+                    style={{ color: 'var(--text-color)' }}
+                  >
+                    {resultStatus === 'scored' ? `${scorePct}%` : '--'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Score details */}
+            <div className="flex-1 text-center sm:text-left">
+              <div className="flex items-center justify-center gap-2 sm:justify-start">
+                <span
+                  className="inline-flex h-2 w-2 rounded-full"
+                  style={{ backgroundColor: statusInfo.color }}
+                />
+                <span
+                  className="text-sm font-semibold"
+                  style={{ color: statusInfo.color }}
+                >
+                  {statusInfo.label}
                 </span>
               </div>
-            </div>
-          </div>
-
-          <div id="results-table" className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr
-                  className="border-b"
-                  style={{
-                    borderColor: 'var(--surface-border)',
-                    backgroundColor: 'rgba(0, 0, 0, 0.02)',
-                  }}
+              {resultStatus === 'scored' && score !== null && maxScore > 0 && (
+                <p
+                  className="mt-2 text-lg font-semibold"
+                  style={{ color: 'var(--text-color)' }}
                 >
-                  <th
-                    className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider"
-                    style={{ color: 'var(--muted-text)' }}
-                  >
-                    STT
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
-                    Student
-                  </th>
-                  {allProblemIds.map((problemId, idx) => (
-                    <th
-                      key={problemId}
-                      className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider"
-                    >
-                      Q{idx + 1}
-                    </th>
-                  ))}
-                  <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider">
-                    Total
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
-                    <div className="flex items-center gap-1.5">
-                      <Calendar size={14} />
-                      Submitted
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedSubmissions.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={allProblemIds.length + 4}
-                      className="px-6 py-12 text-center"
-                    >
-                      <div className="flex flex-col items-center gap-2">
-                        <Search
-                          size={40}
-                          style={{ color: 'var(--muted-text)', opacity: 0.3 }}
-                        />
-                        <p
-                          className="text-sm font-medium"
-                          style={{ color: 'var(--muted-text)' }}
-                        >
-                          No submissions found
-                        </p>
-                        <p
-                          className="text-xs"
-                          style={{ color: 'var(--muted-text)' }}
-                        >
-                          Try adjusting your search filters
-                        </p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedSubmissions.map((submission, index) => {
-                    const rankNumber = (page - 1) * PAGE_SIZE + index + 1
-                    const isCurrentUser = submission.userId === user?.id
-                    const nameInfo = getDisplayName(
-                      submission.user?.firstname,
-                      submission.user?.lastname,
-                      submission.user?.email || submission.userId
-                    )
-
-                    return (
-                      <tr
-                        key={`${submission.id}-${submission.userId}`}
-                        className="border-b transition-colors hover:bg-opacity-50"
-                        style={{
-                          borderColor: 'var(--surface-border)',
-                          backgroundColor: isCurrentUser
-                            ? 'rgba(32, 215, 97, 0.08)'
-                            : 'transparent',
-                        }}
-                      >
-                        <td className="px-6 py-4">
-                          <span className="text-sm font-semibold">
-                            {rankNumber}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <span className="whitespace-nowrap font-semibold">
-                              {nameInfo.displayName}
-                            </span>
-                            {nameInfo.isFallback && (
-                              <span
-                                className="ml-2 rounded-full px-2 py-0.5 text-xs font-bold"
-                                style={{
-                                  backgroundColor: 'rgba(156, 163, 175, 0.12)',
-                                  color: 'var(--muted-text)',
-                                }}
-                              >
-                                email
-                              </span>
-                            )}
-                            {isCurrentUser && (
-                              <span
-                                className="whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold"
-                                style={{
-                                  backgroundColor: 'rgba(32, 215, 97, 0.15)',
-                                  color: 'var(--accent)',
-                                }}
-                              >
-                                You
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        {allProblemIds.map(problemId => {
-                          const problemScore = submission.perProblem?.find(
-                            p => p.problemId === problemId
-                          )
-                          const score = problemScore
-                            ? Math.round(
-                                (problemScore.obtained /
-                                  problemScore.maxPoints) *
-                                  100
-                              )
-                            : 0
-                          const points = problemScore
-                            ? problemScore.obtained
-                            : 0
-                          const maxPoints = problemScore
-                            ? problemScore.maxPoints
-                            : 0
-                          return (
-                            <td
-                              key={`${submission.id}-${problemId}`}
-                              className="px-6 py-4 text-center"
-                            >
-                              <span
-                                className="text-sm font-bold"
-                                style={{ color: scoreColor(score) }}
-                              >
-                                {points}/{maxPoints}
-                              </span>
-                            </td>
-                          )
-                        })}
-
-                        <td className="px-6 py-4 text-center">
-                          <span
-                            className="text-base font-bold"
-                            style={{ color: scoreColor(submission.totalScore) }}
-                          >
-                            {submission.totalScore}
-                          </span>
-                        </td>
-
-                        <td
-                          className="whitespace-nowrap px-6 py-4 text-sm"
-                          style={{ color: 'var(--muted-text)' }}
-                        >
-                          {formatDateTime(submission.submittedAt)}
-                        </td>
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {totalPages > 1 && (
-            <div
-              className="border-t px-6 py-4"
-              style={{ borderColor: 'var(--surface-border)' }}
-            >
-              <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
-                <div className="text-sm" style={{ color: 'var(--muted-text)' }}>
-                  Showing{' '}
-                  <span
-                    className="font-semibold"
-                    style={{ color: 'var(--text-color)' }}
-                  >
-                    {(page - 1) * PAGE_SIZE + 1}
-                  </span>{' '}
-                  to{' '}
-                  <span
-                    className="font-semibold"
-                    style={{ color: 'var(--text-color)' }}
-                  >
-                    {Math.min(page * PAGE_SIZE, filteredSubmissions.length)}
-                  </span>{' '}
-                  of{' '}
-                  <span
-                    className="font-semibold"
-                    style={{ color: 'var(--text-color)' }}
-                  >
-                    {filteredSubmissions.length}
-                  </span>{' '}
-                  results
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    variant="secondary"
-                    size="sm"
-                  >
-                    <ChevronLeft size={16} />
-                    Previous
-                  </Button>
-                  <div className="flex gap-1">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                      p => {
-                        if (
-                          p === 1 ||
-                          p === totalPages ||
-                          Math.abs(p - page) <= 1
-                        ) {
-                          return (
-                            <Button
-                              key={p}
-                              onClick={() => setPage(p)}
-                              variant={page === p ? 'primary' : 'ghost'}
-                              size="sm"
-                              className="min-w-[36px]"
-                            >
-                              {p}
-                            </Button>
-                          )
-                        }
-                        if (
-                          (p === page - 2 && page > 2) ||
-                          (p === page + 2 && page < totalPages - 1)
-                        ) {
-                          return (
-                            <span
-                              key={`ellipsis-${p}`}
-                              className="px-2 py-1 text-sm"
-                              style={{ color: 'var(--muted-text)' }}
-                            >
-                              ...
-                            </span>
-                          )
-                        }
-                        return null
-                      }
-                    )}
-                  </div>
-                  <Button
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                    variant="secondary"
-                    size="sm"
-                  >
-                    Next
-                    <ChevronRight size={16} />
-                  </Button>
-                </div>
-              </div>
+                  {score} / {maxScore} points
+                </p>
+              )}
+              {resultStatus === 'scored' && score !== null && maxScore <= 0 && (
+                <p
+                  className="mt-2 text-lg font-semibold"
+                  style={{ color: 'var(--text-color)' }}
+                >
+                  {score} points
+                </p>
+              )}
+              {resultRow && (
+                <p
+                  className="mt-1 text-sm"
+                  style={{ color: 'var(--exam-muted)' }}
+                >
+                  {resultRow}
+                </p>
+              )}
+              {submittedAt && (
+                <p
+                  className="mt-1 text-sm"
+                  style={{ color: 'var(--exam-muted)' }}
+                >
+                  Submitted: {formatDateTime(submittedAt)}
+                </p>
+              )}
+              {resultStatus === 'pending' && (
+                <p
+                  className="mt-2 text-sm"
+                  style={{ color: 'var(--exam-warning)' }}
+                >
+                  Submission is being scored. Please check back later.
+                </p>
+              )}
+              {resultStatus === 'failed' && (
+                <p
+                  className="mt-2 text-sm"
+                  style={{ color: 'var(--exam-danger)' }}
+                >
+                  Scoring encountered an error. Please refresh or contact
+                  support.
+                </p>
+              )}
             </div>
-          )}
+          </div>
         </section>
+
+        {/* ─── Per-challenge breakdown ─── */}
+        {breakdown.length > 0 && (
+          <section
+            className="rounded-2xl border p-8"
+            style={{
+              borderColor: 'var(--exam-card-border)',
+              backgroundColor: 'var(--exam-card-bg)',
+              animation: 'exam-fade-in 0.5s ease 0.1s both',
+              boxShadow: 'var(--exam-card-shadow)',
+            }}
+          >
+            <div className="mb-6 flex items-center gap-2">
+              <div
+                className="h-6 w-1 rounded-full"
+                style={{ backgroundColor: 'var(--exam-accent)' }}
+              />
+              <h2
+                className="text-xl font-bold"
+                style={{ color: 'var(--text-color)' }}
+              >
+                Detailed Performance
+              </h2>
+            </div>
+
+            <div className="space-y-6">
+              {breakdown.map(item => {
+                const max = item.maxPoints
+                const ratio = max && max > 0 ? item.obtained / max : 0
+                const barColor = getScoreColor(ratio)
+                return (
+                  <div key={item.problemId} className="group">
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span
+                          className="text-sm font-semibold"
+                          style={{ color: 'var(--text-color)' }}
+                        >
+                          {item.challengeTitle}
+                        </span>
+                        <span
+                          className="text-xs"
+                          style={{ color: 'var(--exam-muted)' }}
+                        >
+                          {ratio === 1
+                            ? 'Perfect score'
+                            : ratio > 0
+                              ? 'Partial credit'
+                              : 'No points awarded'}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span
+                          className="text-lg font-bold"
+                          style={{ color: barColor }}
+                        >
+                          {item.obtained}
+                        </span>
+                        <span
+                          className="ml-1 text-sm"
+                          style={{ color: 'var(--exam-muted)' }}
+                        >
+                          / {max ?? '--'}
+                        </span>
+                      </div>
+                    </div>
+                    <div
+                      className="h-2.5 overflow-hidden rounded-full"
+                      style={{ backgroundColor: 'var(--exam-card-border)' }}
+                    >
+                      <div
+                        className="h-full rounded-full transition-all duration-1000 ease-out"
+                        style={{
+                          width: `${Math.round(ratio * 100)}%`,
+                          backgroundColor: barColor,
+                          boxShadow:
+                            ratio > 0 ? `0 0 10px ${barColor}40` : 'none',
+                        }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )}
       </div>
     </div>
   )

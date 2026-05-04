@@ -1,4 +1,4 @@
-﻿export type FunctionScalarType = 'integer' | 'number' | 'string' | 'boolean'
+export type FunctionScalarType = 'integer' | 'number' | 'string' | 'boolean'
 
 export type FunctionTypeNode =
   | { type: FunctionScalarType }
@@ -16,8 +16,4 @@ export interface FunctionSignature {
   returnType: FunctionTypeNode
 }
 
-export interface StarterCodeByLanguage {
-  cpp: string
-  java: string
-  python: string
-}
+export type StarterCodeByLanguage = Record<string, string>

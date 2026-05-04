@@ -8,6 +8,9 @@ interface MonacoEditorWrapperProps {
   readOnly?: boolean
   height?: string | number
   editorTheme?: string
+  fontSize?: number
+  lineHeight?: number
+  wordWrap?: 'on' | 'off'
 }
 
 const MonacoEditorWrapper: React.FC<MonacoEditorWrapperProps> = props => {

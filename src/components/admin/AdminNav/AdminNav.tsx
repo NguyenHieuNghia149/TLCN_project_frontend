@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Code,
+  Languages,
 } from 'lucide-react'
 import './AdminNav.scss'
 
@@ -31,7 +32,6 @@ const AdminNav: React.FC<AdminNavProps> = ({ isCollapsed, onToggle }) => {
   const navigate = useNavigate()
   const location = useLocation()
   const { logout, user } = useAuth()
-  // Internal state removed in favor of props
 
   const navItems: NavItem[] = [
     {
@@ -77,6 +77,12 @@ const AdminNav: React.FC<AdminNavProps> = ({ isCollapsed, onToggle }) => {
       icon: <Code size={20} />,
     },
     {
+      id: 'languages',
+      label: 'Manage Languages',
+      path: '/admin/languages',
+      icon: <Languages size={20} />,
+    },
+    {
       id: 'exams',
       label: 'Manage Exams',
       path: '/admin/exams',
@@ -84,9 +90,7 @@ const AdminNav: React.FC<AdminNavProps> = ({ isCollapsed, onToggle }) => {
     },
   ]
 
-  const isActive = (path: string) => {
-    return location.pathname === path
-  }
+  const isActive = (path: string) => location.pathname === path
 
   const handleLogout = () => {
     logout()
@@ -95,7 +99,6 @@ const AdminNav: React.FC<AdminNavProps> = ({ isCollapsed, onToggle }) => {
 
   return (
     <nav className={`admin-nav ${isCollapsed ? 'admin-nav--collapsed' : ''}`}>
-      {/* Logo */}
       <div className="admin-nav__header">
         <div className="admin-nav__logo">
           {!isCollapsed && <span>Admin Panel</span>}
@@ -109,7 +112,6 @@ const AdminNav: React.FC<AdminNavProps> = ({ isCollapsed, onToggle }) => {
         </button>
       </div>
 
-      {/* Navigation Items */}
       <ul className="admin-nav__list">
         {navItems
           .filter(item => {
@@ -134,11 +136,11 @@ const AdminNav: React.FC<AdminNavProps> = ({ isCollapsed, onToggle }) => {
           ))}
       </ul>
 
-      {/* Bottom Actions */}
       <div className="admin-nav__footer">
         <button
           className="admin-nav__action admin-nav__action--secondary"
           title={isCollapsed ? 'Settings' : ''}
+          onClick={() => navigate('/admin/languages')}
         >
           <Settings size={20} />
           {!isCollapsed && <span>Settings</span>}

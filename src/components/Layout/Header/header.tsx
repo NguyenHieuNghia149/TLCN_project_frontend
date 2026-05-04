@@ -7,6 +7,8 @@ import {
   Moon,
   Grid,
   ChevronDown,
+  Menu,
+  X,
 } from 'lucide-react'
 import { useAuth } from '../../../hooks/api/useAuth'
 import { useTheme } from '@/contexts/useTheme'
@@ -36,6 +38,7 @@ const Header: React.FC = () => {
   ]
 
   const [isProfileOpen, setIsProfileOpen] = React.useState(false)
+  const [isMobileNavOpen, setIsMobileNavOpen] = React.useState(false)
   const profileRef = React.useRef<HTMLDivElement | null>(null)
 
   React.useEffect(() => {
@@ -49,12 +52,16 @@ const Header: React.FC = () => {
     return () => document.removeEventListener('mousedown', onDocClick)
   }, [])
 
+  React.useEffect(() => {
+    setIsMobileNavOpen(false)
+  }, [location.pathname])
+
   return (
     <header className="main-header-layout w-full">
       <div className="w-full">
         <div className="flex items-center justify-between">
           {/* Logo and Navigation Section */}
-          <div className="nav-section-header max-[550]: flex items-center">
+          <div className="nav-section-header flex items-center">
             <Link to="/dashboard" className="flex items-center space-x-2">
               <span className="text-2xl font-bold">
                 <span className="text-foreground">Algo</span>
@@ -65,8 +72,23 @@ const Header: React.FC = () => {
             {/* Separator */}
             <div className="header-separator"></div>
 
+            <button
+              type="button"
+              className="mobile-nav-toggle"
+              aria-label={
+                isMobileNavOpen
+                  ? 'Close navigation menu'
+                  : 'Open navigation menu'
+              }
+              aria-controls="mobile-main-nav"
+              aria-expanded={isMobileNavOpen}
+              onClick={() => setIsMobileNavOpen(open => !open)}
+            >
+              {isMobileNavOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+
             {/* Navigation */}
-            <nav className="flex">
+            <nav className="header-nav flex">
               {navItems.map(item => (
                 <Link
                   key={item.path}
@@ -84,7 +106,7 @@ const Header: React.FC = () => {
           {/* Right Section - Search and Icons */}
           <div className="header-right-section flex items-center space-x-4">
             {/* Search Bar */}
-            <div className="relative">
+            <div className="header-search relative">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                 <Search className="h-5 w-5 text-muted-foreground" />
               </div>
@@ -97,7 +119,7 @@ const Header: React.FC = () => {
 
             {/* Utility Icons - Only show when authenticated; hide during loading to avoid flicker */}
             {!isLoading && isAuthenticated && (
-              <div className="flex items-center space-x-3">
+              <div className="header-utility-icons flex items-center space-x-3">
                 <button className="nav-icon text-foreground transition-colors hover:text-foreground">
                   <MessageCircle className="h-5 w-5" />
                 </button>
@@ -209,6 +231,25 @@ const Header: React.FC = () => {
             )}
           </div>
         </div>
+        {isMobileNavOpen && (
+          <nav
+            id="mobile-main-nav"
+            className="mobile-nav-menu"
+            aria-label="Mobile navigation"
+          >
+            {navItems.map(item => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`mobile-nav-menu__item ${
+                  location.pathname === item.path ? 'active' : ''
+                }`}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        )}
       </div>
     </header>
   )

@@ -3,37 +3,23 @@ import { describe, expect, it } from 'vitest'
 import {
   createInitialLanguageDrafts,
   getCodeForLanguage,
-  getLanguageLabel,
-  getLanguageValueFromLabel,
   mergeStoredLanguageDrafts,
   updateLanguageDraft,
 } from '@/utils/starterCode'
 
 describe('starterCode helpers', () => {
-  it('supports exactly cpp, java, and python labels', () => {
-    expect(getLanguageLabel('cpp')).toBe('C++')
-    expect(getLanguageLabel('java')).toBe('Java')
-    expect(getLanguageLabel('python')).toBe('Python')
-  })
+  const languages = ['cpp', 'java', 'python', 'javascript']
 
-  it('maps UI labels to backend language values', () => {
-    expect(getLanguageValueFromLabel('C++')).toBe('cpp')
-    expect(getLanguageValueFromLabel('Java')).toBe('java')
-    expect(getLanguageValueFromLabel('Python')).toBe('python')
-  })
-
-  it('creates initial drafts from backend starter code', () => {
-    const drafts = createInitialLanguageDrafts({
+  it('derives draft maps from the runtime language catalog instead of a fixed three-language list', () => {
+    const drafts = createInitialLanguageDrafts(languages, {
       cpp: 'cpp starter',
       java: 'java starter',
       python: 'python starter',
+      javascript: 'js starter',
     })
 
-    expect(drafts).toEqual({
-      cpp: 'cpp starter',
-      java: 'java starter',
-      python: 'python starter',
-    })
+    expect(Object.keys(drafts)).toEqual(['cpp', 'java', 'python', 'javascript'])
+    expect(drafts.javascript).toBe('js starter')
   })
 
   it('returns starter code when no user draft exists for a language', () => {
@@ -41,15 +27,16 @@ describe('starterCode helpers', () => {
       cpp: 'cpp starter',
       java: 'java starter',
       python: 'python starter',
+      javascript: 'js starter',
     }
 
     expect(
       getCodeForLanguage({
-        language: 'java',
+        language: 'javascript',
         drafts: {},
         starterCodeByLanguage,
       })
-    ).toBe('java starter')
+    ).toBe('js starter')
   })
 
   it('preserves user drafts when switching languages', () => {
@@ -57,6 +44,7 @@ describe('starterCode helpers', () => {
       cpp: 'cpp starter',
       java: 'java starter',
       python: 'python starter',
+      javascript: 'js starter',
     }
 
     const drafts = updateLanguageDraft({}, 'cpp', 'custom cpp solution')
@@ -71,24 +59,27 @@ describe('starterCode helpers', () => {
 
     expect(
       getCodeForLanguage({
-        language: 'python',
+        language: 'javascript',
         drafts,
         starterCodeByLanguage,
       })
-    ).toBe('python starter')
+    ).toBe('js starter')
   })
 
-  it('prefers starter code over legacy bootstrap-empty drafts', () => {
+  it('prefers starter code over untouched stored drafts', () => {
     const merged = mergeStoredLanguageDrafts({
+      languages,
       starterCodeByLanguage: {
         cpp: 'cpp starter',
         java: 'java starter',
         python: 'python starter',
+        javascript: 'js starter',
       },
       storedDrafts: {
         cpp: '',
         java: '',
         python: '',
+        javascript: '',
       },
     })
 
@@ -96,15 +87,18 @@ describe('starterCode helpers', () => {
       cpp: 'cpp starter',
       java: 'java starter',
       python: 'python starter',
+      javascript: 'js starter',
     })
   })
 
   it('preserves intentionally cleared drafts for touched languages', () => {
     const merged = mergeStoredLanguageDrafts({
+      languages,
       starterCodeByLanguage: {
         cpp: 'cpp starter',
         java: 'java starter',
         python: 'python starter',
+        javascript: 'js starter',
       },
       storedDrafts: {
         cpp: '',
@@ -117,6 +111,7 @@ describe('starterCode helpers', () => {
       cpp: '',
       java: 'custom java',
       python: 'python starter',
+      javascript: 'js starter',
     })
   })
 })

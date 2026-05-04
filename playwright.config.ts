@@ -15,6 +15,7 @@ dotenv.config({
 const frontendPort = Number(process.env.PLAYWRIGHT_FRONTEND_PORT ?? 3000)
 const baseURL =
   process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${frontendPort}`
+const workersFromEnv = Number(process.env.PLAYWRIGHT_WORKERS ?? '1')
 
 const browserExecutableCandidates = [
   process.env.PLAYWRIGHT_BROWSER_PATH,
@@ -37,7 +38,8 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers:
+    Number.isFinite(workersFromEnv) && workersFromEnv > 0 ? workersFromEnv : 1,
   reporter: process.env.CI
     ? [
         ['list'],

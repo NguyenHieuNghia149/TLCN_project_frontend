@@ -1,10 +1,12 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 
 import CodeEditorSection from '@/components/editor/CodeEditorSection'
 import ProblemHeader from '@/components/problem/ProblemHeader'
 import ProblemSection from '@/components/problem/ProblemSection'
+import { buildSubmissionLanguageOptions } from '@/constants/submissionLanguages'
+import { useLanguages } from '@/hooks/api/useLanguages'
 import { useProblemNavigation } from '@/hooks/common/useProblemNavigation'
 import { useLanguageDrafts } from '@/hooks/useLanguageDrafts'
 import { useSubmissionExecution } from '@/hooks/useSubmissionExecution'
@@ -32,6 +34,15 @@ export default function ProblemDetailPage({
   const splitPaneRef = useRef<HTMLDivElement | null>(null)
   const isDraggingSplitRef = useRef(false)
   const [problemPanelWidth, setProblemPanelWidth] = useState(60)
+  const { data: languages } = useLanguages()
+  const languageOptions = useMemo(
+    () => buildSubmissionLanguageOptions(languages),
+    [languages]
+  )
+  const activeLanguages = useMemo(
+    () => languageOptions.map(option => option.value),
+    [languageOptions]
+  )
 
   const reduxParticipationId = useSelector(
     (state: RootState) => state.exam?.currentParticipationId
@@ -50,6 +61,7 @@ export default function ProblemDetailPage({
   } = useLanguageDrafts({
     storageKey: editorStorageKey,
     legacyCodeStorageKey,
+    languages: activeLanguages,
     starterCodeByLanguage: problemData?.problem.starterCodeByLanguage,
   })
 
@@ -291,6 +303,8 @@ export default function ProblemDetailPage({
             activeTab={activeTab}
             onTabChange={setActiveTab}
             problemData={problemData || undefined}
+            solutionLanguageOptions={languageOptions}
+            preferredSolutionLanguage={selectedLanguage}
           />
         </div>
         <div
@@ -315,6 +329,7 @@ export default function ProblemDetailPage({
             onCodeChange={onCodeChange}
             selectedLanguage={selectedLanguage}
             onLanguageChange={setSelectedLanguage}
+            languageOptions={languageOptions}
             testCases={testCases}
             selectedTestCase={selectedTestCase}
             onTestCaseSelect={setSelectedTestCase}
