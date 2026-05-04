@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { FiArrowLeft } from 'react-icons/fi'
-import { Star, BookOpen } from 'lucide-react'
+import { Star, BookOpen, Check } from 'lucide-react'
 import { useLessons } from '../../hooks/api/useLessons'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import { createHtmlPreview } from '../../utils/htmlUtils'
@@ -160,18 +160,39 @@ const TopicLessonsPage: React.FC = () => {
               </div>
 
               <div className="topic-lesson-content">
-                <h3 className="topic-lesson-title">{lesson.title}</h3>
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <h3 className="topic-lesson-title flex-1">{lesson.title}</h3>
+                  {lesson.isLearned && (
+                    <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-green-500/20 px-2 py-1 text-xs font-medium text-green-600">
+                      <Check className="h-3 w-3" />
+                      Learned
+                    </span>
+                  )}
+                </div>
                 <p className="topic-lesson-description">
                   {createHtmlPreview(lesson.content || '', 100)}
                 </p>
 
                 <div className="topic-lesson-footer">
                   <button
-                    className="topic-lesson-button"
+                    className={`${
+                      lesson.isLearned
+                        ? 'topic-lesson-button-learned'
+                        : 'topic-lesson-button'
+                    }`}
                     onClick={() => handleStartLesson(lesson.id)}
                   >
-                    <BookOpen className="mr-2 h-4 w-4" />
-                    Start Lesson
+                    {lesson.isLearned ? (
+                      <>
+                        <Check className="mr-2 h-4 w-4" />
+                        Learned
+                      </>
+                    ) : (
+                      <>
+                        <BookOpen className="mr-2 h-4 w-4" />
+                        Start Lesson
+                      </>
+                    )}
                   </button>
                   <button
                     className="topic-lesson-favorite-button"

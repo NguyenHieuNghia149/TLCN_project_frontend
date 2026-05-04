@@ -37,6 +37,11 @@ import AdminChallengeList from '@/pages/admin/challenge/AdminChallengeList'
 import AdminCreateChallenge from '@/pages/admin/challenge/AdminCreateChallenge'
 import AdminExamList from '@/pages/admin/exam/AdminExamList'
 import AdminCreateExam from '@/pages/admin/exam/AdminCreateExam'
+import ManageRoadmap from '@/pages/admin/manageroadmap/ManageRoadmap'
+import RoadmapListPage from '@/pages/Roadmap/RoadmapListPage'
+import RoadmapDetailPage from '@/pages/Roadmap/RoadmapDetailPage'
+import UserRoadmapsPage from '@/pages/Roadmap/UserRoadmapsPage'
+import RoadmapSelectionPage from '@/pages/Roadmap/RoadmapSelectionPage'
 import ManageLanguages from '@/pages/admin/language/ManageLanguages'
 
 export const router = createBrowserRouter([
@@ -87,6 +92,18 @@ export const router = createBrowserRouter([
         <TeacherRoute>
           <AdminLayout>
             <ManageUser />
+          </AdminLayout>
+        </TeacherRoute>
+      </AdminThemeProvider>
+    ),
+  },
+  {
+    path: 'admin/roadmaps',
+    element: (
+      <AdminThemeProvider>
+        <TeacherRoute>
+          <AdminLayout>
+            <ManageRoadmap />
           </AdminLayout>
         </TeacherRoute>
       </AdminThemeProvider>
@@ -275,6 +292,34 @@ export const router = createBrowserRouter([
       {
         path: 'leaderboard',
         element: <Ranking />,
+      },
+      {
+        path: 'roadmaps',
+        element: <RoadmapListPage />,
+      },
+      {
+        path: 'roadmaps/:id',
+        element: (
+          <ProtectedRoute>
+            <RoadmapDetailPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'user/roadmaps',
+        element: (
+          <ProtectedRoute>
+            <UserRoadmapsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'roadmaps/select',
+        element: (
+          <ProtectedRoute>
+            <RoadmapSelectionPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'dashboard/bookmarks',
