@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import type { RootState } from '@/store/stores'
 import { setParticipation } from '@/store/slices/examSlice'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Clock, List, Send, Sun, Moon } from 'lucide-react'
+import { Clock, List, Sun, Moon, AlertTriangle } from 'lucide-react'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import Button from '@/components/common/Button/Button'
 import { Exam } from '@/types/exam.types'
@@ -55,6 +55,13 @@ const ExamChallengeDetail: React.FC = () => {
   )
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
   const [showTimeWarning, setShowTimeWarning] = useState(false)
+  const [showOneMinuteWarning, setShowOneMinuteWarning] = useState(false)
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false)
+  const [answeredChallengeIds, setAnsweredChallengeIds] = useState<Set<string>>(
+    new Set()
+  )
+  const submitConfirmDialogRef = useRef<HTMLDivElement | null>(null)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
   const [isJoined, setIsJoined] = useState(false)
   const [autosaveEnabled, setAutosaveEnabled] = useState(false)
   const [activeTab, setActiveTab] = useState<'question' | 'submissions'>(
@@ -101,6 +108,73 @@ const ExamChallengeDetail: React.FC = () => {
     resolvedExamId && reduxParticipationId
       ? `exam_workspace_mobile_panel_${resolvedExamId}_${reduxParticipationId}`
       : null
+
+  useEffect(() => {
+    if (!showSubmitConfirm) return
+
+    previousFocusRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null
+
+    const dialog = submitConfirmDialogRef.current
+    const focusableSelector =
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+
+    const getFocusableElements = () =>
+      dialog
+        ? Array.from(
+            dialog.querySelectorAll<HTMLElement>(focusableSelector)
+          ).filter(element => !element.hasAttribute('disabled'))
+        : []
+
+    const focusFirstControl = () => {
+      const firstFocusable = getFocusableElements()[0]
+      ;(firstFocusable ?? dialog)?.focus()
+    }
+
+    window.setTimeout(focusFirstControl, 0)
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setShowSubmitConfirm(false)
+        return
+      }
+
+      if (event.key !== 'Tab' || !dialog) return
+
+      const focusableElements = getFocusableElements()
+      if (focusableElements.length === 0) {
+        event.preventDefault()
+        dialog.focus()
+        return
+      }
+
+      const firstElement = focusableElements[0]
+      const lastElement = focusableElements[focusableElements.length - 1]
+
+      if (!dialog.contains(document.activeElement)) {
+        event.preventDefault()
+        firstElement.focus()
+        return
+      }
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault()
+        lastElement.focus()
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault()
+        firstElement.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      previousFocusRef.current?.focus()
+    }
+  }, [showSubmitConfirm])
 
   const refreshSubmissionData = useCallback(async () => {
     if (!resolvedExamId || !reduxParticipationId) return
@@ -327,6 +401,15 @@ const ExamChallengeDetail: React.FC = () => {
   // Trigger autosave on code change (integrated in useAutosaveSession effect)
   useEffect(() => {
     if (!autosaveEnabled) return
+    // Track current challenge as "answered" when code is non-empty
+    if (challengeId && code.trim().length > 0) {
+      setAnsweredChallengeIds(prev => {
+        if (prev.has(challengeId)) return prev
+        const next = new Set(prev)
+        next.add(challengeId)
+        return next
+      })
+    }
   }, [code, autosaveEnabled, challengeId])
 
   // Flush pending autosave on unmount
@@ -875,6 +958,19 @@ const ExamChallengeDetail: React.FC = () => {
 
             dispatch(setParticipation(participationUpdate))
           }
+
+          // Track answered challenges for mini-nav indicators
+          const currentAns = partData?.currentAnswers || partData?.answers || {}
+          if (currentAns && typeof currentAns === 'object') {
+            const ids = new Set<string>()
+            for (const [cid, val] of Object.entries(currentAns)) {
+              const entry = val as { sourceCode?: string } | undefined
+              if (entry?.sourceCode && entry.sourceCode.trim().length > 0) {
+                ids.add(cid)
+              }
+            }
+            setAnsweredChallengeIds(ids)
+          }
         } catch (e) {
           console.warn('Failed to recover participation from server', e)
         }
@@ -893,6 +989,11 @@ const ExamChallengeDetail: React.FC = () => {
         setShowTimeWarning(true)
         setTimeout(() => setShowTimeWarning(false), 5000)
       }
+      // Check for 1 minute warning
+      if (remaining === 60) {
+        setShowOneMinuteWarning(true)
+        setTimeout(() => setShowOneMinuteWarning(false), 5000)
+      }
 
       // If time already up -> auto submit
       if (remaining <= 0) {
@@ -909,6 +1010,11 @@ const ExamChallengeDetail: React.FC = () => {
         if (remaining === 5 * 60) {
           setShowTimeWarning(true)
           setTimeout(() => setShowTimeWarning(false), 5000)
+        }
+        // Check for 1 minute warning
+        if (remaining === 60) {
+          setShowOneMinuteWarning(true)
+          setTimeout(() => setShowOneMinuteWarning(false), 5000)
         }
         if (remaining <= 0) {
           if (countdownRef.current) {
@@ -1062,11 +1168,19 @@ const ExamChallengeDetail: React.FC = () => {
           </div>
           <div className="flex items-center gap-3">
             <div
-              className="flex items-center gap-2 rounded-lg px-3 py-2"
+              className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-all ${
+                timeRemaining !== null && timeRemaining <= 300
+                  ? 'exam-timer--critical'
+                  : timeRemaining !== null && timeRemaining <= 600
+                    ? 'exam-timer--warning'
+                    : 'exam-timer--normal'
+              }`}
               style={{
-                backgroundColor: 'var(--exam-toolbar-bg)',
                 border: '1px solid var(--surface-border)',
               }}
+              role="timer"
+              aria-live="polite"
+              aria-label={`Time remaining: ${timeRemaining !== null ? formatSeconds(timeRemaining) : 'calculating'}`}
             >
               <Clock size={16} style={{ color: 'var(--accent)' }} />
               <span className="text-sm" style={{ color: 'var(--muted-text)' }}>
@@ -1077,6 +1191,14 @@ const ExamChallengeDetail: React.FC = () => {
                     ? formatSeconds((exam.duration || 0) * 60)
                     : '00:00'}
               </span>
+              {timeRemaining !== null && timeRemaining <= 300 && (
+                <span
+                  className="text-xs font-semibold"
+                  style={{ color: 'var(--exam-danger)' }}
+                >
+                  Time running low
+                </span>
+              )}
               {/* {lastSavedAt && (
                 <div className="text-xs" style={{ color: 'var(--muted-text)', marginLeft: 8 }}>
                   Last saved: {formatTimeShort(lastSavedAt)}
@@ -1116,17 +1238,68 @@ const ExamChallengeDetail: React.FC = () => {
               View All Challenges
             </Button>
             <Button
-              onClick={() => {
-                void handleSubmitExam()
-              }}
-              variant="primary"
+              onClick={() => setShowSubmitConfirm(true)}
+              variant="secondary"
               size="sm"
-              icon={<Send size={16} />}
+              icon={<AlertTriangle size={16} />}
               aria-label="Submit exam"
+              style={{
+                borderColor: 'var(--exam-danger)',
+                color: 'var(--exam-danger)',
+              }}
             >
               Submit Exam
             </Button>
           </div>
+
+          {/* Mini challenge nav — desktop only */}
+          {!isMobileWorkspace &&
+            exam?.challenges &&
+            exam.challenges.length > 0 && (
+              <div
+                className="flex items-center gap-1 overflow-x-auto px-3 py-1.5"
+                style={{ scrollbarWidth: 'none' }}
+                role="tablist"
+                aria-label="Challenge navigation"
+              >
+                {exam.challenges.map((ch, index) => {
+                  const isCurrent = ch.id === challengeId
+                  const isAnswered = answeredChallengeIds.has(ch.id)
+                  return (
+                    <button
+                      key={ch.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={isCurrent}
+                      aria-label={`Challenge ${index + 1}${isAnswered ? ' (answered)' : ''}`}
+                      onClick={() => {
+                        navigate(
+                          `${examWorkspaceBasePath}${examSlug ? '/challenges' : '/challenge'}/${ch.id}`
+                        )
+                      }}
+                      className="relative flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-xs font-semibold transition-all"
+                      style={{
+                        backgroundColor: isCurrent
+                          ? 'var(--exam-accent)'
+                          : 'transparent',
+                        color: isCurrent ? '#fff' : 'var(--muted-text)',
+                        border: isCurrent
+                          ? 'none'
+                          : '1px solid var(--surface-border)',
+                      }}
+                    >
+                      {index + 1}
+                      {isAnswered && !isCurrent && (
+                        <span
+                          className="absolute -bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full"
+                          style={{ backgroundColor: 'var(--exam-success)' }}
+                        />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
         </div>
       </header>
 
@@ -1154,19 +1327,19 @@ const ExamChallengeDetail: React.FC = () => {
               <button
                 key={tab.key}
                 type="button"
-                className="rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-wide"
+                className="rounded-xl border px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-all"
                 style={{
                   borderColor:
                     mobileWorkspacePanel === tab.key
-                      ? 'var(--accent)'
+                      ? 'var(--exam-accent)'
                       : 'var(--surface-border)',
                   backgroundColor:
                     mobileWorkspacePanel === tab.key
-                      ? 'rgba(32, 215, 97, 0.14)'
+                      ? 'var(--exam-accent-subtle)'
                       : 'transparent',
                   color:
                     mobileWorkspacePanel === tab.key
-                      ? 'var(--accent)'
+                      ? 'var(--exam-accent)'
                       : 'var(--muted-text)',
                 }}
                 onClick={() => {
@@ -1327,6 +1500,127 @@ const ExamChallengeDetail: React.FC = () => {
             onSubmitExam={handleSubmitExam}
           />
         )}
+
+      {/* 1-minute warning modal */}
+      {showOneMinuteWarning && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+        >
+          <div
+            className="mx-4 w-full max-w-sm rounded-xl border p-6 text-center"
+            style={{
+              backgroundColor: 'var(--background-color)',
+              borderColor: 'var(--exam-danger)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+            }}
+            role="alertdialog"
+            aria-label="One minute warning"
+          >
+            <AlertTriangle
+              size={36}
+              style={{ color: 'var(--exam-danger)', margin: '0 auto' }}
+            />
+            <h2
+              className="mt-3 text-lg font-semibold"
+              style={{ color: 'var(--text-color)' }}
+            >
+              1 Minute Remaining
+            </h2>
+            <p className="mt-2 text-sm" style={{ color: 'var(--muted-text)' }}>
+              Your exam will be automatically submitted when time runs out.
+            </p>
+            <Button
+              onClick={() => setShowOneMinuteWarning(false)}
+              variant="secondary"
+              size="sm"
+              className="mt-4"
+            >
+              Dismiss
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Submit confirm modal */}
+      {showSubmitConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+        >
+          <div
+            ref={submitConfirmDialogRef}
+            className="mx-4 w-full max-w-sm rounded-xl border p-6 shadow-2xl"
+            style={{
+              backgroundColor: 'var(--background-color)',
+              borderColor: 'var(--exam-card-border)',
+            }}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="submit-confirm-title"
+            aria-describedby="submit-confirm-description"
+            tabIndex={-1}
+          >
+            <div className="text-center">
+              <AlertTriangle
+                size={36}
+                style={{ color: 'var(--exam-warning)', margin: '0 auto' }}
+              />
+              <h2
+                id="submit-confirm-title"
+                className="mt-3 text-lg font-semibold"
+                style={{ color: 'var(--text-color)' }}
+              >
+                Submit Exam?
+              </h2>
+              <p
+                id="submit-confirm-description"
+                className="mt-2 text-sm"
+                style={{ color: 'var(--muted-text)' }}
+              >
+                You have attempted {answeredChallengeIds.size}/
+                {exam?.challenges?.length || 0} challenges.
+                {timeRemaining !== null && exam?.duration && (
+                  <>
+                    {' '}
+                    Time spent:{' '}
+                    {Math.round((exam.duration * 60 - timeRemaining) / 60)}{' '}
+                    minutes.
+                  </>
+                )}
+              </p>
+              <p
+                className="mt-2 text-xs font-medium"
+                style={{ color: 'var(--exam-danger)' }}
+              >
+                This action cannot be undone.
+              </p>
+            </div>
+            <div className="mt-5 flex items-center justify-center gap-3">
+              <Button
+                type="button"
+                onClick={() => setShowSubmitConfirm(false)}
+                variant="secondary"
+                size="sm"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  setShowSubmitConfirm(false)
+                  void handleSubmitExam({ force: true })
+                }}
+                variant="primary"
+                size="sm"
+                style={{ backgroundColor: 'var(--exam-danger)' }}
+              >
+                Submit Now
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

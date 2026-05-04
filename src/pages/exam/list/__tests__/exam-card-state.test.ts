@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { getLearnerExamCardState } from '@/pages/exam/list/exam-card-state'
+import {
+  getLearnerExamCardState,
+  getLearnerExamPrimaryAction,
+} from '@/pages/exam/list/exam-card-state'
 
 describe('getLearnerExamCardState', () => {
   it('marks closed exam as non-enterable', () => {
@@ -37,5 +40,48 @@ describe('getLearnerExamCardState', () => {
 
     expect(state.lifecycle).toBe('cancelled')
     expect(state.canEnter).toBe(false)
+  })
+})
+
+describe('getLearnerExamPrimaryAction', () => {
+  it('continues only when the learner has an in-progress attempt', () => {
+    const action = getLearnerExamPrimaryAction({
+      lifecycle: 'active',
+      latestParticipationStatus: 'IN_PROGRESS',
+      hasInProgressParticipation: true,
+      attemptsUsed: 1,
+      maxAttempts: 2,
+    })
+
+    expect(action.kind).toBe('continue')
+    expect(action.label).toBe('Continue Exam')
+  })
+
+  it('shows results for an active exam after the final submitted attempt', () => {
+    const action = getLearnerExamPrimaryAction({
+      lifecycle: 'active',
+      latestParticipationStatus: 'SUBMITTED',
+      hasInProgressParticipation: false,
+      hasCompletedParticipation: true,
+      attemptsUsed: 2,
+      maxAttempts: 2,
+    })
+
+    expect(action.kind).toBe('results')
+    expect(action.label).toBe('View Results')
+  })
+
+  it('allows a new attempt after a submitted attempt when attempts remain', () => {
+    const action = getLearnerExamPrimaryAction({
+      lifecycle: 'active',
+      latestParticipationStatus: 'SUBMITTED',
+      hasInProgressParticipation: false,
+      hasCompletedParticipation: true,
+      attemptsUsed: 1,
+      maxAttempts: 2,
+    })
+
+    expect(action.kind).toBe('enter')
+    expect(action.label).toBe('Enter Exam')
   })
 })

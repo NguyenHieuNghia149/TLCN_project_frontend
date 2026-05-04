@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  // Plus,
   Calendar,
   Clock,
   MoreVertical,
   Search,
   ChevronLeft,
   ChevronRight,
+  CircleDot,
+  ArrowRight,
+  Eye,
 } from 'lucide-react'
 import Input from '@/components/common/Input/Input'
 import { useAuth } from '@/hooks/api/useAuth'
@@ -16,11 +18,125 @@ import LoadingSpinner from '@/components/common/LoadingSpinner'
 import Button from '@/components/common/Button/Button'
 import { examService } from '@/services/api/exam.service'
 import { isTeacherOrOwner } from '@/utils/roleUtils'
-import { getLearnerExamCardState } from '@/pages/exam/list/exam-card-state'
+import {
+  getLearnerExamCardState,
+  getLearnerExamPrimaryAction,
+  LearnerExamLifecycle,
+  LearnerExamPrimaryAction,
+} from '@/pages/exam/list/exam-card-state'
 import { filterVisibleListExams } from '@/pages/exam/list/exam-list-visibility'
 import './ExamList.scss'
 
 const PAGE_SIZE = 6
+
+/* ─── Countdown / relative time helpers ─── */
+
+function formatRelativeTime(targetMs: number, nowMs: number): string {
+  const diffMs = targetMs - nowMs
+  const absDiffMs = Math.abs(diffMs)
+  const isPast = diffMs < 0
+
+  if (absDiffMs < 60_000) return isPast ? 'just now' : 'in less than a minute'
+
+  const minutes = Math.floor(absDiffMs / 60_000)
+  const hours = Math.floor(absDiffMs / 3_600_000)
+  const days = Math.floor(absDiffMs / 86_400_000)
+
+  if (days > 7) {
+    return new Date(targetMs).toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    })
+  }
+  if (days >= 1) {
+    const label = `${days}d ${hours % 24}h`
+    return isPast ? `${label} ago` : `in ${label}`
+  }
+  if (hours >= 1) {
+    const label = `${hours}h ${minutes % 60}m`
+    return isPast ? `${label} ago` : `in ${label}`
+  }
+  const label = `${minutes}m`
+  return isPast ? `${label} ago` : `in ${label}`
+}
+
+function getExamCountdownText(
+  exam: Exam,
+  lifecycle: LearnerExamLifecycle,
+  nowMs: number
+): string | null {
+  const startMs = new Date(exam.startDate).getTime()
+  const endMs = new Date(exam.endDate).getTime()
+
+  if (lifecycle === 'upcoming') {
+    return `Starts ${formatRelativeTime(startMs, nowMs)}`
+  }
+  if (lifecycle === 'active') {
+    const timeLeft = endMs - nowMs
+    if (timeLeft <= 86_400_000) {
+      return `Ends ${formatRelativeTime(endMs, nowMs)}`
+    }
+    return `Ends ${new Date(endMs).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+  }
+  if (lifecycle === 'closed') {
+    return `Ended ${new Date(endMs).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+  }
+  return null
+}
+
+/* ─── CTA helpers ─── */
+
+function getStudentCTA(action: LearnerExamPrimaryAction): {
+  label: string
+  variant: 'primary' | 'secondary' | 'ghost'
+  disabled: boolean
+  icon: React.ReactNode
+} {
+  switch (action.kind) {
+    case 'enter':
+    case 'continue':
+      return {
+        label: action.label,
+        variant: action.label === 'View Details' ? 'secondary' : 'primary',
+        disabled: false,
+        icon: <ArrowRight size={16} />,
+      }
+    case 'results':
+      return {
+        label: action.label,
+        variant: 'secondary',
+        disabled: false,
+        icon: <Eye size={16} />,
+      }
+    case 'disabled':
+      return {
+        label: action.label,
+        variant: action.label === 'Not Started' ? 'secondary' : 'ghost',
+        disabled: true,
+        icon: action.label === 'Not Started' ? <Clock size={16} /> : null,
+      }
+    default:
+      return {
+        label: 'View',
+        variant: 'secondary',
+        disabled: false,
+        icon: null,
+      }
+  }
+}
+
+/* ─── Status dot color map ─── */
+const statusDotColors: Record<LearnerExamLifecycle, string> = {
+  active: 'var(--exam-success)',
+  upcoming: 'var(--exam-warning)',
+  closed: 'var(--exam-danger)',
+  cancelled: 'var(--exam-danger)',
+  draft: 'var(--exam-muted)',
+  archived: 'var(--exam-muted)',
+}
+
+/* ─── Main component ─── */
 
 const ExamList: React.FC = () => {
   const navigate = useNavigate()
@@ -51,6 +167,15 @@ const ExamList: React.FC = () => {
     () => new Set()
   )
   const canManageExam = isTeacherOrOwner(user)
+
+  // Global countdown tick — 1 interval for all cards (60s)
+  const [, setCountdownTick] = useState(0)
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setCountdownTick(t => t + 1)
+    }, 60_000)
+    return () => window.clearInterval(id)
+  }, [])
 
   const hydrateLearnerAccessModes = useCallback(
     async (items: Exam[]): Promise<Exam[]> => {
@@ -238,25 +363,6 @@ const ExamList: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [page])
 
-  const stats = {
-    // total comes from server pagination
-    total: total,
-    // upcoming/active are calculated from current page items; not global counts
-    upcoming: filteredExams.filter(
-      exam => Date.now() < new Date(exam.startDate).getTime()
-    ).length,
-    active: filteredExams.filter(exam => {
-      const now = Date.now()
-      const start = new Date(exam.startDate).getTime()
-      const end = new Date(exam.endDate).getTime()
-      return (
-        now >= start &&
-        now <= end &&
-        (exam.status === 'published' || exam.status === undefined)
-      )
-    }).length,
-  }
-
   if (loading && !hasLoadedOnce) {
     return <LoadingSpinner />
   }
@@ -270,305 +376,243 @@ const ExamList: React.FC = () => {
         transition: 'background-color 200ms ease, color 200ms ease',
       }}
     >
-      <div className="mx-auto max-w-[1400px] px-4 py-8 md:py-12">
-        <section
-          className="rounded-lg border p-6"
-          style={{
-            backgroundColor: 'var(--card-color)',
-            borderColor: 'var(--surface-border)',
-            transition: 'background-color 200ms ease, border-color 200ms ease',
-          }}
-        >
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p
-                className="text-xs uppercase tracking-wider"
-                style={{ color: 'var(--muted-text)' }}
-              >
-                Assessment Hub
-              </p>
-              <h1
-                className="mt-2 text-2xl font-semibold"
-                style={{ color: 'var(--text-color)' }}
-              >
-                Exam Control Center
-              </h1>
-              <p
-                className="mt-2 text-sm"
-                style={{ color: 'var(--muted-text)' }}
-              >
-                Craft focused coding exams and monitor cohort performance.
-              </p>
-            </div>
-            {/* {canManageExam && (
-              <Button
-                onClick={() => navigate('/exam/create')}
-                variant="primary"
-                size="md"
-                icon={<Plus size={16} />}
-              >
-                New Exam
-              </Button>
-            )}  */}
-          </div>
-
-          <div className="mt-6 grid gap-4 sm:grid-cols-3">
-            <StatPill label="Total Exams" value={stats.total} />
-            <StatPill
-              label="Active Now"
-              value={stats.active}
-              accent="emerald"
-            />
-            <StatPill label="Upcoming" value={stats.upcoming} accent="amber" />
-          </div>
+      <div className="mx-auto max-w-[1200px] px-4 py-8 md:py-12">
+        {/* ─── Header ─── */}
+        <section className="mb-8">
+          <h1
+            className="text-3xl font-bold"
+            style={{ color: 'var(--text-color)' }}
+          >
+            Exams
+          </h1>
+          <p className="mt-2 text-sm" style={{ color: 'var(--exam-muted)' }}>
+            Your upcoming and past exams
+          </p>
         </section>
 
-        <section className="mt-8 space-y-6">
-          <div
-            className="rounded-lg border p-4"
-            style={{
-              borderColor: 'var(--surface-border)',
-              backgroundColor: 'var(--exam-panel-bg)',
-              transition:
-                'background-color 200ms ease, border-color 200ms ease',
-            }}
-          >
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex-1">
-                <Input
-                  value={searchInput}
-                  onChange={event => setSearchInput(event.target.value)}
-                  placeholder="Search exam by title..."
-                  icon={<Search size={18} />}
-                  className="w-full"
-                />
-                {isSearchDebouncing ? (
-                  <p
-                    className="mt-2 text-xs"
-                    style={{ color: 'var(--muted-text)' }}
-                  >
-                    Updating results...
-                  </p>
-                ) : null}
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <FilterChip
-                  label="All exams"
-                  active={filterType === 'all'}
-                  onClick={() => setFilterType('all')}
-                />
-                {/* {canManageExam && (
-                  <FilterChip
-                    label="My exams"
-                    active={filterType === 'my'}
-                    onClick={() => setFilterType('my')}
-                  />
-                )} */}
-                <FilterChip
-                  label="Participated"
-                  active={filterType === 'participated'}
-                  onClick={() => setFilterType('participated')}
-                />
-              </div>
+        {/* ─── Search + Filter ─── */}
+        <section className="mb-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-md flex-1">
+              <Input
+                value={searchInput}
+                onChange={event => setSearchInput(event.target.value)}
+                placeholder="Search exam by title..."
+                icon={<Search size={18} />}
+                className="w-full"
+              />
+              {isSearchDebouncing ? (
+                <p
+                  className="mt-2 text-xs"
+                  style={{ color: 'var(--exam-muted)' }}
+                >
+                  Updating results...
+                </p>
+              ) : null}
             </div>
-          </div>
-
-          {error ? (
             <div
-              className="rounded-lg border p-4"
+              className="flex gap-1 rounded-lg border p-1"
               style={{
-                borderColor: 'rgba(248, 113, 113, 0.5)',
-                backgroundColor: 'rgba(248, 113, 113, 0.08)',
+                borderColor: 'var(--exam-card-border)',
+                backgroundColor: 'var(--exam-card-bg)',
               }}
             >
-              <p className="text-sm font-semibold text-rose-300">
-                Failed to load exams.
-              </p>
-              <p className="mt-1 text-sm text-rose-200">
-                Please check your connection and try again.
-              </p>
-              <Button
-                onClick={() => setReloadTick(current => current + 1)}
-                variant="secondary"
-                size="sm"
-                className="mt-3"
-              >
-                Retry
-              </Button>
+              <FilterTab
+                label="All Exams"
+                active={filterType === 'all'}
+                onClick={() => setFilterType('all')}
+              />
+              <FilterTab
+                label="Participated"
+                active={filterType === 'participated'}
+                onClick={() => setFilterType('participated')}
+              />
             </div>
-          ) : null}
-
-          {filteredExams.length === 0 ? (
-            error ? null : (
-              <div
-                className="rounded-md border-dashed p-8 text-center"
-                style={{
-                  borderColor: 'var(--surface-border)',
-                  transition: 'border-color 200ms ease',
-                }}
-              >
-                <p
-                  className="text-lg font-semibold"
-                  style={{ color: 'var(--text-color)' }}
-                >
-                  No exams found
-                </p>
-                <p
-                  className="mt-2 text-sm"
-                  style={{ color: 'var(--muted-text)' }}
-                >
-                  {canManageExam
-                    ? 'Create your first curated exam to get started.'
-                    : 'Please check back soon or contact your instructor.'}
-                </p>
-              </div>
-            )
-          ) : (
-            <>
-              <div className="grid gap-6 md:grid-cols-2">
-                {displayedExams.map(exam => {
-                  const canManageThisExam =
-                    canManageExam || exam.createdBy === user?.id
-                  return (
-                    <ExamCard
-                      key={exam.id}
-                      exam={exam}
-                      isOwner={canManageThisExam}
-                      canViewResults={
-                        canManageThisExam ||
-                        filterType === 'participated' ||
-                        participatedExamIds.has(exam.id)
-                      }
-                      onView={() =>
-                        canManageThisExam
-                          ? navigate(`/exam/${exam.id}/manage`)
-                          : navigate(`/exam/${exam.slug || exam.id}`)
-                      }
-                      onResults={() =>
-                        canManageThisExam
-                          ? navigate(`/exam/${exam.id}/results/manage`)
-                          : navigate(`/exam/${exam.slug || exam.id}/results`)
-                      }
-                      onTryExam={() =>
-                        navigate(`/exam/${exam.slug || exam.id}`)
-                      }
-                    />
-                  )
-                })}
-              </div>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div
-                  className="mt-6 flex flex-col gap-4 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"
-                  style={{ borderColor: 'var(--surface-border)' }}
-                >
-                  <div
-                    className="text-sm"
-                    style={{ color: 'var(--muted-text)' }}
-                  >
-                    Showing {(page - 1) * PAGE_SIZE + 1} to{' '}
-                    {Math.min(page * PAGE_SIZE, total)} of {total} exams
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      onClick={() => setPage(p => Math.max(1, p - 1))}
-                      disabled={page === 1}
-                      variant="secondary"
-                      size="sm"
-                      icon={<ChevronLeft size={16} />}
-                    >
-                      Previous
-                    </Button>
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                        pageNum => {
-                          if (
-                            pageNum === 1 ||
-                            pageNum === totalPages ||
-                            (pageNum >= Math.max(1, page - 1) &&
-                              pageNum <= Math.min(totalPages, page + 1))
-                          ) {
-                            return (
-                              <button
-                                key={pageNum}
-                                onClick={() => setPage(pageNum)}
-                                className="min-w-[2.5rem] rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
-                                style={{
-                                  borderColor:
-                                    page === pageNum
-                                      ? 'var(--accent)'
-                                      : 'var(--surface-border)',
-                                  backgroundColor:
-                                    page === pageNum
-                                      ? 'rgba(32, 215, 97, 0.1)'
-                                      : 'transparent',
-                                  color:
-                                    page === pageNum
-                                      ? 'var(--accent)'
-                                      : 'var(--text-color)',
-                                }}
-                                onMouseEnter={e => {
-                                  if (page !== pageNum) {
-                                    e.currentTarget.style.backgroundColor =
-                                      'var(--exam-panel-bg)'
-                                  }
-                                }}
-                                onMouseLeave={e => {
-                                  if (page !== pageNum) {
-                                    e.currentTarget.style.backgroundColor =
-                                      'transparent'
-                                  }
-                                }}
-                              >
-                                {pageNum}
-                              </button>
-                            )
-                          } else if (
-                            pageNum === page - 2 ||
-                            pageNum === page + 2
-                          ) {
-                            return (
-                              <span
-                                key={pageNum}
-                                className="px-2 text-sm"
-                                style={{ color: 'var(--muted-text)' }}
-                              >
-                                ...
-                              </span>
-                            )
-                          }
-                          return null
-                        }
-                      )}
-                    </div>
-                    <Button
-                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                      disabled={page === totalPages}
-                      variant="secondary"
-                      size="sm"
-                    >
-                      <span className="flex items-center gap-2">
-                        Next
-                        <ChevronRight size={16} />
-                      </span>
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
+          </div>
         </section>
+
+        {/* ─── Error state ─── */}
+        {error ? (
+          <div
+            className="rounded-xl border p-5"
+            style={{
+              borderColor: 'var(--exam-danger-subtle)',
+              backgroundColor: 'var(--exam-danger-subtle)',
+            }}
+          >
+            <p
+              className="text-sm font-semibold"
+              style={{ color: 'var(--exam-danger)' }}
+            >
+              Failed to load exams.
+            </p>
+            <p className="mt-1 text-sm" style={{ color: 'var(--exam-muted)' }}>
+              Please check your connection and try again.
+            </p>
+            <Button
+              onClick={() => setReloadTick(current => current + 1)}
+              variant="secondary"
+              size="sm"
+              className="mt-3"
+            >
+              Retry
+            </Button>
+          </div>
+        ) : null}
+
+        {/* ─── Empty state ─── */}
+        {filteredExams.length === 0 ? (
+          error ? null : (
+            <div
+              className="rounded-xl border border-dashed p-10 text-center"
+              style={{
+                borderColor: 'var(--exam-card-border)',
+                transition: 'border-color 200ms ease',
+              }}
+            >
+              <p
+                className="text-lg font-semibold"
+                style={{ color: 'var(--text-color)' }}
+              >
+                No exams found
+              </p>
+              <p
+                className="mt-2 text-sm"
+                style={{ color: 'var(--exam-muted)' }}
+              >
+                {canManageExam
+                  ? 'Create your first exam to get started.'
+                  : 'Please check back soon or contact your instructor.'}
+              </p>
+            </div>
+          )
+        ) : (
+          <>
+            {/* ─── Exam grid ─── */}
+            <div className="grid gap-5 md:grid-cols-2">
+              {displayedExams.map(exam => {
+                const canManageThisExam =
+                  canManageExam || exam.createdBy === user?.id
+                return (
+                  <ExamCard
+                    key={exam.id}
+                    exam={exam}
+                    isOwner={canManageThisExam}
+                    participated={participatedExamIds.has(exam.id)}
+                    onEnter={() =>
+                      canManageThisExam
+                        ? navigate(`/exam/${exam.id}/manage`)
+                        : navigate(`/exam/${exam.slug || exam.id}`)
+                    }
+                    onResults={() =>
+                      canManageThisExam
+                        ? navigate(`/exam/${exam.id}/results/manage`)
+                        : navigate(`/exam/${exam.slug || exam.id}/results`)
+                    }
+                    onTryExam={() => navigate(`/exam/${exam.slug || exam.id}`)}
+                  />
+                )
+              })}
+            </div>
+
+            {/* ─── Pagination ─── */}
+            {totalPages > 1 && (
+              <div
+                className="mt-8 flex flex-col gap-4 border-t pt-5 sm:flex-row sm:items-center sm:justify-between"
+                style={{ borderColor: 'var(--exam-card-border)' }}
+              >
+                <div className="text-sm" style={{ color: 'var(--exam-muted)' }}>
+                  Showing {(page - 1) * PAGE_SIZE + 1} to{' '}
+                  {Math.min(page * PAGE_SIZE, total)} of {total} exams
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    variant="secondary"
+                    size="sm"
+                    icon={<ChevronLeft size={16} />}
+                  >
+                    Previous
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                      pageNum => {
+                        if (
+                          pageNum === 1 ||
+                          pageNum === totalPages ||
+                          (pageNum >= Math.max(1, page - 1) &&
+                            pageNum <= Math.min(totalPages, page + 1))
+                        ) {
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setPage(pageNum)}
+                              className="min-w-[2.5rem] rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors"
+                              style={{
+                                borderColor:
+                                  page === pageNum
+                                    ? 'var(--exam-accent)'
+                                    : 'var(--exam-card-border)',
+                                backgroundColor:
+                                  page === pageNum
+                                    ? 'var(--exam-accent-subtle)'
+                                    : 'transparent',
+                                color:
+                                  page === pageNum
+                                    ? 'var(--exam-accent)'
+                                    : 'var(--text-color)',
+                              }}
+                            >
+                              {pageNum}
+                            </button>
+                          )
+                        } else if (
+                          pageNum === page - 2 ||
+                          pageNum === page + 2
+                        ) {
+                          return (
+                            <span
+                              key={pageNum}
+                              className="px-2 text-sm"
+                              style={{ color: 'var(--exam-muted)' }}
+                            >
+                              ...
+                            </span>
+                          )
+                        }
+                        return null
+                      }
+                    )}
+                  </div>
+                  <Button
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    variant="secondary"
+                    size="sm"
+                  >
+                    <span className="flex items-center gap-2">
+                      Next
+                      <ChevronRight size={16} />
+                    </span>
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   )
 }
 
+/* ─── ExamCard ─── */
+
 interface ExamCardProps {
   exam: Exam
   isOwner: boolean
-  canViewResults: boolean
-  onView: () => void
+  participated: boolean
+  onEnter: () => void
   onResults: () => void
   onTryExam: () => void
 }
@@ -576,8 +620,8 @@ interface ExamCardProps {
 const ExamCard: React.FC<ExamCardProps> = ({
   exam,
   isOwner,
-  canViewResults,
-  onView,
+  participated,
+  onEnter,
   onResults,
   onTryExam,
 }) => {
@@ -595,79 +639,71 @@ const ExamCard: React.FC<ExamCardProps> = ({
     startDate: exam.startDate,
     endDate: exam.endDate,
   })
-  const isHardBlockedLifecycle =
-    examState.lifecycle === 'closed' ||
-    examState.lifecycle === 'cancelled' ||
-    examState.lifecycle === 'archived' ||
-    examState.lifecycle === 'draft'
-  const isLearnerEnterDisabled = !isOwner && isHardBlockedLifecycle
-  const learnerCtaLabel =
-    examState.lifecycle === 'active' ? 'Enter exam' : 'View exam'
 
-  const statusStylesByLifecycle: Record<
-    ReturnType<typeof getLearnerExamCardState>['lifecycle'],
-    { border: string; background: string; color: string }
-  > = {
-    active: {
-      border: 'rgba(16, 185, 129, 0.4)',
-      background: 'rgba(16, 185, 129, 0.1)',
-      color: '#10b981',
-    },
-    upcoming: {
-      border: 'rgba(245, 158, 11, 0.4)',
-      background: 'rgba(245, 158, 11, 0.1)',
-      color: '#f59e0b',
-    },
-    closed: {
-      border: 'rgba(248, 113, 113, 0.35)',
-      background: 'rgba(248, 113, 113, 0.08)',
-      color: '#f87171',
-    },
-    cancelled: {
-      border: 'rgba(244, 63, 94, 0.35)',
-      background: 'rgba(244, 63, 94, 0.08)',
-      color: '#fb7185',
-    },
-    draft: {
-      border: 'rgba(148, 163, 184, 0.35)',
-      background: 'rgba(148, 163, 184, 0.08)',
-      color: '#cbd5e1',
-    },
-    archived: {
-      border: 'rgba(148, 163, 184, 0.35)',
-      background: 'rgba(148, 163, 184, 0.08)',
-      color: '#94a3b8',
-    },
+  const nowMs = Date.now()
+  const countdownText = getExamCountdownText(exam, examState.lifecycle, nowMs)
+  const hasParticipationSummary =
+    exam.attemptsUsed !== undefined ||
+    exam.latestParticipationStatus !== undefined ||
+    exam.hasInProgressParticipation !== undefined ||
+    exam.hasCompletedParticipation !== undefined
+  const attemptsUsed = hasParticipationSummary
+    ? Number(exam.attemptsUsed ?? 0)
+    : participated
+      ? 1
+      : 0
+  const primaryAction = getLearnerExamPrimaryAction({
+    lifecycle: examState.lifecycle,
+    attemptsUsed,
+    maxAttempts: exam.maxAttempts,
+    latestParticipationStatus: exam.latestParticipationStatus ?? null,
+    hasInProgressParticipation: exam.hasInProgressParticipation ?? false,
+    hasCompletedParticipation:
+      exam.hasCompletedParticipation ??
+      (!hasParticipationSummary && participated),
+  })
+  const studentCta = getStudentCTA(primaryAction)
+  const dotColor = statusDotColors[examState.lifecycle]
+
+  const handlePrimaryCta = () => {
+    if (isOwner) {
+      onEnter()
+      return
+    }
+    if (primaryAction.kind === 'results') {
+      onResults()
+    } else {
+      onEnter()
+    }
   }
-
-  const statusStyle = statusStylesByLifecycle[examState.lifecycle]
 
   return (
     <div
-      className="group relative overflow-hidden rounded-2xl border p-6 transition-all duration-200 hover:-translate-y-0.5"
+      className="exam-card-v2"
       style={{
-        borderColor: 'var(--surface-border)',
-        backgroundColor: 'var(--card-color)',
-        boxShadow: '0 14px 28px rgba(0, 0, 0, 0.14)',
+        backgroundColor: 'var(--exam-card-bg)',
+        borderColor: 'var(--exam-card-border)',
+        boxShadow: 'var(--exam-card-shadow)',
       }}
     >
-      <div className="relative z-10 space-y-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div
-              className="flex items-center gap-2 text-xs uppercase tracking-wider"
-              style={{ color: 'var(--muted-text)' }}
+      <div className="exam-card-v2__content">
+        {/* Top: Status dot + badge + menu */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span
+              className="exam-card-v2__dot"
+              style={{ backgroundColor: dotColor }}
+              aria-hidden="true"
+            />
+            <span
+              className="exam-card-v2__badge"
+              style={{
+                color: dotColor,
+                backgroundColor: `color-mix(in srgb, ${dotColor} 12%, transparent)`,
+              }}
             >
-              <span>{formatDate(exam.startDate)}</span>
-              <span>•</span>
-              <span>{exam.duration}m</span>
-            </div>
-            <h3
-              className="mt-2 text-xl font-semibold"
-              style={{ color: 'var(--text-color)' }}
-            >
-              {exam.title}
-            </h3>
+              {examState.badgeLabel}
+            </span>
           </div>
           {isOwner && (
             <div className="relative">
@@ -676,39 +712,41 @@ const ExamCard: React.FC<ExamCardProps> = ({
                 variant="ghost"
                 className="rounded-full p-2"
                 size="sm"
+                aria-label="Exam options"
               >
-                <MoreVertical size={18} />
+                <MoreVertical size={16} />
               </Button>
               {showMenu && (
                 <div
-                  className="absolute right-0 mt-2 w-44 rounded-xl border p-2 text-sm shadow-2xl"
+                  className="absolute right-0 z-20 mt-1 w-40 rounded-xl border p-1.5 text-sm shadow-2xl"
                   style={{
-                    backgroundColor: 'var(--card-color)',
-                    borderColor: 'var(--surface-border)',
+                    backgroundColor: 'var(--exam-card-bg)',
+                    borderColor: 'var(--exam-card-border)',
                   }}
                 >
                   <Button
-                    className="flex w-full items-center rounded-xl px-3 py-2 text-left"
-                    onClick={onView}
+                    className="flex w-full items-center rounded-lg px-3 py-2 text-left"
+                    onClick={onEnter}
                     variant="ghost"
                     style={{ color: 'var(--text-color)' }}
                   >
-                    Edit exam
+                    Manage exam
                   </Button>
                   <Button
-                    className="flex w-full items-center rounded-xl px-3 py-2 text-left"
+                    className="flex w-full items-center rounded-lg px-3 py-2 text-left"
                     onClick={onResults}
                     variant="ghost"
                     style={{ color: 'var(--text-color)' }}
-                    disabled={!canViewResults}
                   >
                     View results
                   </Button>
                   <Button
-                    className="flex w-full items-center rounded-xl px-3 py-2 text-left text-rose-500"
-                    variant="outline"
+                    className="flex w-full items-center rounded-lg px-3 py-2 text-left"
+                    onClick={onTryExam}
+                    variant="ghost"
+                    style={{ color: 'var(--text-color)' }}
                   >
-                    Delete
+                    Try exam
                   </Button>
                 </div>
               )}
@@ -716,154 +754,105 @@ const ExamCard: React.FC<ExamCardProps> = ({
           )}
         </div>
 
-        <div
-          className="grid gap-4 rounded-lg border p-4 text-sm"
-          style={{
-            borderColor: 'var(--surface-border)',
-            backgroundColor: 'var(--exam-panel-bg)',
-          }}
+        {/* Title */}
+        <h3
+          className="mt-3 text-lg font-semibold leading-snug"
+          style={{ color: 'var(--text-color)' }}
         >
-          <div
-            className="flex items-center gap-3"
-            style={{ color: 'var(--text-color)' }}
-          >
-            <Clock size={16} style={{ color: 'var(--accent)' }} />
-            <span>{exam.duration} minutes</span>
-          </div>
-          <div
-            className="flex items-center gap-3"
-            style={{ color: 'var(--text-color)' }}
-          >
-            <Calendar size={16} style={{ color: 'var(--accent)' }} />
-            <span>
-              {formatDate(exam.startDate)} → {formatDate(exam.endDate)}
+          {exam.title}
+        </h3>
+
+        {/* Info row */}
+        <div
+          className="mt-3 flex flex-wrap items-center gap-4 text-sm"
+          style={{ color: 'var(--exam-muted)' }}
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <Calendar size={14} />
+            {formatDate(exam.startDate)}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Clock size={14} />
+            {exam.duration} min
+          </span>
+          {exam.challenges && exam.challenges.length > 0 && (
+            <span className="inline-flex items-center gap-1.5">
+              <CircleDot size={14} />
+              {exam.challenges.length} challenges
             </span>
-          </div>
-          {/* <div className="flex items-center justify-between">
-            <p
-              className="text-xs uppercase tracking-wider"
-              style={{ color: 'var(--muted-text)' }}
-            >
-              Challenges
-            </p>
-            <p
-              className="text-lg font-semibold"
-              style={{ color: 'var(--text-color)' }}
-            >
-              {exam.challenges?.length || 0}
-            </p>
-          </div> */}
+          )}
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <span
-            className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wider"
+        {/* Countdown text */}
+        {countdownText && (
+          <p
+            className="mt-3 text-xs font-medium"
             style={{
-              borderColor: statusStyle.border,
-              backgroundColor: statusStyle.background,
-              color: statusStyle.color,
+              color:
+                examState.lifecycle === 'active'
+                  ? 'var(--exam-success)'
+                  : examState.lifecycle === 'upcoming'
+                    ? 'var(--exam-warning)'
+                    : 'var(--exam-muted)',
             }}
           >
-            {examState.badgeLabel}
-          </span>
-          <div className="flex items-center gap-2">
-            {isOwner && examState.canEnter ? (
-              <Button
-                onClick={onTryExam}
-                variant="secondary"
-                size="sm"
-                className="inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold"
-                aria-label="Try exam"
-              >
-                Try exam
-              </Button>
-            ) : null}
-            {canViewResults ? (
-              <Button
-                onClick={onResults}
-                variant="secondary"
-                size="sm"
-                className="inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold"
-                aria-label="View results"
-              >
-                View results
-              </Button>
-            ) : null}
-            <Button
-              onClick={onView}
-              variant="primary"
-              size="sm"
-              className="inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold"
-              disabled={isLearnerEnterDisabled}
-              aria-label={isOwner ? 'Manage exam' : 'Enter exam'}
-            >
-              {isOwner ? 'Manage exam' : learnerCtaLabel}
-            </Button>
-          </div>
-        </div>
-        {isLearnerEnterDisabled ? (
-          <p className="mt-2 text-xs" style={{ color: 'var(--muted-text)' }}>
-            Exam is not enterable in current state.
+            {countdownText}
           </p>
-        ) : null}
+        )}
+      </div>
+
+      {/* Footer: CTA */}
+      <div
+        className="exam-card-v2__footer"
+        style={{ borderColor: 'var(--exam-card-border)' }}
+      >
+        {isOwner ? (
+          <Button
+            onClick={onEnter}
+            variant="primary"
+            size="sm"
+            icon={<ArrowRight size={16} />}
+            aria-label="Manage exam"
+          >
+            Manage
+          </Button>
+        ) : (
+          <Button
+            onClick={handlePrimaryCta}
+            variant={studentCta.variant}
+            size="sm"
+            disabled={studentCta.disabled}
+            icon={studentCta.icon}
+            aria-label={studentCta.label}
+          >
+            {studentCta.label}
+          </Button>
+        )}
       </div>
     </div>
   )
 }
 
-const StatPill: React.FC<{
-  label: string
-  value: number
-  accent?: 'emerald' | 'amber'
-}> = ({ label, value, accent }) => {
-  const accentColor =
-    accent === 'emerald'
-      ? '#10b981'
-      : accent === 'amber'
-        ? '#f59e0b'
-        : 'var(--accent)'
+/* ─── Filter Tab (underline style) ─── */
 
-  return (
-    <div
-      className="rounded-lg border p-5"
-      style={{
-        borderColor: 'var(--surface-border)',
-        backgroundColor: 'var(--exam-panel-bg)',
-        transition: 'background-color 200ms ease, border-color 200ms ease',
-      }}
-    >
-      <p
-        className="text-xs uppercase tracking-wider"
-        style={{ color: 'var(--muted-text)' }}
-      >
-        {label}
-      </p>
-      <p className="mt-2 text-3xl font-semibold" style={{ color: accentColor }}>
-        {value}
-      </p>
-    </div>
-  )
-}
-
-const FilterChip: React.FC<{
+const FilterTab: React.FC<{
   label: string
   active: boolean
   onClick: () => void
 }> = ({ label, active, onClick }) => (
-  <Button
+  <button
+    type="button"
     onClick={onClick}
-    size="sm"
-    variant={active ? 'primary' : 'ghost'}
-    className="rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-wider transition"
+    className="exam-filter-tab"
     style={{
-      borderColor: active ? 'var(--accent)' : 'var(--surface-border)',
-      backgroundColor: active ? 'var(--accent)' : 'transparent',
-      color: active ? '#ffffff' : 'var(--muted-text)',
+      color: active ? 'var(--exam-accent)' : 'var(--exam-muted)',
+      backgroundColor: active ? 'var(--exam-accent-subtle)' : 'transparent',
+      fontWeight: active ? 600 : 500,
     }}
     aria-pressed={active}
   >
     {label}
-  </Button>
+  </button>
 )
 
 export default ExamList

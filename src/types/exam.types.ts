@@ -22,6 +22,15 @@ export interface Exam {
   maxAttempts: number
   status?: 'draft' | 'published' | 'archived' | 'cancelled'
   accessMode?: 'open_registration' | 'invite_only' | 'hybrid'
+  attemptsUsed?: number
+  latestParticipationStatus?:
+    | 'IN_PROGRESS'
+    | 'SUBMITTED'
+    | 'EXPIRED'
+    | 'ABANDONED'
+    | null
+  hasInProgressParticipation?: boolean
+  hasCompletedParticipation?: boolean
   selfRegistrationApprovalMode?: 'auto' | 'manual' | null
   selfRegistrationPasswordRequired?: boolean
   allowExternalCandidates?: boolean
@@ -251,10 +260,16 @@ export interface ExamSubmission {
   user?: User // User details for display
   solutions?: ChallengeSolution[]
   totalScore: number
+  totalMaxScore?: number
   startedAt?: string
   submittedAt: string
   duration?: number // actual time spent in minutes
-  perProblem?: Array<{ problemId: string; obtained: number; maxPoints: number }>
+  perProblem?: Array<{
+    problemId: string
+    obtained: number
+    maxPoints: number
+    challengeTitle?: string
+  }>
   rank?: number
 }
 
@@ -264,6 +279,7 @@ export interface ChallengeSolution {
   code: string
   language: string
   score: number
+  maxPoints?: number
   results?: TestCaseResult[]
   submittedAt: string
 }
@@ -296,8 +312,10 @@ export interface ExamSubmissionDetailsResponse {
   success: boolean
   data: {
     totalScore: number
+    totalMaxScore?: number
     perProblem?: Array<{
       problemId: string
+      challengeTitle?: string
       obtained: number
       maxPoints: number
     }>

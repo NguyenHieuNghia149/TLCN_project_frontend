@@ -26,6 +26,7 @@ describe('ExamResultsAdmin theme', () => {
       duration: 60,
       startDate: '2026-05-01T09:00:00.000Z',
       endDate: '2026-05-01T10:00:00.000Z',
+      createdAt: '2026-04-15T12:00:00.000Z',
       isVisible: true,
       maxAttempts: 1,
       status: 'published',

@@ -494,7 +494,7 @@ export class ExamService {
 
   async registerForExam(
     slug: string,
-    payload: { email: string; fullName: string; examPassword?: string }
+    payload: { email: string; fullName: string }
   ): Promise<ExamAccessState> {
     const response = await apiClient.post(
       `/public/exams/${slug}/register`,
@@ -543,13 +543,17 @@ export class ExamService {
     >(response.data)
   }
 
-  async startEntrySession(entrySessionId: string): Promise<{
+  async startEntrySession(
+    entrySessionId: string,
+    examPassword?: string
+  ): Promise<{
     participationId: string
     expiresAt: string
     firstChallengeId: string | null
   }> {
     const response = await apiClient.post(
-      `/exams/entry-sessions/${entrySessionId}/start`
+      `/exams/entry-sessions/${entrySessionId}/start`,
+      { examPassword }
     )
     return unwrapResponseData<{
       participationId: string

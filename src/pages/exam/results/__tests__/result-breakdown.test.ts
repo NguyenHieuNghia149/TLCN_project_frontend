@@ -66,6 +66,7 @@ describe('normalizeLearnerBreakdown', () => {
           challengeId: 'c1',
           challengeTitle: 'Array Rotate',
           score: 25,
+          maxPoints: 40,
         },
       ],
     })
@@ -75,7 +76,48 @@ describe('normalizeLearnerBreakdown', () => {
         problemId: 'c1',
         challengeTitle: 'Array Rotate',
         obtained: 25,
-        maxPoints: null,
+        maxPoints: 40,
+      },
+    ])
+  })
+
+  it('keeps every canonical perProblem row so untouched exam challenges show 0 over max points', () => {
+    const result = normalizeLearnerBreakdown({
+      solutions: [
+        {
+          challengeId: 'c1',
+          score: 20,
+          code: 'print(1)',
+        },
+      ],
+      perProblem: [
+        {
+          problemId: 'c1',
+          challengeTitle: 'Arrays',
+          obtained: 20,
+          maxPoints: 50,
+        },
+        {
+          problemId: 'c2',
+          challengeTitle: 'Graphs',
+          obtained: 0,
+          maxPoints: 75,
+        },
+      ],
+    })
+
+    expect(result).toEqual([
+      {
+        problemId: 'c1',
+        challengeTitle: 'Arrays',
+        obtained: 20,
+        maxPoints: 50,
+      },
+      {
+        problemId: 'c2',
+        challengeTitle: 'Graphs',
+        obtained: 0,
+        maxPoints: 75,
       },
     ])
   })

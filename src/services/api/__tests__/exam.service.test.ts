@@ -293,4 +293,30 @@ describe('examService', () => {
     )
     expect(postMock).toHaveBeenCalledWith('/admin/exams/exam-1/archive')
   })
+
+  it('sends the exam password when starting an entry session', async () => {
+    postMock.mockResolvedValueOnce({
+      data: {
+        data: {
+          participationId: 'participation-1',
+          expiresAt: '2026-05-01T10:30:00.000Z',
+          firstChallengeId: 'challenge-1',
+        },
+      },
+    })
+
+    await expect(
+      examService.startEntrySession('entry-session-1', 'Exam#1234')
+    ).resolves.toMatchObject({
+      participationId: 'participation-1',
+      firstChallengeId: 'challenge-1',
+    })
+
+    expect(postMock).toHaveBeenCalledWith(
+      '/exams/entry-sessions/entry-session-1/start',
+      {
+        examPassword: 'Exam#1234',
+      }
+    )
+  })
 })

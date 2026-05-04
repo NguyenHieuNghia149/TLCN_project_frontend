@@ -1,4 +1,5 @@
 import React from 'react'
+import Button from '@/components/common/Button/Button'
 
 type ExamEntryVerificationPanelProps = {
   requiresLogin: boolean
@@ -13,6 +14,12 @@ type ExamEntryVerificationPanelProps = {
   onOtpEmailChange: (value: string) => void
   onOtpCodeChange: (value: string) => void
   onVerifyOtp: (event: React.FormEvent) => void
+}
+
+const inputStyle: React.CSSProperties = {
+  borderColor: 'var(--exam-card-border)',
+  backgroundColor: 'var(--background-color)',
+  color: 'var(--text-color)',
 }
 
 const ExamEntryVerificationPanel: React.FC<ExamEntryVerificationPanelProps> = ({
@@ -32,66 +39,85 @@ const ExamEntryVerificationPanel: React.FC<ExamEntryVerificationPanelProps> = ({
   return (
     <div className="mt-4 space-y-4">
       {requiresLogin && !isAuthenticated ? (
-        <div>
-          <p className="text-sm text-slate-300">
+        <div
+          className="rounded-xl border p-4"
+          style={{
+            borderColor: 'var(--exam-card-border)',
+            backgroundColor: 'var(--exam-card-bg)',
+          }}
+        >
+          <p className="text-sm" style={{ color: 'var(--muted-text)' }}>
             Sign in with the account linked to this exam access.
           </p>
-          <button
-            type="button"
-            onClick={onSignIn}
-            className="mt-4 rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950"
-          >
-            Sign in to continue
-          </button>
+          <div className="mt-4">
+            <Button onClick={onSignIn} variant="primary">
+              Sign in to continue
+            </Button>
+          </div>
         </div>
       ) : null}
 
       {requiresOtp ? (
-        <div className="space-y-4">
-          <p className="text-sm text-slate-300">
-            Verify your email with OTP to continue.
+        <div
+          className="space-y-4 rounded-xl border p-4"
+          style={{
+            borderColor: 'var(--exam-card-border)',
+            backgroundColor: 'var(--exam-card-bg)',
+          }}
+        >
+          <p
+            className="text-sm font-medium"
+            style={{ color: 'var(--text-color)' }}
+          >
+            Verify your identity
+          </p>
+          <p className="text-xs" style={{ color: 'var(--muted-text)' }}>
+            We will send a one-time password to your email.
           </p>
           <div className="grid gap-3 md:grid-cols-[1fr_auto]">
             <input
-              className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white"
+              className="rounded-xl border px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              style={inputStyle}
               type="email"
               value={otpEmail}
               onChange={event => onOtpEmailChange(event.target.value)}
               placeholder="candidate@example.com"
             />
-            <button
-              type="button"
+            <Button
               onClick={onSendOtp}
-              disabled={actionLoading || otpCooldown > 0}
-              className="rounded-full border border-white/20 px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={otpCooldown > 0}
+              loading={actionLoading}
+              variant="outline"
             >
               {otpCooldown > 0 ? `Resend in ${otpCooldown}s` : 'Send OTP'}
-            </button>
+            </Button>
           </div>
           <form
             className="grid gap-3 md:grid-cols-[1fr_auto]"
             onSubmit={onVerifyOtp}
           >
             <input
-              className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white"
+              className="rounded-xl border px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              style={inputStyle}
               value={otpCode}
               onChange={event => onOtpCodeChange(event.target.value)}
-              placeholder="OTP code"
+              placeholder="Enter 6-digit OTP"
               required
             />
-            <button
+            <Button
               type="submit"
-              disabled={actionLoading}
-              className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-200"
+              loading={actionLoading}
+              variant="primary"
+              className="px-8"
             >
-              {actionLoading ? 'Verifying...' : 'Verify'}
-            </button>
+              Verify
+            </Button>
           </form>
         </div>
       ) : null}
 
       {!requiresLogin && !requiresOtp ? (
-        <p className="text-sm text-slate-300">
+        <p className="text-sm" style={{ color: 'var(--muted-text)' }}>
           Verification is being finalized. Refresh access state and continue.
         </p>
       ) : null}

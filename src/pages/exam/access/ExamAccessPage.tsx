@@ -7,6 +7,8 @@ import {
   useSearchParams,
 } from 'react-router-dom'
 
+import { ChevronLeft } from 'lucide-react'
+import Button from '@/components/common/Button/Button'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import { useAuth } from '@/hooks/api/useAuth'
 import ExamEntryLobbyPanel from '@/pages/exam/access/components/ExamEntryLobbyPanel'
@@ -74,6 +76,38 @@ function extractApiErrorMessage(error: unknown, fallback: string) {
   return fallback
 }
 
+function extractApiErrorCode(error: unknown) {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    typeof (error as { response?: unknown }).response === 'object'
+  ) {
+    const response = (
+      error as {
+        response?: {
+          data?: {
+            code?: unknown
+            error?: {
+              code?: unknown
+            }
+          }
+        }
+      }
+    ).response
+    const code = response?.data?.code
+    const nestedErrorCode = response?.data?.error?.code
+    if (typeof code === 'string' && code.trim()) {
+      return code
+    }
+    if (typeof nestedErrorCode === 'string' && nestedErrorCode.trim()) {
+      return nestedErrorCode
+    }
+  }
+
+  return null
+}
+
 const ExamAccessPage: React.FC = () => {
   const { examSlug = '' } = useParams<{ examSlug: string }>()
   const [searchParams] = useSearchParams()
@@ -102,12 +136,12 @@ const ExamAccessPage: React.FC = () => {
     email: user?.email ?? '',
     fullName:
       [user?.firstname, user?.lastname].filter(Boolean).join(' ').trim() || '',
-    examPassword: '',
   })
   const [otpForm, setOtpForm] = useState({
     email: user?.email ?? '',
     otp: '',
   })
+  const [accessPassword, setAccessPassword] = useState('')
 
   const refreshAccessState = useCallback(async () => {
     if (!examSlug) return
@@ -301,10 +335,20 @@ const ExamAccessPage: React.FC = () => {
       return
     }
 
+    const requiresAccessPassword = Boolean(accessState?.requiresPassword)
+    if (requiresAccessPassword && !accessPassword.trim()) {
+      setAccessPassword('')
+      setError('Enter the exam password from your email.')
+      return
+    }
+
     try {
       setActionLoading(true)
       setError(null)
-      const result = await examService.startEntrySession(entrySessionId)
+      const result = await examService.startEntrySession(
+        entrySessionId,
+        requiresAccessPassword ? accessPassword : undefined
+      )
       if (!result.firstChallengeId) {
         throw new Error('Exam does not have any configured challenge.')
       }
@@ -320,8 +364,13 @@ const ExamAccessPage: React.FC = () => {
 
       navigate(`/exam/${examSlug}/challenges/${result.firstChallengeId}`)
     } catch (err: unknown) {
-      setError(extractApiErrorMessage(err, 'Failed to start exam'))
+      if (extractApiErrorCode(err) === 'INVALID_PASSWORD') {
+        setError('Incorrect exam password. Please check your email.')
+      } else {
+        setError(extractApiErrorMessage(err, 'Failed to start exam'))
+      }
     } finally {
+      setAccessPassword('')
       setActionLoading(false)
     }
   }
@@ -427,8 +476,20 @@ const ExamAccessPage: React.FC = () => {
 
   if (!exam) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-slate-100">
-        <div className="rounded-2xl border border-white/10 bg-slate-900 px-6 py-8 text-center">
+      <div
+        className="flex min-h-screen items-center justify-center px-4"
+        style={{
+          backgroundColor: 'var(--background-color)',
+          color: 'var(--text-color)',
+        }}
+      >
+        <div
+          className="rounded-2xl border px-6 py-8 text-center"
+          style={{
+            borderColor: 'var(--exam-card-border)',
+            backgroundColor: 'var(--exam-card-bg)',
+          }}
+        >
           <h1 className="text-2xl font-semibold">Exam not found</h1>
         </div>
       </div>
@@ -436,43 +497,65 @@ const ExamAccessPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-950 to-slate-900 px-4 py-10 text-slate-100">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <section className="rounded-3xl border border-white/10 bg-gradient-to-r from-slate-900/95 to-slate-800/70 p-8 shadow-[0_18px_45px_rgba(2,6,23,0.4)]">
-          <div className="flex flex-wrap items-start justify-between gap-6">
-            <div className="space-y-3">
-              <span className="inline-flex rounded-full border border-emerald-300/30 bg-emerald-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-200">
-                {resolvedAccessMode.replace('_', ' ')}
-              </span>
-              <h1 className="text-3xl font-semibold">{exam.title}</h1>
-              <div className="space-y-1 text-sm text-slate-300">
-                <p>Starts: {formatDateTime(exam.startDate)}</p>
-                <p>Ends: {formatDateTime(exam.endDate)}</p>
-                <p>Duration: {exam.duration} minutes</p>
-                <p>Max attempts: {exam.maxAttempts}</p>
-              </div>
-            </div>
-            <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-slate-300">
-              <p className="text-xs uppercase tracking-wide text-slate-400">
-                Registration
-              </p>
-              <p className="mt-2">
-                {resolvedAccessMode === 'invite_only'
-                  ? 'Invite only'
-                  : exam.isRegistrationOpen
-                    ? 'Open'
-                    : 'Closed'}
-              </p>
-              {exam.registrationOpenAt ? (
-                <p className="mt-2">
-                  Open at: {formatDateTime(exam.registrationOpenAt)}
-                </p>
-              ) : null}
-              {exam.registrationCloseAt ? (
-                <p className="mt-1">
-                  Close at: {formatDateTime(exam.registrationCloseAt)}
-                </p>
-              ) : null}
+    <div
+      className="min-h-screen px-4 py-10"
+      style={{
+        backgroundColor: 'var(--background-color)',
+        color: 'var(--text-color)',
+        transition: 'background-color 200ms ease, color 200ms ease',
+      }}
+    >
+      <div className="mx-auto max-w-3xl space-y-6">
+        <div className="flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/exam')}
+            icon={<ChevronLeft size={18} />}
+          >
+            Back to exams
+          </Button>
+          {(hasStartedParticipation ||
+            examHasEnded ||
+            accessState?.accessStatus === 'completed') && (
+            <Button variant="outline" size="sm" onClick={handleGoToResults}>
+              View Results
+            </Button>
+          )}
+        </div>
+        <section
+          className="rounded-2xl border p-8"
+          style={{
+            borderColor: 'var(--exam-card-border)',
+            backgroundColor: 'var(--exam-card-bg)',
+            boxShadow: 'var(--exam-card-shadow)',
+          }}
+        >
+          <div className="space-y-3">
+            <span
+              className="inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide"
+              style={{
+                borderColor: 'var(--exam-accent-subtle)',
+                backgroundColor: 'var(--exam-accent-subtle)',
+                color: 'var(--exam-accent)',
+              }}
+            >
+              {resolvedAccessMode.replace('_', ' ')}
+            </span>
+            <h1
+              className="text-3xl font-semibold"
+              style={{ color: 'var(--text-color)' }}
+            >
+              {exam.title}
+            </h1>
+            <div
+              className="grid gap-3 text-sm sm:grid-cols-2"
+              style={{ color: 'var(--exam-muted)' }}
+            >
+              <p>Starts: {formatDateTime(exam.startDate)}</p>
+              <p>Ends: {formatDateTime(exam.endDate)}</p>
+              <p>Duration: {exam.duration} minutes</p>
+              <p>Max attempts: {exam.maxAttempts}</p>
             </div>
           </div>
         </section>
@@ -483,13 +566,9 @@ const ExamAccessPage: React.FC = () => {
             description="This exam was cancelled by the organizer and can no longer be entered."
             tone="danger"
           >
-            <button
-              type="button"
-              onClick={handleGoToResults}
-              className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950"
-            >
+            <Button onClick={handleGoToResults} variant="secondary">
               Go to results
-            </button>
+            </Button>
           </ExamEntryStatusPanel>
         ) : null}
 
@@ -507,13 +586,9 @@ const ExamAccessPage: React.FC = () => {
             description="The exam has ended and your previous attempt can no longer be resumed."
             tone="warning"
           >
-            <button
-              type="button"
-              onClick={handleGoToResults}
-              className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950"
-            >
+            <Button onClick={handleGoToResults} variant="secondary">
               View results
-            </button>
+            </Button>
           </ExamEntryStatusPanel>
         ) : null}
 
@@ -523,18 +598,21 @@ const ExamAccessPage: React.FC = () => {
             description="The exam end time has passed. You can no longer enter the workspace."
             tone="warning"
           >
-            <button
-              type="button"
-              onClick={handleGoToResults}
-              className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950"
-            >
+            <Button onClick={handleGoToResults} variant="secondary">
               View results
-            </button>
+            </Button>
           </ExamEntryStatusPanel>
         ) : null}
 
         {error ? (
-          <section className="rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
+          <section
+            className="rounded-xl border px-4 py-3 text-sm"
+            style={{
+              borderColor: 'var(--exam-danger-subtle)',
+              backgroundColor: 'var(--exam-danger-subtle)',
+              color: 'var(--exam-danger)',
+            }}
+          >
             {error}
           </section>
         ) : null}
@@ -545,21 +623,23 @@ const ExamAccessPage: React.FC = () => {
             description="Request a fresh invite link from the organizer to continue."
             tone="warning"
           >
-            <button
-              type="button"
-              onClick={handleRequestNewInvite}
-              className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950"
-            >
+            <Button onClick={handleRequestNewInvite} variant="secondary">
               Request new invite
-            </button>
+            </Button>
           </ExamEntryStatusPanel>
         ) : null}
 
         {hasAuthContractConflict ? (
-          <section className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
-            Access contract conflict detected (`requiresLogin` and `requiresOtp`
-            both true). Continuing with sign-in first, then refresh access
-            state.
+          <section
+            className="rounded-xl border px-4 py-3 text-sm"
+            style={{
+              borderColor: 'var(--exam-warning-subtle)',
+              backgroundColor: 'var(--exam-warning-subtle)',
+              color: 'var(--exam-warning)',
+            }}
+          >
+            Access contract conflict detected. Continuing with sign-in first,
+            then refresh access state.
           </section>
         ) : null}
 
@@ -617,9 +697,20 @@ const ExamAccessPage: React.FC = () => {
         {canShowRegistrationForm &&
         !registrationNotOpenYet &&
         !registrationClosed ? (
-          <section className="rounded-2xl border border-white/10 bg-slate-900/85 p-6">
-            <h2 className="text-2xl font-semibold">Register for this exam</h2>
-            <p className="mt-2 text-sm text-slate-400">
+          <section
+            className="rounded-2xl border p-6"
+            style={{
+              borderColor: 'var(--exam-card-border)',
+              backgroundColor: 'var(--exam-card-bg)',
+            }}
+          >
+            <h2
+              className="text-2xl font-semibold"
+              style={{ color: 'var(--text-color)' }}
+            >
+              Register for this exam
+            </h2>
+            <p className="mt-2 text-sm" style={{ color: 'var(--exam-muted)' }}>
               {exam.selfRegistrationApprovalMode === 'manual'
                 ? 'Registration requires organizer approval.'
                 : 'Registration is auto-approved.'}
@@ -628,10 +719,18 @@ const ExamAccessPage: React.FC = () => {
               className="mt-4 grid gap-4 md:grid-cols-2"
               onSubmit={handleRegister}
             >
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label
+                className="grid gap-2 text-sm"
+                style={{ color: 'var(--muted-text)' }}
+              >
                 Email
                 <input
-                  className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white"
+                  className="rounded-xl border px-4 py-3"
+                  style={{
+                    borderColor: 'var(--exam-card-border)',
+                    backgroundColor: 'var(--background-color)',
+                    color: 'var(--text-color)',
+                  }}
                   type="email"
                   value={registrationForm.email}
                   onChange={event =>
@@ -643,10 +742,18 @@ const ExamAccessPage: React.FC = () => {
                   required
                 />
               </label>
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label
+                className="grid gap-2 text-sm"
+                style={{ color: 'var(--muted-text)' }}
+              >
                 Full name
                 <input
-                  className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white"
+                  className="rounded-xl border px-4 py-3"
+                  style={{
+                    borderColor: 'var(--exam-card-border)',
+                    backgroundColor: 'var(--background-color)',
+                    color: 'var(--text-color)',
+                  }}
                   value={registrationForm.fullName}
                   onChange={event =>
                     setRegistrationForm(current => ({
@@ -657,32 +764,9 @@ const ExamAccessPage: React.FC = () => {
                   required
                 />
               </label>
-              {exam.selfRegistrationPasswordRequired ? (
-                <label className="grid gap-2 text-sm text-slate-300 md:col-span-2">
-                  Exam password
-                  <input
-                    className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-white"
-                    type="password"
-                    value={registrationForm.examPassword}
-                    onChange={event =>
-                      setRegistrationForm(current => ({
-                        ...current,
-                        examPassword: event.target.value,
-                      }))
-                    }
-                    required
-                  />
-                </label>
-              ) : null}
-              <div className="md:col-span-2">
-                <button
-                  type="submit"
-                  disabled={actionLoading}
-                  className="rounded-full bg-emerald-300 px-5 py-3 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-200"
-                >
-                  {actionLoading ? 'Submitting...' : 'Register now'}
-                </button>
-              </div>
+              <Button type="submit" loading={actionLoading} className="px-8">
+                Register now
+              </Button>
             </form>
           </section>
         ) : null}
@@ -698,22 +782,13 @@ const ExamAccessPage: React.FC = () => {
             tone={examLifecycleBlocked ? 'warning' : 'success'}
           >
             {examLifecycleBlocked ? (
-              <button
-                type="button"
-                onClick={handleGoToResults}
-                className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950"
-              >
+              <Button onClick={handleGoToResults} variant="secondary">
                 View results
-              </button>
+              </Button>
             ) : (
-              <button
-                type="button"
-                onClick={handleStartOrResume}
-                disabled={actionLoading}
-                className="rounded-full bg-emerald-300 px-5 py-3 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-200"
-              >
-                {actionLoading ? 'Opening...' : 'Resume exam'}
-              </button>
+              <Button onClick={handleStartOrResume} loading={actionLoading}>
+                Resume exam
+              </Button>
             )}
           </ExamEntryStatusPanel>
         ) : null}
@@ -722,35 +797,47 @@ const ExamAccessPage: React.FC = () => {
         hasAccessRecord &&
         isApproved &&
         !isEntryRoute ? (
-          <section className="rounded-2xl border border-white/10 bg-slate-900/85 p-6">
-            <h2 className="text-xl font-semibold">Already registered</h2>
-            <p className="mt-2 text-sm text-slate-300">
+          <section
+            className="rounded-2xl border p-6"
+            style={{
+              borderColor: 'var(--exam-card-border)',
+              backgroundColor: 'var(--exam-card-bg)',
+            }}
+          >
+            <h2
+              className="text-xl font-semibold"
+              style={{ color: 'var(--text-color)' }}
+            >
+              Already registered
+            </h2>
+            <p className="mt-2 text-sm" style={{ color: 'var(--muted-text)' }}>
               Your access record is active. Continue from the entry page.
             </p>
             <div className="mt-4 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={handleGoToEntry}
-                className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950"
-              >
-                Go to entry
-              </button>
+              <Button onClick={handleGoToEntry}>Go to entry</Button>
               {requiresLoginRaw && !isAuthenticated ? (
-                <button
-                  type="button"
-                  onClick={handleSignIn}
-                  className="rounded-full border border-white/20 px-5 py-3 text-sm font-semibold text-white"
-                >
+                <Button onClick={handleSignIn} variant="outline">
                   Sign in
-                </button>
+                </Button>
               ) : null}
             </div>
           </section>
         ) : null}
 
         {(isEntryRoute || inviteToken) && !isPending && !isRejected ? (
-          <section className="rounded-2xl border border-white/10 bg-slate-900/85 p-6">
-            <h2 className="text-2xl font-semibold">Exam entry</h2>
+          <section
+            className="rounded-2xl border p-6"
+            style={{
+              borderColor: 'var(--exam-card-border)',
+              backgroundColor: 'var(--exam-card-bg)',
+            }}
+          >
+            <h2
+              className="text-2xl font-semibold"
+              style={{ color: 'var(--text-color)' }}
+            >
+              Exam entry
+            </h2>
 
             {entryPanelKind === 'expired' ? (
               <ExamEntryStatusPanel
@@ -759,24 +846,19 @@ const ExamAccessPage: React.FC = () => {
                 tone="warning"
               >
                 <div className="flex flex-wrap gap-3">
-                  <button
-                    type="button"
+                  <Button
                     onClick={() => {
                       void handleRestartVerification()
                     }}
-                    disabled={actionLoading}
-                    className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-200"
+                    loading={actionLoading}
+                    variant="secondary"
                   >
-                    {actionLoading ? 'Refreshing...' : 'Restart verification'}
-                  </button>
+                    Restart verification
+                  </Button>
                   {inviteToken ? (
-                    <button
-                      type="button"
-                      onClick={handleRequestNewInvite}
-                      className="rounded-full border border-white/20 px-5 py-2.5 text-sm font-semibold text-white"
-                    >
+                    <Button onClick={handleRequestNewInvite} variant="outline">
                       Request new invite
-                    </button>
+                    </Button>
                   ) : null}
                 </div>
               </ExamEntryStatusPanel>
@@ -816,6 +898,9 @@ const ExamAccessPage: React.FC = () => {
                 actionLoading={actionLoading}
                 primaryReason={primaryReason}
                 allReasons={allReasons}
+                requiresPassword={Boolean(accessState?.requiresPassword)}
+                passwordValue={accessPassword}
+                onPasswordChange={setAccessPassword}
                 onStartOrResume={() => {
                   void handleStartOrResume()
                 }}
@@ -828,48 +913,19 @@ const ExamAccessPage: React.FC = () => {
                 description="No verification session is active for this exam yet."
                 tone="info"
               >
-                <button
-                  type="button"
+                <Button
                   onClick={() => {
                     void handleRestartVerification()
                   }}
-                  disabled={actionLoading}
-                  className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-200"
+                  loading={actionLoading}
+                  variant="secondary"
                 >
-                  {actionLoading ? 'Refreshing...' : 'Refresh access state'}
-                </button>
+                  Refresh access state
+                </Button>
               </ExamEntryStatusPanel>
             ) : null}
           </section>
         ) : null}
-
-        <section className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => navigate('/exam')}
-            className="rounded-full border border-white/20 px-5 py-2.5 text-sm font-semibold text-white"
-          >
-            Back to exams
-          </button>
-          {accessState?.accessStatus === 'completed' || examHasEnded ? (
-            <button
-              type="button"
-              onClick={handleGoToResults}
-              className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-950"
-            >
-              View results
-            </button>
-          ) : null}
-          {hasAccessRecord && isApproved && !hasStartedParticipation ? (
-            <button
-              type="button"
-              onClick={handleGoToEntry}
-              className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-950"
-            >
-              Go to entry
-            </button>
-          ) : null}
-        </section>
       </div>
     </div>
   )

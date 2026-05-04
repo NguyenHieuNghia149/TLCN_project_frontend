@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import Button from '@/components/common/Button/Button'
@@ -16,25 +16,6 @@ import {
   type LearnerResultBreakdownItem,
 } from './result-breakdown'
 
-type LearnerResultTableColumn = {
-  id: string
-  title: string
-}
-
-type LearnerResultTableRow = {
-  index: number
-  email: string
-  submittedAt: string | null
-  totalScore: number | null
-  perProblemScores: Record<
-    string,
-    {
-      obtained: number
-      maxPoints: number | null
-    }
-  >
-}
-
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object'
     ? (value as Record<string, unknown>)
@@ -45,12 +26,12 @@ function asNonEmptyString(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value : null
 }
 
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString()
+function asFiniteNumberOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
-function formatChallengeScore(obtained: number, maxPoints: number | null) {
-  return maxPoints !== null ? `${obtained}/${maxPoints}` : `${obtained}`
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString()
 }
 
 function extractApiErrorStatus(error: unknown) {
@@ -89,6 +70,60 @@ function extractApiErrorMessage(error: unknown, fallback: string) {
     return error.message
   }
   return fallback
+}
+
+/* ─── Score animation hook ─── */
+function useScoreAnimation(targetPct: number, duration = 1200) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!ref.current) return
+    // Respect prefers-reduced-motion
+    const prefersReduced = window.matchMedia(
+      '(prefers-reduced-motion: reduce)'
+    ).matches
+    if (prefersReduced) {
+      ref.current.style.setProperty('--score-pct', String(targetPct))
+      return
+    }
+    const start = performance.now()
+    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
+    let raf: number
+    const animate = (now: number) => {
+      const elapsed = now - start
+      const progress = Math.min(elapsed / duration, 1)
+      const value = easeOutCubic(progress) * targetPct
+      ref.current?.style.setProperty('--score-pct', String(value))
+      if (progress < 1) {
+        raf = requestAnimationFrame(animate)
+      }
+    }
+    raf = requestAnimationFrame(animate)
+    return () => cancelAnimationFrame(raf)
+  }, [targetPct, duration])
+  return ref
+}
+
+/* ─── Color helper for progress bars ─── */
+function getScoreColor(ratio: number): string {
+  if (ratio >= 0.8) return 'var(--exam-success)'
+  if (ratio >= 0.4) return 'var(--exam-warning)'
+  return 'var(--exam-danger)'
+}
+
+function getStatusLabel(status: ResultStatus): {
+  label: string
+  color: string
+} {
+  switch (status) {
+    case 'scored':
+      return { label: 'Scored', color: 'var(--exam-success)' }
+    case 'pending':
+      return { label: 'Pending', color: 'var(--exam-warning)' }
+    case 'failed':
+      return { label: 'Scoring Error', color: 'var(--exam-danger)' }
+    default:
+      return { label: 'Unknown', color: 'var(--exam-muted)' }
+  }
 }
 
 const ExamResults: React.FC = () => {
@@ -211,112 +246,39 @@ const ExamResults: React.FC = () => {
     }
   }, [examSlug, navigate])
 
-  const challengeColumns = useMemo<LearnerResultTableColumn[]>(() => {
-    const fromBreakdown = breakdown.map(item => ({
-      id: item.problemId,
-      title: item.challengeTitle,
-    }))
-    if (fromBreakdown.length > 0) {
-      return fromBreakdown
-    }
+  /* ─── Computed data ─── */
 
-    const submission = submissionPayload
-    if (!submission) {
-      return []
-    }
-
-    const rawPerProblem = submission.perProblem
-    if (Array.isArray(rawPerProblem)) {
-      return rawPerProblem
-        .map((item, index) => {
-          const row = asRecord(item)
-          if (!row) return null
-          const problemId =
-            asNonEmptyString(row.problemId) ||
-            asNonEmptyString(row.challengeId) ||
-            `problem-${index + 1}`
-          const title =
-            asNonEmptyString(row.challengeTitle) ||
-            asNonEmptyString(row.title) ||
-            problemId
-          return { id: problemId, title }
-        })
-        .filter((item): item is LearnerResultTableColumn => item !== null)
-    }
-
-    const rawSolutions = submission.solutions
-    if (Array.isArray(rawSolutions)) {
-      return rawSolutions
-        .map((item, index) => {
-          const row = asRecord(item)
-          if (!row) return null
-          const problemId =
-            asNonEmptyString(row.challengeId) ||
-            asNonEmptyString(row.problemId) ||
-            `problem-${index + 1}`
-          const title =
-            asNonEmptyString(row.challengeTitle) ||
-            asNonEmptyString(row.title) ||
-            problemId
-          return { id: problemId, title }
-        })
-        .filter((item): item is LearnerResultTableColumn => item !== null)
-    }
-
-    return []
+  const maxScore = useMemo(() => {
+    const payloadMax = asFiniteNumberOrNull(submissionPayload?.totalMaxScore)
+    if (payloadMax !== null) return payloadMax
+    if (breakdown.length === 0) return 0
+    return breakdown.reduce((sum, item) => sum + (item.maxPoints ?? 0), 0)
   }, [breakdown, submissionPayload])
 
-  const resultRow = useMemo<LearnerResultTableRow | null>(() => {
-    if (!accessState?.participationId) {
-      return null
-    }
+  const scorePct = useMemo(() => {
+    if (score === null || maxScore === 0) return 0
+    return Math.round((score / maxScore) * 100)
+  }, [score, maxScore])
 
-    const perProblemScores: LearnerResultTableRow['perProblemScores'] =
-      breakdown.reduce(
-        (acc, item) => {
-          acc[item.problemId] = {
-            obtained: item.obtained,
-            maxPoints: item.maxPoints,
-          }
-          return acc
-        },
-        {} as LearnerResultTableRow['perProblemScores']
-      )
+  const scoreCircleRef = useScoreAnimation(scorePct)
+  const statusInfo = getStatusLabel(resultStatus)
 
+  const submittedAt = useMemo(() => {
+    if (!submissionPayload) return null
+    return asNonEmptyString(submissionPayload.submittedAt)
+  }, [submissionPayload])
+
+  const resultRow = useMemo(() => {
+    if (!accessState?.participationId) return null
     const submission = submissionPayload
     const submissionUser = asRecord(submission?.user)
-    const email =
-      asNonEmptyString(submissionUser?.email) ||
-      asNonEmptyString(submission?.email) ||
+    return (
+      asNonEmptyString(submissionUser?.email as string) ||
+      asNonEmptyString(submission?.email as string) ||
       user?.email ||
       '--'
-    const submittedAt = asNonEmptyString(submission?.submittedAt)
-
-    return {
-      index: 1,
-      email,
-      submittedAt,
-      totalScore: resultStatus === 'scored' ? (score ?? 0) : null,
-      perProblemScores,
-    }
-  }, [
-    accessState?.participationId,
-    breakdown,
-    resultStatus,
-    score,
-    submissionPayload,
-    user?.email,
-  ])
-
-  const statusHint = useMemo(() => {
-    if (resultStatus === 'pending') {
-      return 'Submission has been received and is currently being scored.'
-    }
-    if (resultStatus === 'failed') {
-      return 'Scoring is temporarily unavailable due to a technical error. Please refresh later.'
-    }
-    return null
-  }, [resultStatus])
+    )
+  }, [accessState?.participationId, submissionPayload, user?.email])
 
   if (loading) {
     return <LoadingSpinner />
@@ -324,8 +286,20 @@ const ExamResults: React.FC = () => {
 
   if (error || !exam) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-slate-100">
-        <div className="rounded-2xl border border-white/10 bg-slate-900 px-8 py-10 text-center">
+      <div
+        className="flex min-h-screen items-center justify-center px-4"
+        style={{
+          backgroundColor: 'var(--background-color)',
+          color: 'var(--text-color)',
+        }}
+      >
+        <div
+          className="rounded-2xl border px-8 py-10 text-center"
+          style={{
+            borderColor: 'var(--exam-card-border)',
+            backgroundColor: 'var(--exam-card-bg)',
+          }}
+        >
           <p className="text-lg font-semibold">{error || 'Exam not found'}</p>
           <Button className="mt-4" onClick={() => navigate('/exam')}>
             Back to exams
@@ -336,16 +310,38 @@ const ExamResults: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <section className="rounded-3xl border border-white/10 bg-slate-900/90 p-8">
+    <div
+      className="min-h-screen px-4 py-10"
+      style={{
+        backgroundColor: 'var(--background-color)',
+        color: 'var(--text-color)',
+        transition: 'background-color 200ms ease, color 200ms ease',
+      }}
+    >
+      <div className="mx-auto max-w-3xl space-y-6">
+        {/* ─── Header ─── */}
+        <section
+          className="rounded-2xl border p-8"
+          style={{
+            borderColor: 'var(--exam-card-border)',
+            backgroundColor: 'var(--exam-card-bg)',
+            boxShadow: 'var(--exam-card-shadow)',
+          }}
+        >
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-semibold">{exam.title}</h1>
-              <p className="mt-2 text-sm text-slate-400">Exam results</p>
-              {statusHint ? (
-                <p className="mt-3 text-sm text-amber-200">{statusHint}</p>
-              ) : null}
+              <h1
+                className="text-3xl font-semibold"
+                style={{ color: 'var(--text-color)' }}
+              >
+                {exam.title}
+              </h1>
+              <p
+                className="mt-2 text-sm"
+                style={{ color: 'var(--exam-muted)' }}
+              >
+                Exam results
+              </p>
             </div>
             <div className="flex flex-wrap gap-3">
               <Button onClick={() => navigate('/exam')} variant="secondary">
@@ -356,82 +352,195 @@ const ExamResults: React.FC = () => {
               </Button>
             </div>
           </div>
-          {accessState?.participationId ? (
-            <p className="mt-4 text-xs text-slate-400">
-              Participation: {accessState.participationId}
-            </p>
-          ) : null}
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-slate-900/90 p-6">
-          <h2 className="text-lg font-semibold">Result table</h2>
-          <p className="mt-2 text-sm text-slate-400">
-            Learner view only contains your own submission row.
-          </p>
+        {/* ─── Score Summary ─── */}
+        <section
+          className="rounded-2xl border p-6"
+          style={{
+            borderColor: 'var(--exam-card-border)',
+            backgroundColor: 'var(--exam-card-bg)',
+            animation: 'exam-fade-in 0.4s ease both',
+          }}
+        >
+          <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center">
+            {/* Score circle */}
+            <div
+              ref={scoreCircleRef}
+              className="relative flex h-[120px] w-[120px] flex-shrink-0 items-center justify-center rounded-full"
+              style={{
+                ['--score-pct' as string]: '0',
+                background: `conic-gradient(${getScoreColor(scorePct / 100)} calc(var(--score-pct) * 1%), var(--exam-card-border) 0)`,
+                animation: 'exam-score-appear 0.5s ease both',
+              }}
+            >
+              <div
+                className="flex h-[96px] w-[96px] items-center justify-center rounded-full"
+                style={{ backgroundColor: 'var(--exam-card-bg)' }}
+              >
+                <div className="text-center">
+                  <span
+                    className="text-2xl font-bold"
+                    style={{ color: 'var(--text-color)' }}
+                  >
+                    {resultStatus === 'scored' ? `${scorePct}%` : '--'}
+                  </span>
+                </div>
+              </div>
+            </div>
 
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-white/10 text-slate-400">
-                  <th className="pb-3">STT</th>
-                  <th className="pb-3">Email</th>
-                  <th className="pb-3">Submitted</th>
-                  {challengeColumns.map(column => (
-                    <th key={column.id} className="pb-3">
-                      {column.title}
-                    </th>
-                  ))}
-                  <th className="pb-3">Total score</th>
-                </tr>
-              </thead>
-              <tbody>
-                {!resultRow ? (
-                  <tr>
-                    <td
-                      className="py-4 text-slate-400"
-                      colSpan={4 + challengeColumns.length}
-                    >
-                      No submission row yet.
-                    </td>
-                  </tr>
-                ) : (
-                  <tr className="border-b border-emerald-300/25 bg-emerald-300/10">
-                    <td className="py-3">{resultRow.index}</td>
-                    <td className="py-3 font-semibold text-emerald-100">
-                      {resultRow.email}
-                    </td>
-                    <td className="py-3">
-                      {resultRow.submittedAt
-                        ? formatDateTime(resultRow.submittedAt)
-                        : '--'}
-                    </td>
-                    {challengeColumns.map(column => {
-                      const problemScore = resultRow.perProblemScores[column.id]
-                      return (
-                        <td
-                          key={`${column.id}-${resultRow.index}`}
-                          className="py-3"
-                        >
-                          {problemScore
-                            ? formatChallengeScore(
-                                problemScore.obtained,
-                                problemScore.maxPoints
-                              )
-                            : '--'}
-                        </td>
-                      )
-                    })}
-                    <td className="py-3 font-semibold">
-                      {resultRow.totalScore !== null
-                        ? resultRow.totalScore
-                        : '--'}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+            {/* Score details */}
+            <div className="flex-1 text-center sm:text-left">
+              <div className="flex items-center justify-center gap-2 sm:justify-start">
+                <span
+                  className="inline-flex h-2 w-2 rounded-full"
+                  style={{ backgroundColor: statusInfo.color }}
+                />
+                <span
+                  className="text-sm font-semibold"
+                  style={{ color: statusInfo.color }}
+                >
+                  {statusInfo.label}
+                </span>
+              </div>
+              {resultStatus === 'scored' && score !== null && maxScore > 0 && (
+                <p
+                  className="mt-2 text-lg font-semibold"
+                  style={{ color: 'var(--text-color)' }}
+                >
+                  {score} / {maxScore} points
+                </p>
+              )}
+              {resultStatus === 'scored' && score !== null && maxScore <= 0 && (
+                <p
+                  className="mt-2 text-lg font-semibold"
+                  style={{ color: 'var(--text-color)' }}
+                >
+                  {score} points
+                </p>
+              )}
+              {resultRow && (
+                <p
+                  className="mt-1 text-sm"
+                  style={{ color: 'var(--exam-muted)' }}
+                >
+                  {resultRow}
+                </p>
+              )}
+              {submittedAt && (
+                <p
+                  className="mt-1 text-sm"
+                  style={{ color: 'var(--exam-muted)' }}
+                >
+                  Submitted: {formatDateTime(submittedAt)}
+                </p>
+              )}
+              {resultStatus === 'pending' && (
+                <p
+                  className="mt-2 text-sm"
+                  style={{ color: 'var(--exam-warning)' }}
+                >
+                  Submission is being scored. Please check back later.
+                </p>
+              )}
+              {resultStatus === 'failed' && (
+                <p
+                  className="mt-2 text-sm"
+                  style={{ color: 'var(--exam-danger)' }}
+                >
+                  Scoring encountered an error. Please refresh or contact
+                  support.
+                </p>
+              )}
+            </div>
           </div>
         </section>
+
+        {/* ─── Per-challenge breakdown ─── */}
+        {breakdown.length > 0 && (
+          <section
+            className="rounded-2xl border p-8"
+            style={{
+              borderColor: 'var(--exam-card-border)',
+              backgroundColor: 'var(--exam-card-bg)',
+              animation: 'exam-fade-in 0.5s ease 0.1s both',
+              boxShadow: 'var(--exam-card-shadow)',
+            }}
+          >
+            <div className="mb-6 flex items-center gap-2">
+              <div
+                className="h-6 w-1 rounded-full"
+                style={{ backgroundColor: 'var(--exam-accent)' }}
+              />
+              <h2
+                className="text-xl font-bold"
+                style={{ color: 'var(--text-color)' }}
+              >
+                Detailed Performance
+              </h2>
+            </div>
+
+            <div className="space-y-6">
+              {breakdown.map(item => {
+                const max = item.maxPoints
+                const ratio = max && max > 0 ? item.obtained / max : 0
+                const barColor = getScoreColor(ratio)
+                return (
+                  <div key={item.problemId} className="group">
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span
+                          className="text-sm font-semibold"
+                          style={{ color: 'var(--text-color)' }}
+                        >
+                          {item.challengeTitle}
+                        </span>
+                        <span
+                          className="text-xs"
+                          style={{ color: 'var(--exam-muted)' }}
+                        >
+                          {ratio === 1
+                            ? 'Perfect score'
+                            : ratio > 0
+                              ? 'Partial credit'
+                              : 'No points awarded'}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span
+                          className="text-lg font-bold"
+                          style={{ color: barColor }}
+                        >
+                          {item.obtained}
+                        </span>
+                        <span
+                          className="ml-1 text-sm"
+                          style={{ color: 'var(--exam-muted)' }}
+                        >
+                          / {max ?? '--'}
+                        </span>
+                      </div>
+                    </div>
+                    <div
+                      className="h-2.5 overflow-hidden rounded-full"
+                      style={{ backgroundColor: 'var(--exam-card-border)' }}
+                    >
+                      <div
+                        className="h-full rounded-full transition-all duration-1000 ease-out"
+                        style={{
+                          width: `${Math.round(ratio * 100)}%`,
+                          backgroundColor: barColor,
+                          boxShadow:
+                            ratio > 0 ? `0 0 10px ${barColor}40` : 'none',
+                        }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )}
       </div>
     </div>
   )

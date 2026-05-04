@@ -230,10 +230,6 @@ function extractErrorMessage(fallbackMessage: string, error: unknown): string {
     return error
   }
 
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return error.message
-  }
-
   if (typeof error === 'object' && error !== null && 'response' in error) {
     const responsePayload = (
       error as {
@@ -250,12 +246,27 @@ function extractErrorMessage(fallbackMessage: string, error: unknown): string {
     ).response?.data
 
     if (responsePayload?.error?.message) {
-      return responsePayload.error.message
+      let detailMsg = ''
+      if (typeof responsePayload.error.details === 'string') {
+        detailMsg = `: ${responsePayload.error.details}`
+      } else if (Array.isArray(responsePayload.error.details)) {
+        const strDetails = responsePayload.error.details.filter(
+          d => typeof d === 'string'
+        )
+        if (strDetails.length > 0) {
+          detailMsg = `: ${strDetails.join(', ')}`
+        }
+      }
+      return `${responsePayload.error.message}${detailMsg}`
     }
 
     if (responsePayload?.message) {
       return responsePayload.message
     }
+  }
+
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message
   }
 
   return fallbackMessage
@@ -329,9 +340,13 @@ const AdminCreateExam: React.FC = () => {
     useState<string>()
   const [rowActionKey, setRowActionKey] = useState<string | null>(null)
 
-  const accessMode = Form.useWatch('accessMode', form) || 'open_registration'
+  const accessModeWatch = Form.useWatch('accessMode', form)
+  const accessMode =
+    accessModeWatch ?? form.getFieldValue('accessMode') ?? 'open_registration'
+
+  const allowExternalWatch = Form.useWatch('allowExternalCandidates', form)
   const allowExternalCandidates =
-    Form.useWatch('allowExternalCandidates', form) ?? false
+    allowExternalWatch ?? form.getFieldValue('allowExternalCandidates') ?? false
   const resolvedExamId = id ?? persistedExamId
 
   const visibleParticipants = useMemo(() => {
@@ -514,7 +529,8 @@ const AdminCreateExam: React.FC = () => {
       return resolvedExamId
     }
 
-    const values = await form.validateFields()
+    await form.validateFields()
+    const values = form.getFieldsValue(true) as ExamFormValues
     const payload = buildPayload(values)
     const createdExam = await examService.createAdminExam(payload)
 
@@ -695,7 +711,8 @@ const AdminCreateExam: React.FC = () => {
       throw new Error('MISSING_CHALLENGES')
     }
 
-    const values = await form.validateFields()
+    await form.validateFields()
+    const values = form.getFieldsValue(true) as ExamFormValues
 
     const payload = buildPayload(values)
     const savedExam = resolvedExamId
@@ -2131,6 +2148,7 @@ const AdminCreateExam: React.FC = () => {
           <Form<ExamFormValues>
             form={form}
             layout="vertical"
+            preserve={true}
             initialValues={{
               isVisible: false,
               maxAttempts: 1,

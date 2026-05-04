@@ -37,25 +37,6 @@ export function normalizeLearnerBreakdown(
     return []
   }
 
-  const attemptedBySolutionId = new Set<string>()
-  const rawSolutions = raw.solutions
-  if (Array.isArray(rawSolutions)) {
-    for (const item of rawSolutions) {
-      if (!item || typeof item !== 'object') {
-        continue
-      }
-      const row = item as Record<string, unknown>
-      const problemId =
-        asNonEmptyString(row.challengeId) || asNonEmptyString(row.problemId)
-      if (!problemId) {
-        continue
-      }
-      if (hasSolutionAttemptEvidence(row)) {
-        attemptedBySolutionId.add(problemId)
-      }
-    }
-  }
-
   const perProblem = raw.perProblem
   if (Array.isArray(perProblem)) {
     const normalized: LearnerResultBreakdownItem[] = perProblem
@@ -88,11 +69,7 @@ export function normalizeLearnerBreakdown(
       })
       .filter((item): item is LearnerResultBreakdownItem => item !== null)
 
-    if (attemptedBySolutionId.size === 0) {
-      return normalized
-    }
-
-    return normalized.filter(item => attemptedBySolutionId.has(item.problemId))
+    return normalized
   }
 
   const solutions = raw.solutions
@@ -122,7 +99,7 @@ export function normalizeLearnerBreakdown(
           problemId,
           challengeTitle,
           obtained,
-          maxPoints: null,
+          maxPoints: readMaxPoints(row),
         }
       })
       .filter((item): item is LearnerResultBreakdownItem => item !== null)
