@@ -13,7 +13,7 @@ import {
   Form,
   Spin,
 } from 'antd'
-import type { TablePaginationConfig } from 'antd/es/table'
+import type { TablePaginationConfig, ColumnsType } from 'antd/es/table'
 import {
   DeleteOutlined,
   EyeOutlined,
@@ -53,7 +53,47 @@ import {
   asyncCreateAdminRoadmap,
 } from '@/store/slices/adminRoadmapSlice'
 
-const SortableItem = ({ item, index, handleDeleteItem, modal }: unknown) => {
+interface RoadmapItemData {
+  id: string
+  roadmapId: string
+  itemType: 'lesson' | 'problem'
+  itemId: string
+  itemTitle?: string
+  order: number
+  createdAt: string
+  updatedAt: string
+}
+
+interface SortableItemProps {
+  item: RoadmapItemData
+  index: number
+  handleDeleteItem: (itemId: string) => void
+  modal: any
+}
+
+interface LessonData {
+  id: string
+  title: string
+}
+
+interface ProblemData {
+  id: string
+  title: string
+}
+
+interface CreateRoadmapValues {
+  title: string
+  description?: string
+  visibility: 'public' | 'private'
+}
+
+interface AddItemValues {
+  itemType: 'lesson' | 'problem'
+  itemId: string
+  order?: number
+}
+
+const SortableItem = ({ item, index, handleDeleteItem, modal }: SortableItemProps) => {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: item.id })
 
@@ -128,8 +168,8 @@ const ManageRoadmap: React.FC = () => {
   const [currentRoadmapIdForItems, setCurrentRoadmapIdForItems] =
     useState<string>('')
   const [addItemsLoading, setAddItemsLoading] = useState(false)
-  const [lessonsList, setLessonsList] = useState<unknown[]>([])
-  const [problemsList, setProblemsList] = useState<unknown[]>([])
+  const [lessonsList, setLessonsList] = useState<LessonData[]>([])
+  const [problemsList, setProblemsList] = useState<ProblemData[]>([])
   const [lessonsLoading, setLessonsLoading] = useState(false)
   const [problemsLoading, setProblemsLoading] = useState(false)
   const [form] = Form.useForm()
@@ -171,7 +211,7 @@ const ManageRoadmap: React.FC = () => {
     )
   }
 
-  const handleCreateRoadmap = async (values: unknown) => {
+  const handleCreateRoadmap = async (values: CreateRoadmapValues) => {
     try {
       await dispatch(
         asyncCreateAdminRoadmap({
@@ -270,7 +310,7 @@ const ManageRoadmap: React.FC = () => {
     }
   }
 
-  const handleAddItem = async (values: unknown) => {
+  const handleAddItem = async (values: AddItemValues) => {
     if (!currentRoadmapIdForItems) return
 
     try {
@@ -578,10 +618,9 @@ const ManageRoadmap: React.FC = () => {
           borderColor: 'var(--surface-border)',
         }}
       >
-        <Table
+        <Table<AdminRoadmapRow>
           rowKey="id"
-          // @ts-expect-error - Table columns typing is overly strict here
-          columns={columns}
+          columns={columns as ColumnsType<AdminRoadmapRow>}
           dataSource={list.items}
           loading={list.loading}
           pagination={{
@@ -684,11 +723,11 @@ const ManageRoadmap: React.FC = () => {
                       onDragEnd={handleDragEnd}
                     >
                       <SortableContext
-                        items={detailData.data.items.map((i: unknown) => i.id)}
+                        items={detailData.data.items.map((i: RoadmapItemData) => i.id)}
                         strategy={verticalListSortingStrategy}
                       >
                         {detailData.data.items.map(
-                          (item: unknown, index: number) => (
+                          (item: RoadmapItemData, index: number) => (
                             <SortableItem
                               key={item.id}
                               item={item}
@@ -816,7 +855,7 @@ const ManageRoadmap: React.FC = () => {
             >
               {selectedItemType === 'lesson' && (
                 <>
-                  {lessonsList.map((lesson: unknown) => (
+                  {lessonsList.map((lesson: LessonData) => (
                     <Select.Option key={lesson.id} value={lesson.id}>
                       {lesson.title}
                     </Select.Option>
@@ -825,7 +864,7 @@ const ManageRoadmap: React.FC = () => {
               )}
               {selectedItemType === 'problem' && (
                 <>
-                  {problemsList.map((problem: unknown) => (
+                  {problemsList.map((problem: ProblemData) => (
                     <Select.Option key={problem.id} value={problem.id}>
                       {problem.title}
                     </Select.Option>

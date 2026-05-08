@@ -82,7 +82,7 @@ const RoadmapSelectionPage: React.FC = () => {
           placement: 'topRight',
         })
       }
-    } catch {
+    } catch (err: any) {
       notification.error({
         message: 'Error',
         description: String(
