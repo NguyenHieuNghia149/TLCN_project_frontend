@@ -14,6 +14,7 @@ import {
   Spin,
 } from 'antd'
 import type { TablePaginationConfig, ColumnsType } from 'antd/es/table'
+import type { ModalFuncProps } from 'antd'
 import {
   DeleteOutlined,
   EyeOutlined,
@@ -68,7 +69,9 @@ interface SortableItemProps {
   item: RoadmapItemData
   index: number
   handleDeleteItem: (itemId: string) => void
-  modal: any
+  modal: {
+    confirm: (config: ModalFuncProps) => void
+  }
 }
 
 interface LessonData {
@@ -93,7 +96,12 @@ interface AddItemValues {
   order?: number
 }
 
-const SortableItem = ({ item, index, handleDeleteItem, modal }: SortableItemProps) => {
+const SortableItem = ({
+  item,
+  index,
+  handleDeleteItem,
+  modal,
+}: SortableItemProps) => {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: item.id })
 
@@ -723,7 +731,9 @@ const ManageRoadmap: React.FC = () => {
                       onDragEnd={handleDragEnd}
                     >
                       <SortableContext
-                        items={detailData.data.items.map((i: RoadmapItemData) => i.id)}
+                        items={detailData.data.items.map(
+                          (i: RoadmapItemData) => i.id
+                        )}
                         strategy={verticalListSortingStrategy}
                       >
                         {detailData.data.items.map(

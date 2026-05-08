@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { App, Button, Card, Empty, Input, Space, Spin, Tag } from 'antd'
+import type { AxiosError } from 'axios'
 import { CheckOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import type { AdminRoadmapRow } from '@/services/api/adminRoadmap.service'
 import { adminRoadmapAPI } from '@/services/api/adminRoadmap.service'
@@ -25,10 +26,18 @@ const RoadmapSelectionPage: React.FC = () => {
     useState<UserRoadmapSelection | null>(null)
   const [searchKeyword, setSearchKeyword] = useState('')
 
-  useEffect(() => {
+  const memoLoadRoadmaps = useCallback(() => {
     loadRoadmaps()
+  }, [])
+
+  const memoLoadUserSelection = useCallback(() => {
     loadUserSelection()
   }, [])
+
+  useEffect(() => {
+    memoLoadRoadmaps()
+    memoLoadUserSelection()
+  }, [memoLoadRoadmaps, memoLoadUserSelection])
 
   const loadRoadmaps = async () => {
     try {
@@ -82,11 +91,12 @@ const RoadmapSelectionPage: React.FC = () => {
           placement: 'topRight',
         })
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const axiosError = err as AxiosError<{ message: string }>
       notification.error({
         message: 'Error',
         description: String(
-          err?.response?.data?.message || 'Failed to select roadmap'
+          axiosError?.response?.data?.message || 'Failed to select roadmap'
         ),
         placement: 'topRight',
       })
