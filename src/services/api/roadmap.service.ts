@@ -8,6 +8,7 @@ import type {
   Roadmap,
   RoadmapDetail,
   RoadmapItem,
+  RoadmapItemWithLockStatus,
 } from '@/types/roadmap.types'
 
 const mapRoadmapApiError = (error: unknown): never => {
@@ -42,6 +43,22 @@ class RoadmapService {
       `/roadmaps/${id}`
     )
     return response.data.data
+  }
+
+  /**
+   * R14.6: Get roadmap detail with sequential unlock status per item
+   * Frontend calls this when user is viewing roadmap to see lock status
+   * Returns items with: isCompleted, isUnlocked, lockReason
+   */
+  async getRoadmapDetailWithLockStatus(id: string): Promise<RoadmapDetail & { items: RoadmapItemWithLockStatus[] }> {
+    try {
+      const response = await apiClient.get<
+        ApiEnvelope<RoadmapDetail & { items: RoadmapItemWithLockStatus[] }>
+      >(`/roadmaps/${id}/detail-with-locks`)
+      return response.data.data
+    } catch (error) {
+      return mapRoadmapApiError(error)
+    }
   }
 
   async updateRoadmap(
@@ -115,6 +132,25 @@ class RoadmapService {
       `/roadmaps/${roadmapId}/progress`
     )
     return response.data.data
+  }
+
+  /**
+   * R14.6: Mark roadmap item as completed
+   * Validates prerequisite on backend, returns unlocked next item
+   * Throws error if prerequisite not met
+   */
+  async completeRoadmapItem(
+    roadmapId: string,
+    itemId: string
+  ): Promise<{ item: RoadmapItem; unlockedNextItem?: RoadmapItem }> {
+    try {
+      const response = await apiClient.post<
+        ApiEnvelope<{ item: RoadmapItem; unlockedNextItem?: RoadmapItem }>
+      >(`/roadmaps/${roadmapId}/items/${itemId}/complete`)
+      return response.data.data
+    } catch (error) {
+      return mapRoadmapApiError(error)
+    }
   }
 
   async markItemCompleted(roadmapId: string, itemId: string): Promise<void> {

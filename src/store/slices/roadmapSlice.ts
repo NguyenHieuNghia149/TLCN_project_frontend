@@ -220,6 +220,41 @@ export const asyncMarkItemIncomplete = createAsyncThunk(
   }
 )
 
+/**
+ * R14.7: Get roadmap detail with sequential unlock status
+ * Frontend calls this instead of getRoadmap when user needs lock status
+ */
+export const asyncGetRoadmapDetailWithLocks = createAsyncThunk(
+  'roadmap/getDetailWithLocks',
+  async (roadmapId: string, { rejectWithValue }) => {
+    try {
+      return await roadmapService.getRoadmapDetailWithLockStatus(roadmapId)
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error))
+    }
+  }
+)
+
+/**
+ * R14.7: Complete roadmap item with prerequisite validation
+ * Backend validates that previous item is completed
+ * Returns unlocked next item if available
+ */
+export const asyncCompleteRoadmapItem = createAsyncThunk(
+  'roadmap/completeItem',
+  async (
+    { roadmapId, itemId }: { roadmapId: string; itemId: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const result = await roadmapService.completeRoadmapItem(roadmapId, itemId)
+      return { roadmapId, ...result }
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error))
+    }
+  }
+)
+
 const roadmapSlice = createSlice({
   name: 'roadmap',
   initialState,
@@ -371,6 +406,61 @@ const roadmapSlice = createSlice({
               ? Math.round((progress.completed / progress.total) * 100)
               : 0
         }
+      })
+      /**
+       * R14.7: Handle asyncGetRoadmapDetailWithLocks
+       * Similar to asyncGetRoadmapDetail but for lock status display
+       */
+      .addCase(asyncGetRoadmapDetailWithLocks.pending, state => {
+        state.detail.loading = true
+      })
+      .addCase(asyncGetRoadmapDetailWithLocks.fulfilled, (state, action) => {
+        state.detail.loading = false
+        state.detail.current = action.payload
+      })
+      .addCase(asyncGetRoadmapDetailWithLocks.rejected, (state, action) => {
+        state.detail.loading = false
+        state.detail.error =
+          (action.payload as string) || 'Failed to load roadmap'
+      })
+      /**
+       * R14.7: Handle asyncCompleteRoadmapItem
+       * Mark item complete and update progress
+       */
+      .addCase(asyncCompleteRoadmapItem.pending, state => {
+        state.operation.loading = true
+        state.operation.error = null
+        state.operation.success = false
+      })
+      .addCase(asyncCompleteRoadmapItem.fulfilled, (state, action) => {
+        state.operation.loading = false
+        state.operation.success = true
+        // Update detail if current roadmap matches
+        if (state.detail.current?.roadmap.id === action.payload.roadmapId) {
+          // Update item in current detail
+          if (state.detail.current.items) {
+            state.detail.current.items = state.detail.current.items.map(item =>
+              item.id === action.payload.item.id
+                ? { ...item, ...action.payload.item }
+                : item
+            )
+          }
+        }
+        // Update progress if available
+        const progress = state.progress[action.payload.roadmapId]
+        if (progress && !progress.completedItems.includes(action.payload.item.id)) {
+          progress.completedItems.push(action.payload.item.id)
+          progress.completed += 1
+          progress.percentage =
+            progress.total > 0
+              ? Math.round((progress.completed / progress.total) * 100)
+              : 0
+        }
+      })
+      .addCase(asyncCompleteRoadmapItem.rejected, (state, action) => {
+        state.operation.loading = false
+        state.operation.error =
+          (action.payload as string) || 'Failed to complete item'
       })
   },
 })

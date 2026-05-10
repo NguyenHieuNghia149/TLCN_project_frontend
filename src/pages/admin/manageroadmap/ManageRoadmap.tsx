@@ -323,22 +323,23 @@ const ManageRoadmap: React.FC = () => {
 
     try {
       setAddItemsLoading(true)
+      // R13.2 FIX: Do NOT submit order field - backend calculates order = max(order) + 1
       await adminRoadmapAPI.addItemToRoadmap(currentRoadmapIdForItems, {
         itemType: values.itemType,
         itemId: values.itemId,
-        order: values.order || 1,
+        // order field: OMITTED - backend will set it automatically
       })
 
       notification.success({
         message: 'Success',
-        description: 'Item added to roadmap',
+        description: 'Item added to roadmap (at the end)',
         placement: 'topRight',
       })
 
       addItemsForm.resetFields()
       setShowAddItemsModal(false)
 
-      // Refresh detail data
+      // Refresh detail data to confirm correct order from server
       const detail = await adminRoadmapAPI.getRoadmapDetail(
         currentRoadmapIdForItems
       )
@@ -884,13 +885,10 @@ const ManageRoadmap: React.FC = () => {
             </Select>
           </Form.Item>
 
-          <Form.Item
-            name="order"
-            label="Order (Optional)"
-            rules={[{ type: 'number', message: 'Please enter a valid number' }]}
-          >
-            <Input type="number" placeholder="Default: 1" min={1} />
-          </Form.Item>
+          {/* R13.2 FIX: Order field removed - backend auto-calculates as max(order) + 1 */}
+          <div className="mb-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-700">
+            ℹ️ Items are automatically added at the end of the roadmap.
+          </div>
 
           <Form.Item>
             <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
