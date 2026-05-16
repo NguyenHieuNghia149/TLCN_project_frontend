@@ -15,7 +15,9 @@ export class LearnedLessonService {
   async checkLessonCompletion(lessonId: string): Promise<boolean> {
     try {
       const response = await apiClient.get(`/learned-lessons/check/${lessonId}`)
-      return response.data?.data?.isCompleted ?? false
+      return (
+        response.data?.data?.isCompleted ?? response.data?.isCompleted ?? false
+      )
     } catch (error) {
       console.error(`Error checking lesson completion for ${lessonId}:`, error)
       return false
@@ -28,7 +30,11 @@ export class LearnedLessonService {
   async getCompletedLessons(): Promise<string[]> {
     try {
       const response = await apiClient.get('/learned-lessons/user/completed')
-      return response.data?.data?.completedLessonIds ?? []
+      return (
+        response.data?.data?.completedLessonIds ??
+        response.data?.completedLessonIds ??
+        []
+      )
     } catch (error) {
       console.error('Error fetching completed lessons:', error)
       return []
@@ -43,7 +49,7 @@ export class LearnedLessonService {
       const response = await apiClient.post('/learned-lessons/mark-completed', {
         lessonId,
       })
-      return response.data?.success ?? false
+      return response.data?.success ?? response.data?.data?.success ?? false
     } catch (error) {
       console.error(`Error marking lesson ${lessonId} as completed:`, error)
       return false

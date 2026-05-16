@@ -7,6 +7,7 @@ import type {
   Roadmap,
   RoadmapDetail,
   RoadmapItem,
+  RoadmapItemWithLockStatus,
 } from '@/types/roadmap.types'
 
 type RoadmapState = {
@@ -270,6 +271,9 @@ const roadmapSlice = createSlice({
       state.operation.success = false
       state.operation.error = null
     },
+    invalidateRoadmapDetail: state => {
+      state.detail.current = null
+    },
   },
   extraReducers: builder => {
     builder
@@ -353,7 +357,14 @@ const roadmapSlice = createSlice({
       .addCase(asyncAddItem.fulfilled, (state, action) => {
         state.operation.success = true
         if (state.detail.current) {
-          state.detail.current.items.push(action.payload)
+          const payloadWithLocks: RoadmapItemWithLockStatus = {
+            ...(action.payload as RoadmapItem),
+            isCompleted: false,
+            isUnlocked: false,
+          }
+          state.detail.current.items.push(
+            payloadWithLocks as RoadmapItemWithLockStatus
+          )
         }
       })
       .addCase(asyncRemoveItem.fulfilled, (state, action) => {
@@ -370,12 +381,16 @@ const roadmapSlice = createSlice({
           const itemMap = new Map(
             state.detail.current.items.map(i => [i.id, i])
           )
-          state.detail.current.items = itemIds
-            .map((id, idx) => {
-              const item = itemMap.get(id)
-              return item ? { ...item, order: idx + 1 } : null
-            })
-            .filter((item): item is RoadmapItem => Boolean(item))
+          const newItems: RoadmapItemWithLockStatus[] = []
+          itemIds.forEach((id, idx) => {
+            const item = itemMap.get(id)
+            if (item) {
+              ;(item as RoadmapItemWithLockStatus).order = idx + 1
+              newItems.push(item as RoadmapItemWithLockStatus)
+            }
+          })
+
+          state.detail.current.items = newItems
         }
       })
       .addCase(asyncGetUserProgress.fulfilled, (state, action) => {
@@ -435,20 +450,36 @@ const roadmapSlice = createSlice({
       .addCase(asyncCompleteRoadmapItem.fulfilled, (state, action) => {
         state.operation.loading = false
         state.operation.success = true
-        // Update detail if current roadmap matches
+
         if (state.detail.current?.roadmap.id === action.payload.roadmapId) {
-          // Update item in current detail
-          if (state.detail.current.items) {
-            state.detail.current.items = state.detail.current.items.map(item =>
-              item.id === action.payload.item.id
-                ? { ...item, ...action.payload.item }
-                : item
-            )
+          const items = state.detail.current.items
+          if (items) {
+            for (let i = 0; i < items.length; i++) {
+              const it = items[i] as RoadmapItemWithLockStatus
+              if (it.id === action.payload.item.id) {
+                it.isCompleted = true
+                it.isUnlocked = true
+                it.lockReason = null
+              }
+              if (
+                action.payload.unlockedNextItem &&
+                it.id === action.payload.unlockedNextItem.id
+              ) {
+                it.isUnlocked = true
+                it.lockReason = null
+                if (action.payload.unlockedNextItem.isCompleted) {
+                  it.isCompleted = true
+                }
+              }
+            }
           }
         }
-        // Update progress if available
+
         const progress = state.progress[action.payload.roadmapId]
-        if (progress && !progress.completedItems.includes(action.payload.item.id)) {
+        if (
+          progress &&
+          !progress.completedItems.includes(action.payload.item.id)
+        ) {
           progress.completedItems.push(action.payload.item.id)
           progress.completed += 1
           progress.percentage =
