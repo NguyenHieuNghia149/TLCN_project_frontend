@@ -1,4 +1,4 @@
-import React from 'react';
+import React from 'react'
 import {
   FiPlay,
   FiBriefcase,
@@ -8,8 +8,8 @@ import {
   FiUsers,
   FiBox,
   FiAward,
-} from 'react-icons/fi';
-import type { TimelineVisualizationData } from '@/types/roadmap.types';
+} from 'react-icons/fi'
+import type { TimelineVisualizationData } from '@/types/roadmap.types'
 
 /**
  * Global Stage Index Order (0-indexed):
@@ -27,7 +27,10 @@ import type { TimelineVisualizationData } from '@/types/roadmap.types';
  * Icon component map (mandatory - runtime lookup via string key)
  * Reason: Serializable to database, no ES module dependency, easier to mock in tests
  */
-export const ICON_COMPONENT_MAP: Record<string, React.ComponentType> = {
+export const ICON_COMPONENT_MAP: Record<
+  string,
+  React.ComponentType<React.SVGProps<SVGSVGElement>>
+> = {
   play: FiPlay,
   briefcase: FiBriefcase, // Feather Icons substitute for 'idea' concept
   search: FiSearch,
@@ -36,16 +39,18 @@ export const ICON_COMPONENT_MAP: Record<string, React.ComponentType> = {
   users: FiUsers, // Feather Icons substitute for 'handshake'
   box: FiBox, // Feather Icons substitute for 'package'
   award: FiAward,
-};
+}
 
 /**
  * Helper function to resolve icon component from string key
  * Returns null if icon key not found
  */
-export const getIconComponent = (iconKey?: string): React.ComponentType | null => {
-  if (!iconKey) return null;
-  return ICON_COMPONENT_MAP[iconKey] ?? null;
-};
+export const getIconComponent = (
+  iconKey?: string
+): React.ComponentType<React.SVGProps<SVGSVGElement>> | null => {
+  if (!iconKey) return null
+  return ICON_COMPONENT_MAP[iconKey] ?? null
+}
 
 /**
  * Default timeline stages configuration
@@ -120,7 +125,7 @@ export const DEFAULT_TIMELINE_STAGES: TimelineVisualizationData = {
       track: 'milestone',
     },
   ],
-};
+}
 
 /**
  * Get stage label by global index (0-7)
@@ -129,14 +134,14 @@ export const getStageLabel = (globalIndex: number): string => {
   const allStages = [
     ...DEFAULT_TIMELINE_STAGES.progressStages,
     ...DEFAULT_TIMELINE_STAGES.milestoneStages,
-  ];
-  return allStages[globalIndex]?.label ?? '';
-};
+  ]
+  return allStages[globalIndex]?.label ?? ''
+}
 
 /**
  * Get default icon by item type (lesson, problem)
  * Used when RoadmapItem doesn't have custom icon
  */
 export const getIconByItemType = (itemType: 'lesson' | 'problem'): string => {
-  return itemType === 'lesson' ? 'briefcase' : 'search';
-};
+  return itemType === 'lesson' ? 'briefcase' : 'search'
+}

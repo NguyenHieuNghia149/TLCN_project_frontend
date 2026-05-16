@@ -1,553 +1,786 @@
-import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react';
-import type { Roadmap, ProgressStats, RoadmapItem } from '@/types/roadmap.types';
+import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react'
+import type {
+  Roadmap,
+  ProgressStats,
+  RoadmapItem,
+  RoadmapItemWithLockStatus,
+} from '@/types/roadmap.types'
+
+type RoadmapVisualNode = RoadmapItem | RoadmapItemWithLockStatus
 
 interface RoadmapVisualTimelineProps {
-  roadmap: Roadmap;
-  items: RoadmapItem[];
-  progress: ProgressStats;
-  onItemClick?: (itemId: string) => void;
-  className?: string;
+  roadmap: Roadmap
+  items: RoadmapVisualNode[]
+  progress: ProgressStats
+  onItemClick?: (itemId: string) => void
+  className?: string
 }
 
-/** Number of items per row in the snake layout */
-const ITEMS_PER_ROW = 4;
-/** Horizontal spacing between node centers */
-const NODE_SPACING_X = 220;
-/** Vertical spacing between rows */
-const ROW_HEIGHT = 200;
-/** Road stroke width */
-const ROAD_WIDTH = 8;
-/** Node circle radius */
-const NODE_RADIUS = 36;
-/** Padding from edges */
-const PADDING_X = 80;
-const PADDING_Y = 80;
+const ITEMS_PER_ROW = 5
+const NODE_R = 42 // node circle radius
+const NODE_SPACING_X = 200 // horizontal distance between node centers
+const ROW_HEIGHT = 240 // vertical distance between row centers
+const PAD_X = 80 // left/right padding
+const PAD_Y = 100 // top/bottom padding (extra room for START/FINISH labels)
 
-/**
- * RoadmapVisualTimeline Component - Snake-like flowing road visualization
- *
- * Creates a winding road path where:
- *   - Completed segments are filled GREEN
- *   - Pending segments are GRAY
- *   - Nodes sit on top of the road with clear visual states
- */
+// ─── helpers ────────────────────────────────────────────────────────────────
+
+function truncate(text: string, max: number) {
+  return text.length <= max ? text : text.slice(0, max - 1) + '…'
+}
+
+/** SVG circular-arc progress ring (like the 40% ring in the header) */
+function CircleProgress({
+  pct,
+  r = 40,
+  stroke = 7,
+}: {
+  pct: number
+  r?: number
+  stroke?: number
+}) {
+  const circ = 2 * Math.PI * r
+  const dash = (pct / 100) * circ
+  const size = (r + stroke) * 2
+  return (
+    <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+      {/* track */}
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke="#1e3a2a"
+        strokeWidth={stroke}
+      />
+      {/* filled */}
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke="#22c55e"
+        strokeWidth={stroke}
+        strokeDasharray={`${dash} ${circ}`}
+        strokeLinecap="round"
+        style={{ filter: 'drop-shadow(0 0 6px #22c55e88)' }}
+      />
+    </svg>
+  )
+}
+
+// ─── main component ──────────────────────────────────────────────────────────
+
 export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
-  ({
-    roadmap,
-    items,
-    progress,
-    onItemClick,
-    className = '',
-  }) => {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const [containerWidth, setContainerWidth] = useState(0);
+  ({ roadmap, items, progress, onItemClick, className = '' }) => {
+    const containerRef = useRef<HTMLDivElement>(null)
+    const [containerWidth, setContainerWidth] = useState(0)
 
-    // Sort items by order
-    const sortedItems = useMemo(() => {
-      return [...items].sort((a, b) => a.order - b.order);
-    }, [items]);
+    // sorted items
+    const sorted = useMemo(
+      () => [...items].sort((a, b) => a.order - b.order),
+      [items]
+    )
 
-    // Calculate responsive node spacing
+    // container width observer
     useEffect(() => {
-      const updateWidth = () => {
-        if (containerRef.current) {
-          setContainerWidth(containerRef.current.offsetWidth);
-        }
-      };
-      updateWidth();
-      window.addEventListener('resize', updateWidth);
-      return () => window.removeEventListener('resize', updateWidth);
-    }, []);
-
-    // Calculate dynamic spacing based on container width
-    const dynamicSpacingX = useMemo(() => {
-      if (containerWidth === 0) return NODE_SPACING_X;
-      const itemsInRow = Math.min(ITEMS_PER_ROW, sortedItems.length);
-      const availableWidth = containerWidth - PADDING_X * 2;
-      const spacing = availableWidth / Math.max(itemsInRow - 1, 1);
-      return Math.max(150, Math.min(spacing, NODE_SPACING_X));
-    }, [containerWidth, sortedItems.length]);
-
-    // Calculate node positions in a snake pattern
-    const nodePositions = useMemo(() => {
-      const positions: { x: number; y: number; item: RoadmapItem }[] = [];
-      const itemsPerRow = Math.min(ITEMS_PER_ROW, Math.max(2, Math.floor((containerWidth - PADDING_X * 2) / 150) + 1));
-
-      // Calculate centering offset
-      const actualItemsInRow = Math.min(itemsPerRow, sortedItems.length);
-      const rowWidth = Math.max(0, actualItemsInRow - 1) * dynamicSpacingX;
-      // Centering offset: containerWidth - rowWidth, divided by 2
-      const offsetX = Math.max(PADDING_X, (containerWidth - rowWidth) / 2);
-
-      sortedItems.forEach((item, index) => {
-        const row = Math.floor(index / itemsPerRow);
-        const colIndex = index % itemsPerRow;
-        const isReversedRow = row % 2 === 1;
-
-        const col = isReversedRow ? (itemsPerRow - 1 - colIndex) : colIndex;
-        const x = offsetX + col * dynamicSpacingX;
-        const y = PADDING_Y + row * ROW_HEIGHT;
-
-        positions.push({ x, y, item });
-      });
-
-      return positions;
-    }, [sortedItems, dynamicSpacingX, containerWidth]);
-
-    // Calculate SVG dimensions
-    const svgDimensions = useMemo(() => {
-      if (nodePositions.length === 0) return { width: 0, height: 0 };
-      const maxX = Math.max(...nodePositions.map(p => p.x));
-      const maxY = Math.max(...nodePositions.map(p => p.y));
-      return {
-        width: maxX + PADDING_X,
-        height: maxY + PADDING_Y + 40,
-      };
-    }, [nodePositions]);
-
-    // Build road path segments
-    const roadSegments = useMemo(() => {
-      const segments: { path: string; isCompleted: boolean }[] = [];
-
-      for (let i = 0; i < nodePositions.length - 1; i++) {
-        const from = nodePositions[i];
-        const to = nodePositions[i + 1];
-        const fromCompleted = progress.completedItems.includes(from.item.id);
-        const toCompleted = progress.completedItems.includes(to.item.id);
-        // A segment is completed if the starting node is completed
-        const isCompleted = fromCompleted && toCompleted;
-
-        // Check if this is a turn (row change) or straight
-        if (Math.abs(from.y - to.y) > 10) {
-          // Vertical curve between rows
-          const midY = (from.y + to.y) / 2;
-          const path = `M ${from.x} ${from.y} C ${from.x} ${midY}, ${to.x} ${midY}, ${to.x} ${to.y}`;
-          segments.push({ path, isCompleted });
-        } else {
-          // Horizontal line within same row
-          const path = `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
-          segments.push({ path, isCompleted });
-        }
+      const update = () => {
+        if (containerRef.current)
+          setContainerWidth(containerRef.current.offsetWidth)
       }
+      update()
+      const ro = new ResizeObserver(update)
+      if (containerRef.current) ro.observe(containerRef.current)
+      return () => ro.disconnect()
+    }, [])
 
-      return segments;
-    }, [nodePositions, progress.completedItems]);
+    // dynamic items-per-row (keep 6 but clamp to available width)
+    const itemsPerRow = useMemo(() => {
+      if (containerWidth === 0) return ITEMS_PER_ROW
+      const maxFit = Math.floor((containerWidth - PAD_X * 2) / 130)
+      return Math.max(2, Math.min(ITEMS_PER_ROW, maxFit))
+    }, [containerWidth])
 
-    // Progress percentage
-    const progressPercentage = progress.total > 0
-      ? Math.round((progress.completed / progress.total) * 100)
-      : 0;
+    // dynamic spacing
+    const spacingX = useMemo(() => {
+      if (containerWidth === 0) return NODE_SPACING_X
+      const avail = containerWidth - PAD_X * 2
+      return Math.max(
+        120,
+        Math.min(NODE_SPACING_X, avail / Math.max(itemsPerRow - 1, 1))
+      )
+    }, [containerWidth, itemsPerRow])
 
-    const handleItemClick = useCallback((itemId: string) => {
-      onItemClick?.(itemId);
-    }, [onItemClick]);
+    // node positions (snake pattern)
+    // Key fix: ALL rows use the same fixed column grid so RTL partial rows align correctly.
+    const positions = useMemo(() => {
+      // Fixed row width based on itemsPerRow (same for every row)
+      const rowWidth = (itemsPerRow - 1) * spacingX
+      const startX = PAD_X + (containerWidth - PAD_X * 2 - rowWidth) / 2
 
-    if (sortedItems.length === 0) {
+      return sorted.map((item, idx) => {
+        const row = Math.floor(idx / itemsPerRow)
+        const colInRow = idx % itemsPerRow
+        const reversed = row % 2 === 1
+        // RTL: first item of this row goes to rightmost column (itemsPerRow-1),
+        //      second item to (itemsPerRow-2), etc. → partial rows are right-anchored.
+        const col = reversed ? itemsPerRow - 1 - colInRow : colInRow
+        return {
+          x: startX + col * spacingX,
+          y: PAD_Y + row * ROW_HEIGHT,
+          item,
+          row,
+          colInRow,
+          reversed,
+        }
+      })
+    }, [sorted, itemsPerRow, spacingX, containerWidth])
+
+    // SVG canvas size
+    const svgW = useMemo(() => containerWidth || 800, [containerWidth])
+    const svgH = useMemo(() => {
+      if (positions.length === 0) return 200
+      // 90 = bottom padding: label(18) + badges(16) + "đang học"(20) + gap(36)
+      return Math.max(...positions.map(p => p.y)) + 90 + 90
+    }, [positions])
+
+    // completed set
+    const completedSet = useMemo(
+      () => new Set(progress.completedItems),
+      [progress.completedItems]
+    )
+
+    // find "current" (first unlocked, not completed)
+    const currentId = useMemo(() => {
+      for (const item of sorted) {
+        const isCompleted =
+          'isCompleted' in item ? item.isCompleted : completedSet.has(item.id)
+        const isUnlocked = 'isUnlocked' in item ? item.isUnlocked : true
+        if (!isCompleted && isUnlocked) return item.id
+      }
+      return null
+    }, [sorted, completedSet])
+
+    const pct =
+      progress.total > 0
+        ? Math.round((progress.completed / progress.total) * 100)
+        : 0
+
+    const handleClick = useCallback(
+      (item: RoadmapVisualNode) => {
+        const isUnlocked = 'isUnlocked' in item ? item.isUnlocked : true
+        if (isUnlocked) onItemClick?.(item.id)
+      },
+      [onItemClick]
+    )
+
+    if (sorted.length === 0) {
       return (
-        <div className={`flex items-center justify-center py-16 text-slate-400 ${className}`}>
-          <p className="text-lg">No items in this roadmap yet.</p>
+        <div
+          className={`flex items-center justify-center py-16 text-slate-400 ${className}`}
+        >
+          <p>No items in this roadmap yet.</p>
         </div>
-      );
+      )
     }
 
+    // ── render ─────────────────────────────────────────────────────────────
     return (
-      <div className={`space-y-6 ${className}`}>
-        {/* Header */}
-        <div className="space-y-3">
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{roadmap.title}</h2>
+      <div className={`space-y-4 ${className}`}>
+        {/* ── HEADER: title + desc */}
+        <div>
+          <h2 className="text-2xl font-bold text-white">{roadmap.title}</h2>
           {roadmap.description && (
-            <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">{roadmap.description}</p>
+            <p className="mt-1 text-sm text-slate-400">{roadmap.description}</p>
           )}
         </div>
 
-        {/* Progress Bar */}
-        <div className="rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 shadow-sm">
-          <div className="flex items-center justify-between text-sm mb-2">
-            <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
-              <span className="font-semibold text-slate-700 dark:text-slate-300">Progress</span>
+        {/* ── PROGRESS CARD ─────────────────────────────────────────── */}
+        <div
+          style={{
+            background: 'linear-gradient(135deg,#0d1f14 0%,#111827 100%)',
+            border: '1px solid #1e3a2a',
+          }}
+          className="rounded-2xl p-5"
+        >
+          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-green-400">
+            Tiến độ
+          </p>
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+            {/* ring */}
+            <div className="relative flex h-24 w-24 flex-shrink-0 items-center justify-center">
+              <CircleProgress pct={pct} r={40} stroke={7} />
+              <span
+                className="absolute text-lg font-bold text-white"
+                style={{ textShadow: '0 0 8px #22c55eaa' }}
+              >
+                {pct}%
+              </span>
             </div>
-            <span className="text-slate-500 dark:text-slate-400 font-medium">
-              {progress.completed}/{progress.total} completed
-              <span className="ml-2 text-green-600 dark:text-green-500 font-bold">({progressPercentage}%)</span>
-            </span>
-          </div>
-          <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-3 overflow-hidden">
-            <div
-              className="h-3 rounded-full transition-all duration-700 ease-out"
-              style={{
-                width: `${progressPercentage}%`,
-                background: 'linear-gradient(90deg, #22c55e 0%, #16a34a 100%)',
-              }}
-              role="progressbar"
-              aria-valuenow={progressPercentage}
-              aria-valuemin={0}
-              aria-valuemax={100}
-            />
+
+            {/* text */}
+            <div className="min-w-0 flex-1">
+              <p className="text-xl font-bold text-white">
+                <span className="text-green-400">{progress.completed}</span>/
+                {progress.total} hoàn thành ({pct}%)
+              </p>
+              <p className="mt-1 text-sm text-slate-400">
+                {pct >= 80
+                  ? 'Xuất sắc! Bạn gần hoàn thành rồi 🎉'
+                  : pct >= 50
+                    ? 'Tiếp tục phát huy nhé! 💪'
+                    : 'Bạn đang học rất tốt! Hãy tiếp tục phát huy.'}
+              </p>
+            </div>
+
+            {/* progress bar + legend */}
+            <div className="min-w-0 flex-1 space-y-3">
+              <div className="flex items-center gap-3">
+                <div
+                  className="h-2 flex-1 rounded-full"
+                  style={{ background: '#1a2e1a' }}
+                >
+                  <div
+                    className="h-2 rounded-full transition-all duration-700"
+                    style={{
+                      width: `${pct}%`,
+                      background: 'linear-gradient(90deg,#22c55e,#16a34a)',
+                      boxShadow: '0 0 8px #22c55e88',
+                    }}
+                  />
+                </div>
+                <span className="whitespace-nowrap text-xs font-medium text-slate-400">
+                  {progress.completed}/{progress.total}
+                </span>
+              </div>
+
+              {/* legend */}
+              <div className="flex flex-wrap gap-4 text-xs text-slate-300">
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" />
+                  Hoàn thành
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-400" />
+                  Đang làm
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="inline-block h-2.5 w-2.5 rounded-full"
+                    style={{ background: '#334155' }}
+                  />
+                  Chưa bắt đầu
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Screen Reader Announcement */}
-        <div aria-live="polite" aria-atomic="true" className="sr-only">
-          {`Timeline progress: ${progress.completed} of ${progress.total} items completed.`}
-        </div>
-
-        {/* Legend */}
-        <div className="flex items-center gap-6 text-xs text-slate-500 dark:text-slate-400">
-          <div className="flex items-center gap-1.5">
-            <div className="w-6 h-1.5 rounded-full bg-green-500" />
-            <span>Completed</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-6 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
-            <span>Not started</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-green-500 border-2 border-green-600 dark:border-green-400" />
-            <span>Done</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-slate-200 dark:bg-slate-700 border-2 border-slate-300 dark:border-slate-500" />
-            <span>Pending</span>
-          </div>
-        </div>
-
-        {/* Road Visualization */}
+        {/* ── SNAKE ROAD ────────────────────────────────────────────── */}
         <div
           ref={containerRef}
-          className="relative overflow-x-auto rounded-2xl bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 border border-slate-200 dark:border-slate-700 shadow-sm"
           data-testid="timeline-snake"
+          style={{
+            background:
+              'linear-gradient(160deg,#060d18 0%,#0a1628 50%,#060d18 100%)',
+            border: '1px solid #1e293b',
+            backgroundImage: `
+              linear-gradient(160deg,#060d18 0%,#0a1628 50%,#060d18 100%),
+              radial-gradient(circle, #1e293b 1px, transparent 1px)
+            `,
+            backgroundSize: '100% 100%, 28px 28px',
+          }}
+          className="overflow-x-auto rounded-2xl"
         >
           {containerWidth > 0 && (
             <svg
-              width={svgDimensions.width}
-              height={svgDimensions.height}
-              className="block min-w-full"
-              style={{ minWidth: svgDimensions.width }}
+              width={svgW}
+              height={svgH}
+              className="block"
+              style={{ minWidth: svgW }}
             >
               <defs>
-                {/* Glow filter for completed segments */}
-                <filter id="glow-green" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="3" result="blur" />
+                {/* glow filter green */}
+                <filter
+                  id="glow-g"
+                  x="-40%"
+                  y="-40%"
+                  width="180%"
+                  height="180%"
+                >
+                  <feGaussianBlur stdDeviation="4" result="blur" />
                   <feMerge>
                     <feMergeNode in="blur" />
                     <feMergeNode in="SourceGraphic" />
                   </feMerge>
                 </filter>
-                {/* Shadow for nodes */}
-                <filter id="node-shadow" x="-30%" y="-30%" width="160%" height="160%">
-                  <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor="#000" floodOpacity="0.1" />
+                {/* glow filter blue (current) */}
+                <filter
+                  id="glow-b"
+                  x="-40%"
+                  y="-40%"
+                  width="180%"
+                  height="180%"
+                >
+                  <feGaussianBlur stdDeviation="5" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
                 </filter>
-                {/* Gradient for completed road */}
-                <linearGradient id="road-completed" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#22c55e" />
-                  <stop offset="100%" stopColor="#16a34a" />
-                </linearGradient>
-                {/* Gradient for pending road */}
-                <linearGradient id="road-pending" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#cbd5e1" />
-                  <stop offset="100%" stopColor="#94a3b8" />
-                </linearGradient>
+                {/* node drop-shadow */}
+                <filter id="nsh" x="-30%" y="-30%" width="160%" height="160%">
+                  <feDropShadow
+                    dx="0"
+                    dy="3"
+                    stdDeviation="5"
+                    floodColor="#000"
+                    floodOpacity="0.5"
+                  />
+                </filter>
               </defs>
 
-              {/* Road background (thicker, lighter) */}
-              {roadSegments.map((seg, i) => (
-                <path
-                  key={`road-bg-${i}`}
-                  d={seg.path}
-                  className={seg.isCompleted ? 'stroke-green-100 dark:stroke-green-900/30' : 'stroke-slate-100 dark:stroke-slate-800'}
-                  strokeWidth={ROAD_WIDTH + 8}
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              ))}
+              {/* ── CONNECTORS (drawn first, behind nodes) */}
+              {positions.map((pos, i) => {
+                if (i === positions.length - 1) return null
+                const next = positions[i + 1]
+                const fromC = completedSet.has(pos.item.id)
+                const toC = completedSet.has(next.item.id)
+                const segC = fromC && toC
+                const stroke = segC ? '#22c55e' : '#1e3a55'
+                const sWidth = 3
 
-              {/* Road path segments */}
-              {roadSegments.map((seg, i) => (
-                <path
-                  key={`road-${i}`}
-                  d={seg.path}
-                  className={seg.isCompleted ? 'stroke-green-500 roadmap-completed-segment' : 'stroke-slate-300 dark:stroke-slate-600'}
-                  strokeWidth={ROAD_WIDTH}
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  filter={seg.isCompleted ? 'url(#glow-green)' : undefined}
-                />
-              ))}
+                if (pos.row === next.row) {
+                  // same row: horizontal dashed line with directional arrow
+                  // RTL rows: pos.x > next.x (travelling right→left)
+                  // LTR rows: pos.x < next.x (travelling left→right)
+                  const isRTL = pos.x > next.x
 
-              {/* Road dashes for pending segments */}
-              {roadSegments.map((seg, i) =>
-                !seg.isCompleted ? (
-                  <path
-                    key={`road-dash-${i}`}
-                    d={seg.path}
-                    className="stroke-slate-200 dark:stroke-slate-700"
-                    strokeWidth={2}
-                    fill="none"
-                    strokeLinecap="round"
-                    strokeDasharray="8 8"
-                  />
-                ) : null
-              )}
+                  // Endpoints of the line segment (between the two node edges)
+                  // For LTR: from right edge of pos to left edge of next
+                  // For RTL: from left edge of pos to right edge of next
+                  const lineX1 = isRTL ? pos.x - NODE_R - 2 : pos.x + NODE_R + 2
+                  const lineX2 = isRTL
+                    ? next.x + NODE_R + 2
+                    : next.x - NODE_R - 2
+                  const y = pos.y
+                  const mx = (lineX1 + lineX2) / 2
 
-              {/* Direction arrows on road */}
-              {roadSegments.map((seg, i) => {
-                const from = nodePositions[i];
-                const to = nodePositions[i + 1];
-                if (!from || !to) return null;
-                const midX = (from.x + to.x) / 2;
-                const midY = (from.y + to.y) / 2;
-                const angle = Math.atan2(to.y - from.y, to.x - from.x) * 180 / Math.PI;
-                return (
-                  <g key={`arrow-${i}`} transform={`translate(${midX},${midY}) rotate(${angle})`}>
-                    <polygon
-                      points="-6,-4 6,0 -6,4"
-                      className={seg.isCompleted ? 'fill-green-600 dark:fill-green-500' : 'fill-slate-400 dark:fill-slate-500'}
-                      opacity={0.6}
+                  // Arrow points in direction of travel
+                  // LTR → points right:  left-tip, right-tip, left-tip
+                  // RTL → points left:   right-tip, left-tip, right-tip
+                  const arrowPoints = isRTL
+                    ? `${mx + 6},${y - 4} ${mx - 6},${y} ${mx + 6},${y + 4}`
+                    : `${mx - 6},${y - 4} ${mx + 6},${y} ${mx - 6},${y + 4}`
+
+                  return (
+                    <g key={`conn-${i}`}>
+                      <line
+                        x1={lineX1}
+                        y1={y}
+                        x2={lineX2}
+                        y2={y}
+                        stroke={stroke}
+                        strokeWidth={sWidth}
+                        strokeDasharray={segC ? 'none' : '6 4'}
+                        strokeLinecap="round"
+                        filter={segC ? 'url(#glow-g)' : undefined}
+                      />
+                      {/* directional arrow head */}
+                      <polygon
+                        points={arrowPoints}
+                        fill={segC ? '#22c55e' : '#1e3a55'}
+                        opacity={0.9}
+                      />
+                    </g>
+                  )
+                } else {
+                  // Row transition: simple vertical bezier
+                  const x1 = pos.x
+                  const y1 = pos.y + NODE_R + 4
+                  const x2 = next.x
+                  const y2 = next.y - NODE_R - 4
+                  const mid = (y1 + y2) / 2
+                  const path = `M ${x1} ${y1} C ${x1} ${mid}, ${x2} ${mid}, ${x2} ${y2}`
+                  return (
+                    <path
+                      key={`conn-${i}`}
+                      d={path}
+                      stroke={stroke}
+                      strokeWidth={sWidth}
+                      fill="none"
+                      strokeLinecap="round"
+                      strokeDasharray={segC ? 'none' : '6 4'}
+                      filter={segC ? 'url(#glow-g)' : undefined}
                     />
-                  </g>
-                );
+                  )
+                }
               })}
 
-              {/* Node circles */}
-              {nodePositions.map(({ x, y, item }) => {
-                const isCompleted = progress.completedItems.includes(item.id);
+              {/* ── NODES */}
+              {positions.map(({ x, y, item }) => {
+                const isCompleted =
+                  'isCompleted' in item
+                    ? item.isCompleted
+                    : completedSet.has(item.id)
+                const isUnlocked = (
+                  'isUnlocked' in item ? item.isUnlocked : true
+                ) as boolean
+                const isCurrent = item.id === currentId
+                const isLocked = !isUnlocked
+
+                // colours
+                let fill = '#0f2236' // locked
+                let strokeCol = '#1e3a55'
+                let strokeW = 2
+                if (isCompleted) {
+                  fill = '#166534'
+                  strokeCol = '#22c55e'
+                  strokeW = 3
+                } else if (isCurrent) {
+                  fill = '#0c2a4a'
+                  strokeCol = '#3b82f6'
+                  strokeW = 3
+                } else if (isUnlocked) {
+                  fill = '#0f2236'
+                  strokeCol = '#334155'
+                  strokeW = 2
+                }
+
+                // outer glow ring
+                const glowR = NODE_R + 7
+                const showGlow = isCompleted || isCurrent
+
+                // label
+                const label = truncate(item.itemTitle || item.itemType, 16)
+
+                // Single badge matching actual itemType
+                const badgeLabel =
+                  item.itemType === 'lesson' ? 'BÀI HỌC' : 'BÀI TẬP'
+                const badgeColor =
+                  item.itemType === 'lesson' ? '#93c5fd' : '#fbbf24'
+                const badgeBg =
+                  item.itemType === 'lesson' ? '#1e3a8a' : '#451a03'
+
+                const labelY = y + NODE_R + 18
+                const badgeY = labelY + 20
 
                 return (
                   <g
                     key={item.id}
-                    className="roadmap-node cursor-pointer"
-                    onClick={() => handleItemClick(item.id)}
-                    data-testid={`item-node-${item.id}`}
+                    onClick={() => handleClick(item)}
+                    style={{ cursor: isLocked ? 'not-allowed' : 'pointer' }}
                     role="button"
                     tabIndex={0}
-                    aria-label={`${item.itemTitle || item.itemType} - ${isCompleted ? 'completed' : 'pending'}`}
+                    aria-label={`${item.itemTitle} - ${isCompleted ? 'Hoàn thành' : isCurrent ? 'Đang học' : isLocked ? 'Chưa mở' : 'Chưa bắt đầu'}`}
+                    aria-disabled={isLocked}
+                    data-testid={`item-node-${item.id}`}
+                    className="roadmap-node"
                   >
-                    {/* Outer ring for active/current items */}
-                    {!isCompleted && (
+                    {/* glow ring */}
+                    {showGlow && (
                       <circle
                         cx={x}
                         cy={y}
-                        r={NODE_RADIUS + 4}
+                        r={glowR}
                         fill="none"
-                        className="stroke-slate-200 dark:stroke-slate-700 roadmap-pending-ring"
+                        stroke={isCompleted ? '#22c55e' : '#3b82f6'}
                         strokeWidth={2}
-                        strokeDasharray="4 4"
+                        opacity={0.35}
+                        filter={isCompleted ? 'url(#glow-g)' : 'url(#glow-b)'}
                       />
                     )}
 
-                    {/* Completion glow ring */}
-                    {isCompleted && (
+                    {/* locked dashed ring */}
+                    {isLocked && !isCompleted && (
                       <circle
                         cx={x}
                         cy={y}
-                        r={NODE_RADIUS + 6}
+                        r={NODE_R + 5}
                         fill="none"
-                        className="stroke-green-500"
-                        strokeWidth={2}
-                        opacity={0.3}
+                        stroke="#334155"
+                        strokeWidth={1.5}
+                        strokeDasharray="4 5"
                       />
                     )}
 
-                    {/* Main node circle */}
+                    {/* main circle */}
                     <circle
                       cx={x}
                       cy={y}
-                      r={NODE_RADIUS}
-                      className={isCompleted ? 'fill-green-500 stroke-green-600 dark:stroke-green-400' : 'fill-white dark:fill-slate-800 stroke-slate-300 dark:stroke-slate-600'}
-                      strokeWidth={3}
-                      filter="url(#node-shadow)"
+                      r={NODE_R}
+                      fill={fill}
+                      stroke={strokeCol}
+                      strokeWidth={strokeW}
+                      filter="url(#nsh)"
                     />
 
-                    {/* Inner circle decoration */}
-                    <circle
-                      cx={x}
-                      cy={y}
-                      r={NODE_RADIUS - 6}
-                      fill="none"
-                      className={isCompleted ? 'stroke-white/30' : 'stroke-black/5 dark:stroke-white/5'}
-                      strokeWidth={1}
-                    />
-
-                    {/* Icon or check mark */}
-                    {isCompleted ? (
-                      <>
-                        {/* Large check mark for completed */}
-                        <text
-                          x={x}
-                          y={y + 1}
-                          textAnchor="middle"
-                          dominantBaseline="central"
-                          className="fill-white"
-                          fontSize="22"
-                          fontWeight="bold"
-                          fontFamily="system-ui"
-                        >
-                          ✓
-                        </text>
-                      </>
-                    ) : (
-                      <>
-                        {/* Item type icon for pending */}
-                        <text
-                          x={x}
-                          y={y + 1}
-                          textAnchor="middle"
-                          dominantBaseline="central"
-                          className="fill-slate-500 dark:fill-slate-400"
-                          fontSize="18"
-                          fontFamily="system-ui"
-                        >
-                          {item.itemType === 'lesson' ? '📖' : '💻'}
-                        </text>
-                      </>
-                    )}
-
-                    {/* Order badge */}
-                    <g>
-                      <circle
-                        cx={x + NODE_RADIUS - 4}
-                        cy={y - NODE_RADIUS + 4}
-                        r={12}
-                        className={isCompleted ? 'fill-green-600 stroke-white dark:stroke-slate-900' : 'fill-slate-500 dark:fill-slate-600 stroke-white dark:stroke-slate-900'}
-                        strokeWidth={2}
-                      />
-                      <text
-                        x={x + NODE_RADIUS - 4}
-                        y={y - NODE_RADIUS + 5}
-                        textAnchor="middle"
-                        dominantBaseline="central"
-                        className="fill-white"
-                        fontSize="10"
-                        fontWeight="bold"
-                        fontFamily="system-ui"
-                      >
-                        {item.order}
-                      </text>
-                    </g>
-
-                    {/* Label below node */}
+                    {/* order number (large, inside) */}
                     <text
                       x={x}
-                      y={y + NODE_RADIUS + 20}
+                      y={y - (isCompleted ? 6 : 4)}
                       textAnchor="middle"
-                      dominantBaseline="hanging"
-                      className={isCompleted ? 'fill-green-700 dark:fill-green-400' : 'fill-slate-600 dark:fill-slate-300'}
-                      fontSize="12"
-                      fontWeight="600"
-                      fontFamily="system-ui, -apple-system, sans-serif"
-                      style={{ transition: 'font-weight 0.2s' }}
+                      dominantBaseline="central"
+                      fill={
+                        isCompleted
+                          ? '#bbf7d0'
+                          : isCurrent
+                            ? '#93c5fd'
+                            : isLocked
+                              ? '#475569'
+                              : '#94a3b8'
+                      }
+                      fontSize={isCompleted ? 15 : 16}
+                      fontWeight="700"
+                      fontFamily="system-ui, sans-serif"
                     >
-                      {truncateLabel(item.itemTitle || item.itemType, 18)}
+                      {item.order}
                     </text>
 
-                    {/* Item type tag */}
-                    <g>
-                      <rect
-                        x={x - 22}
-                        y={y + NODE_RADIUS + 38}
-                        width={44}
-                        height={18}
-                        rx={9}
-                        className={item.itemType === 'lesson' ? 'fill-blue-100 dark:fill-blue-900/40' : 'fill-amber-100 dark:fill-amber-900/40'}
-                      />
+                    {/* icon below number */}
+                    {isCompleted && (
                       <text
                         x={x}
-                        y={y + NODE_RADIUS + 47}
+                        y={y + 10}
                         textAnchor="middle"
                         dominantBaseline="central"
-                        className={item.itemType === 'lesson' ? 'fill-blue-600 dark:fill-blue-400' : 'fill-amber-600 dark:fill-amber-500'}
-                        fontSize="9"
-                        fontWeight="600"
+                        fill="#22c55e"
+                        fontSize={14}
                         fontFamily="system-ui"
                       >
-                        {item.itemType === 'lesson' ? 'LESSON' : 'PROBLEM'}
+                        ✓
                       </text>
-                    </g>
+                    )}
+                    {isCurrent && !isCompleted && (
+                      <text
+                        x={x}
+                        y={y + 12}
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        fill="#60a5fa"
+                        fontSize={13}
+                        fontFamily="system-ui"
+                      >
+                        📖
+                      </text>
+                    )}
+                    {isLocked && !isCompleted && !isCurrent && (
+                      <text
+                        x={x}
+                        y={y + 12}
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        fill="#475569"
+                        fontSize={13}
+                        fontFamily="system-ui"
+                      >
+                        🔒
+                      </text>
+                    )}
+
+                    {/* node title */}
+                    <text
+                      x={x}
+                      y={labelY}
+                      textAnchor="middle"
+                      dominantBaseline="hanging"
+                      fill={
+                        isCompleted
+                          ? '#86efac'
+                          : isCurrent
+                            ? '#93c5fd'
+                            : '#94a3b8'
+                      }
+                      fontSize={11.5}
+                      fontWeight="600"
+                      fontFamily="system-ui, sans-serif"
+                    >
+                      {label}
+                    </text>
+
+                    {/* single badge */}
+                    <SingleBadge
+                      x={x}
+                      y={badgeY}
+                      label={badgeLabel}
+                      bg={badgeBg}
+                      color={badgeColor}
+                    />
+
+                    {/* "Đang học" label for current */}
+                    {isCurrent && (
+                      <g>
+                        <rect
+                          x={x - 28}
+                          y={badgeY + 22}
+                          width={56}
+                          height={16}
+                          rx={8}
+                          fill="#1e3a5f"
+                        />
+                        <circle
+                          cx={x - 16}
+                          cy={badgeY + 30}
+                          r={3.5}
+                          fill="#3b82f6"
+                        />
+                        <text
+                          x={x + 4}
+                          y={badgeY + 30}
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill="#60a5fa"
+                          fontSize={9}
+                          fontWeight="600"
+                          fontFamily="system-ui"
+                        >
+                          Đang học
+                        </text>
+                      </g>
+                    )}
                   </g>
-                );
+                )
               })}
 
-              {/* Start flag */}
-              {nodePositions.length > 0 && (
-                <g>
-                  <text
-                    x={nodePositions[0].x}
-                    y={nodePositions[0].y - NODE_RADIUS - 16}
-                    textAnchor="middle"
-                    className="fill-green-600 dark:fill-green-400"
-                    fontSize="14"
-                    fontWeight="bold"
-                    fontFamily="system-ui"
-                  >
-                    🚩 START
-                  </text>
-                </g>
-              )}
+              {/* ── START label above first node */}
+              {positions.length > 0 &&
+                (() => {
+                  const first = positions[0]
+                  return (
+                    <g key="start-flag">
+                      {/* flag pole line */}
+                      <line
+                        x1={first.x}
+                        y1={first.y - NODE_R - 8}
+                        x2={first.x}
+                        y2={first.y - NODE_R - 36}
+                        stroke="#22c55e"
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                      />
+                      {/* flag background pill */}
+                      <rect
+                        x={first.x - 38}
+                        y={first.y - NODE_R - 56}
+                        width={76}
+                        height={22}
+                        rx={11}
+                        fill="#14532d"
+                        stroke="#22c55e"
+                        strokeWidth={1.5}
+                      />
+                      <text
+                        x={first.x}
+                        y={first.y - NODE_R - 45}
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        fill="#4ade80"
+                        fontSize={11}
+                        fontWeight="700"
+                        fontFamily="system-ui, sans-serif"
+                      >
+                        🚩 BẮT ĐẦU
+                      </text>
+                    </g>
+                  )
+                })()}
 
-              {/* Finish flag */}
-              {nodePositions.length > 1 && (
-                <g>
-                  <text
-                    x={nodePositions[nodePositions.length - 1].x}
-                    y={nodePositions[nodePositions.length - 1].y - NODE_RADIUS - 16}
-                    textAnchor="middle"
-                    className="fill-indigo-500 dark:fill-indigo-400"
-                    fontSize="14"
-                    fontWeight="bold"
-                    fontFamily="system-ui"
-                  >
-                    🏁 FINISH
-                  </text>
-                </g>
-              )}
+              {/* ── FINISH label above last node */}
+              {positions.length > 1 &&
+                (() => {
+                  const last = positions[positions.length - 1]
+                  return (
+                    <g key="finish-flag">
+                      {/* flag pole line */}
+                      <line
+                        x1={last.x}
+                        y1={last.y - NODE_R - 8}
+                        x2={last.x}
+                        y2={last.y - NODE_R - 36}
+                        stroke="#f59e0b"
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                      />
+                      {/* flag background pill */}
+                      <rect
+                        x={last.x - 40}
+                        y={last.y - NODE_R - 56}
+                        width={80}
+                        height={22}
+                        rx={11}
+                        fill="#451a03"
+                        stroke="#f59e0b"
+                        strokeWidth={1.5}
+                      />
+                      <text
+                        x={last.x}
+                        y={last.y - NODE_R - 45}
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        fill="#fbbf24"
+                        fontSize={11}
+                        fontWeight="700"
+                        fontFamily="system-ui, sans-serif"
+                      >
+                        🏆 KẾT THÚC
+                      </text>
+                    </g>
+                  )
+                })()}
             </svg>
           )}
         </div>
 
-        {/* CSS animations */}
+        {/* hint */}
+        <p className="flex items-center justify-center gap-1.5 text-center text-xs text-slate-500">
+          <span>ℹ</span>
+          Nhấp vào từng bài để xem chi tiết và theo dõi tiến độ.
+        </p>
+
+        {/* styles */}
         <style>{`
-          .roadmap-node {
-            transition: transform 0.2s ease;
-          }
-          .roadmap-node:hover {
-            filter: brightness(1.1);
-          }
-          .roadmap-node:hover .roadmap-node-label {
-            font-weight: 700;
-          }
-          .roadmap-completed-segment {
-            animation: roadmap-pulse 3s ease-in-out infinite;
-          }
-          .roadmap-pending-ring {
-            animation: roadmap-dash-rotate 8s linear infinite;
-          }
-          @keyframes roadmap-pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.85; }
-          }
-          @keyframes roadmap-dash-rotate {
-            from { stroke-dashoffset: 0; }
-            to { stroke-dashoffset: 50; }
-          }
-          @media (prefers-reduced-motion: reduce) {
-            .roadmap-completed-segment,
-            .roadmap-pending-ring {
-              animation: none;
-            }
-          }
+          .roadmap-node { transition: opacity 0.15s; }
+          .roadmap-node:hover { opacity: 0.9; }
+          .roadmap-node:hover circle { filter: brightness(1.12); }
         `}</style>
       </div>
-    );
+    )
   }
-);
+)
 
-/** Truncate long labels for node display */
-function truncateLabel(text: string, maxLen: number): string {
-  if (text.length <= maxLen) return text;
-  return text.substring(0, maxLen - 1) + '…';
+// ── SingleBadge: one pill badge centred under the node ───────────────────
+function SingleBadge({
+  x,
+  y,
+  label,
+  bg,
+  color,
+}: {
+  x: number
+  y: number
+  label: string
+  bg: string
+  color: string
+}) {
+  const bw = 58
+  const bh = 17
+  return (
+    <g>
+      <rect x={x - bw / 2} y={y} width={bw} height={bh} rx={8.5} fill={bg} />
+      <text
+        x={x}
+        y={y + bh / 2}
+        textAnchor="middle"
+        dominantBaseline="central"
+        fill={color}
+        fontSize={9}
+        fontWeight="700"
+        fontFamily="system-ui"
+      >
+        {label}
+      </text>
+    </g>
+  )
 }
 
-RoadmapVisualTimeline.displayName = 'RoadmapVisualTimeline';
+RoadmapVisualTimeline.displayName = 'RoadmapVisualTimeline'

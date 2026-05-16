@@ -50,7 +50,9 @@ class RoadmapService {
    * Frontend calls this when user is viewing roadmap to see lock status
    * Returns items with: isCompleted, isUnlocked, lockReason
    */
-  async getRoadmapDetailWithLockStatus(id: string): Promise<RoadmapDetail & { items: RoadmapItemWithLockStatus[] }> {
+  async getRoadmapDetailWithLockStatus(
+    id: string
+  ): Promise<RoadmapDetail & { items: RoadmapItemWithLockStatus[] }> {
     try {
       const response = await apiClient.get<
         ApiEnvelope<RoadmapDetail & { items: RoadmapItemWithLockStatus[] }>
@@ -142,10 +144,16 @@ class RoadmapService {
   async completeRoadmapItem(
     roadmapId: string,
     itemId: string
-  ): Promise<{ item: RoadmapItem; unlockedNextItem?: RoadmapItem }> {
+  ): Promise<{
+    item: RoadmapItemWithLockStatus
+    unlockedNextItem?: RoadmapItemWithLockStatus
+  }> {
     try {
       const response = await apiClient.post<
-        ApiEnvelope<{ item: RoadmapItem; unlockedNextItem?: RoadmapItem }>
+        ApiEnvelope<{
+          item: RoadmapItemWithLockStatus
+          unlockedNextItem?: RoadmapItemWithLockStatus
+        }>
       >(`/roadmaps/${roadmapId}/items/${itemId}/complete`)
       return response.data.data
     } catch (error) {

@@ -49,6 +49,13 @@ const LessonDetail: React.FC = () => {
         await learnedLessonServiceRef.current.markLessonAsCompleted(lessonId)
 
       if (success) {
+        // Publish an event so roadmap pages can refresh lock/progress state
+        window.dispatchEvent(
+          new CustomEvent('roadmap-progress-updated', {
+            detail: { lessonId },
+          })
+        )
+
         // Show floating toast notification instead of inline message
         toast.success('Lesson Completed! 🎉', {
           position: 'bottom-right',
@@ -168,11 +175,10 @@ const LessonDetail: React.FC = () => {
       const scrollPercentage = (scrollTop / scrollableHeight) * 100
       const distanceToBottom = docHeight - scrollTop - windowHeight
 
-      // Mark as complete only if scrolled to 80% or within 100px of bottom
-      // AND user has actively scrolled down significantly (at least 500px)
+      // Mark as complete when the user has reached at least half the lesson or near the bottom
       if (
-        scrollTop > 500 &&
-        (scrollPercentage >= 80 || distanceToBottom <= 100)
+        scrollTop > 100 &&
+        (scrollPercentage >= 60 || distanceToBottom <= 150)
       ) {
         if (lessonId) {
           markLessonCompleted()
@@ -190,6 +196,20 @@ const LessonDetail: React.FC = () => {
       window.removeEventListener('scroll', handleScroll)
     }
   }, [lessonId, markLessonCompleted, contentLoaded, lesson])
+
+  // If the lesson content is not scrollable, mark it completed once it is rendered
+  useEffect(() => {
+    if (!contentLoaded || !lesson || hasMarkedAsCompletedRef.current) return
+
+    const docHeight = Math.max(
+      document.body.scrollHeight,
+      document.documentElement.scrollHeight
+    )
+
+    if (docHeight <= window.innerHeight + 120) {
+      markLessonCompleted()
+    }
+  }, [contentLoaded, lesson, markLessonCompleted])
 
   const handleGoBack = () => {
     navigate('/lessons')
