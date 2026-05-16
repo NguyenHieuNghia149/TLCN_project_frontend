@@ -93,10 +93,11 @@ const RoadmapDetailPage: React.FC = () => {
     const item = detail.items.find(i => i.id === itemId)
     if (!item) return
     if ('isUnlocked' in item && !item.isUnlocked) return
+    const roadmapParam = `?roadmapId=${id}`
     const linkTo =
       item.itemType === 'lesson'
-        ? `/lessons/${item.itemId}`
-        : `/problems/${item.itemId}`
+        ? `/lessons/${item.itemId}${roadmapParam}`
+        : `/problems/${item.itemId}${roadmapParam}`
     navigate(linkTo)
   }
 

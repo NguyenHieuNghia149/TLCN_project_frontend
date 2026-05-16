@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useLocation } from 'react-router-dom'
 import { FiArrowLeft } from 'react-icons/fi'
 import { useNavigate } from 'react-router-dom'
 import DOMPurify from 'dompurify'
@@ -17,6 +17,10 @@ import './TechAcademyContent.css'
 const LessonDetail: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
+  // roadmapId is set by RoadmapDetailPage when it navigates here
+  const roadmapId =
+    new URLSearchParams(location.search).get('roadmapId') ?? undefined
   const { lesson, loading, error } = useLessonDetail(lessonId || '')
   const { challenges, loading: challengesLoading } = useLessonChallenges(
     lesson?.topicId || ''
@@ -46,13 +50,16 @@ const LessonDetail: React.FC = () => {
     hasMarkedAsCompletedRef.current = true
     try {
       const success =
-        await learnedLessonServiceRef.current.markLessonAsCompleted(lessonId)
+        await learnedLessonServiceRef.current.markLessonAsCompleted(
+          lessonId,
+          roadmapId
+        )
 
       if (success) {
         // Publish an event so roadmap pages can refresh lock/progress state
         window.dispatchEvent(
           new CustomEvent('roadmap-progress-updated', {
-            detail: { lessonId },
+            detail: { lessonId, roadmapId },
           })
         )
 
@@ -73,7 +80,7 @@ const LessonDetail: React.FC = () => {
     } catch {
       hasMarkedAsCompletedRef.current = false
     }
-  }, [lessonId])
+  }, [lessonId, roadmapId])
 
   // Lazy loading for content section
   useEffect(() => {

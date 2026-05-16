@@ -161,6 +161,24 @@ class RoadmapService {
     }
   }
 
+  /**
+   * Mark a problem as completed in a specific roadmap (by problem ID, not roadmapItem UUID).
+   * Called from ProblemDetailPage after an ACCEPTED submission when user came from a roadmap.
+   */
+  async markProblemCompletedInRoadmap(
+    roadmapId: string,
+    problemId: string
+  ): Promise<void> {
+    try {
+      await apiClient.post(`/roadmaps/${roadmapId}/complete-by-content`, {
+        contentId: problemId,
+        itemType: 'problem',
+      })
+    } catch (error) {
+      return mapRoadmapApiError(error)
+    }
+  }
+
   async markItemCompleted(roadmapId: string, itemId: string): Promise<void> {
     await apiClient.post(`/roadmaps/${roadmapId}/progress/mark-complete`, {
       itemId,
