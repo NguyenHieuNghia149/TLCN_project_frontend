@@ -10,7 +10,7 @@ import { Code2, Hash, BarChart3, ChevronRight } from 'lucide-react'
 const RoadmapListPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>()
   const navigate = useNavigate()
-  const { items, loading } = useSelector(
+  const { items, total, loading } = useSelector(
     (state: RootState) => state.roadmap.list
   )
   const isAuthenticated = useSelector(
@@ -28,9 +28,18 @@ const RoadmapListPage: React.FC = () => {
   >({})
   const [isLoadingDetails, setIsLoadingDetails] = useState(false)
 
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 6
+
   useEffect(() => {
-    dispatch(asyncFetchRoadmaps({ limit: 20, offset: 0 }))
-  }, [dispatch])
+    dispatch(
+      asyncFetchRoadmaps({
+        limit: itemsPerPage,
+        offset: (currentPage - 1) * itemsPerPage,
+        visibility: 'public',
+      })
+    )
+  }, [dispatch, currentPage])
 
   // Fetch details and progress for all roadmaps
   useEffect(() => {
@@ -257,6 +266,29 @@ const RoadmapListPage: React.FC = () => {
                 isInUserList={isRoadmapInUserList(roadmap.id)}
               />
             ))}
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {!loading && !isLoadingDetails && total > itemsPerPage && (
+          <div className="mt-8 flex justify-center gap-2">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium transition-colors hover:bg-slate-800 disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <div className="flex items-center px-4 text-sm font-medium">
+              Page {currentPage} of {Math.ceil(total / itemsPerPage)}
+            </div>
+            <button
+              onClick={() => setCurrentPage(p => p + 1)}
+              disabled={currentPage >= Math.ceil(total / itemsPerPage)}
+              className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium transition-colors hover:bg-slate-800 disabled:opacity-50"
+            >
+              Next
+            </button>
           </div>
         )}
       </div>

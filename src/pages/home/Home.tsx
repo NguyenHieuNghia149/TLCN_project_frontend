@@ -779,38 +779,33 @@ const HomePage: React.FC = () => {
               Continue Roadmap
             </h2>
             {(() => {
-              // Find the first roadmap with progress > 0
-              const continueRoadmap = userRoadmaps.find(
-                rm =>
-                  roadmapProgressMap[rm.id]?.percentage &&
-                  roadmapProgressMap[rm.id]!.percentage > 0
-              )
-
-              if (continueRoadmap && roadmapProgressMap[continueRoadmap.id]) {
-                return (
-                  <ContinueRoadmapCard
-                    roadmap={continueRoadmap}
-                    progress={roadmapProgressMap[continueRoadmap.id]}
-                    isLocked={false}
-                    onRoadmapClick={id => navigate(`/roadmaps/${id}`)}
-                    roadmapDetail={roadmapDetailMap[continueRoadmap.id] || null}
-                  />
+              // Get up to 4 roadmaps with some progress, or just the first ones if no progress
+              const continueRoadmaps = userRoadmaps
+                .filter(
+                  rm => roadmapProgressMap[rm.id]?.percentage !== undefined
                 )
-              }
+                .slice(0, 4)
 
-              // If no roadmap with progress, show the first unlocked one
-              if (
-                userRoadmaps.length > 0 &&
-                roadmapProgressMap[userRoadmaps[0].id] !== undefined
-              ) {
+              // If none found with progress, just show the first 4
+              const displayRoadmaps =
+                continueRoadmaps.length > 0
+                  ? continueRoadmaps
+                  : userRoadmaps.slice(0, 4)
+
+              if (displayRoadmaps.length > 0) {
                 return (
-                  <ContinueRoadmapCard
-                    roadmap={userRoadmaps[0]}
-                    progress={roadmapProgressMap[userRoadmaps[0].id]}
-                    isLocked={false}
-                    onRoadmapClick={id => navigate(`/roadmaps/${id}`)}
-                    roadmapDetail={roadmapDetailMap[userRoadmaps[0].id] || null}
-                  />
+                  <div className="flex flex-col gap-6">
+                    {displayRoadmaps.map(rm => (
+                      <ContinueRoadmapCard
+                        key={rm.id}
+                        roadmap={rm}
+                        progress={roadmapProgressMap[rm.id] || null}
+                        isLocked={false}
+                        onRoadmapClick={id => navigate(`/roadmaps/${id}`)}
+                        roadmapDetail={roadmapDetailMap[rm.id] || null}
+                      />
+                    ))}
+                  </div>
                 )
               }
 
@@ -862,24 +857,27 @@ const HomePage: React.FC = () => {
               </div>
             ) : (
               <>
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                  {userRoadmaps.map((roadmap, index) => (
-                    <RoadmapCard
-                      key={roadmap.id}
-                      roadmap={roadmap}
-                      progress={roadmapProgressMap[roadmap.id] || null}
-                      isLocked={
-                        index > 0 &&
-                        (!roadmapProgressMap[userRoadmaps[index - 1].id]
-                          ?.percentage ||
-                          roadmapProgressMap[userRoadmaps[index - 1].id]
-                            ?.percentage !== 100)
-                      }
-                      onRoadmapClick={id => navigate(`/roadmaps/${id}`)}
-                      roadmapDetail={roadmapDetailMap[roadmap.id] || null}
-                    />
-                  ))}
-                </div>
+                {(() => {
+                  // Get 4 random roadmaps
+                  const randomRoadmaps = [...userRoadmaps]
+                    .sort(() => 0.5 - Math.random())
+                    .slice(0, 4)
+
+                  return (
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                      {randomRoadmaps.map(roadmap => (
+                        <RoadmapCard
+                          key={roadmap.id}
+                          roadmap={roadmap}
+                          progress={roadmapProgressMap[roadmap.id] || null}
+                          isLocked={false}
+                          onRoadmapClick={id => navigate(`/roadmaps/${id}`)}
+                          roadmapDetail={roadmapDetailMap[roadmap.id] || null}
+                        />
+                      ))}
+                    </div>
+                  )
+                })()}
 
                 {/* Roadmap Progress Overview */}
                 {userRoadmaps.length > 0 && (

@@ -80,12 +80,13 @@ class RoadmapService {
 
   async listRoadmaps(
     limit = 20,
-    offset = 0
+    offset = 0,
+    visibility?: 'public' | 'private'
   ): Promise<{ roadmaps: Roadmap[]; total: number }> {
     const response = await apiClient.get<
       ApiEnvelope<{ roadmaps: Roadmap[]; total: number }>
     >('/roadmaps', {
-      params: { limit, offset },
+      params: { limit, offset, visibility },
     })
     return response.data.data
   }
