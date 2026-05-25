@@ -2,12 +2,15 @@ import React, { useEffect, useMemo, useState } from 'react'
 import {
   ChevronLeft,
   ChevronRight,
+  Moon,
   Pause,
   Play,
   RotateCcw,
+  Sun,
   User,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/api/useAuth'
+import { useTheme } from '@/contexts/useTheme'
 import { Link } from 'react-router-dom'
 
 interface ProblemHeaderProps {
@@ -30,6 +33,7 @@ const ProblemHeader: React.FC<ProblemHeaderProps> = ({
   navigationLoading = false,
 }) => {
   const { user, isAuthenticated } = useAuth()
+  const { theme, toggleTheme } = useTheme()
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0)
   const [paused, setPaused] = useState<boolean>(false)
 
@@ -142,6 +146,19 @@ const ProblemHeader: React.FC<ProblemHeaderProps> = ({
 
       {/* Right: User info */}
       <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={toggleTheme}
+          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          className="inline-flex h-9 w-9 items-center justify-center rounded border border-border bg-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          {theme === 'dark' ? (
+            <Sun className="h-4 w-4" />
+          ) : (
+            <Moon className="h-4 w-4" />
+          )}
+        </button>
         {isAuthenticated && user ? (
           <>
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-r from-green-500 to-blue-500">

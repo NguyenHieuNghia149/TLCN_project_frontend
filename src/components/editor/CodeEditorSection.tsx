@@ -5,9 +5,7 @@ import {
   Copy,
   Maximize2,
   Minimize2,
-  Moon,
   RotateCcw,
-  Sun,
 } from 'lucide-react'
 
 import {
@@ -60,7 +58,6 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false)
   const [consoleExpanded, setConsoleExpanded] = useState(false)
   const [consoleHeight, setConsoleHeight] = useState<number>(280)
-  const [editorTheme, setEditorTheme] = useState<'dark' | 'light'>('dark')
   const [activeConsoleTab, setActiveConsoleTab] = useState<
     'testcase' | 'output'
   >('testcase')
@@ -83,10 +80,6 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
       ) ?? availableLanguageOptions[0],
     [availableLanguageOptions, selectedLanguage]
   )
-
-  useEffect(() => {
-    setEditorTheme(appTheme === 'dark' ? 'dark' : 'light')
-  }, [appTheme])
 
   useEffect(() => {
     if (!isFullscreen) {
@@ -154,7 +147,7 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
     window.setTimeout(() => setCopied(false), 1800)
   }
 
-  const isDarkEditor = editorTheme === 'dark'
+  const isDarkEditor = appTheme === 'dark'
   const editorLineHeight = useMemo(
     () => Math.round(fontSize * 1.65),
     [fontSize]
@@ -300,30 +293,6 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
 
             <button
               type="button"
-              onClick={() =>
-                setEditorTheme(prevTheme =>
-                  prevTheme === 'dark' ? 'light' : 'dark'
-                )
-              }
-              className="code-editor-control"
-              aria-label="Toggle editor theme"
-              title="Toggle editor theme"
-            >
-              {editorTheme === 'dark' ? (
-                <>
-                  <Sun size={16} />
-                  <span>Light</span>
-                </>
-              ) : (
-                <>
-                  <Moon size={16} />
-                  <span>Dark</span>
-                </>
-              )}
-            </button>
-
-            <button
-              type="button"
               className="code-editor-control"
               aria-pressed={wordWrap === 'on'}
               aria-label={
@@ -416,7 +385,7 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
                 onChange={onCodeChange}
                 language={selectedLanguageOption?.monacoLanguage ?? 'plaintext'}
                 editorTheme={
-                  editorTheme === 'dark' ? 'custom-dark' : 'custom-light'
+                  appTheme === 'dark' ? 'custom-dark' : 'custom-light'
                 }
                 fontSize={fontSize}
                 lineHeight={editorLineHeight}
