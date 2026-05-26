@@ -139,11 +139,10 @@ export const initializeSession = createAsyncThunk<
   { rejectValue: { message: string; isRefreshTokenExpired: boolean } }
 >('auth/refreshToken', async (_, { rejectWithValue }) => {
   try {
-    const { accessToken } = await authService.refreshToken()
-    if (!accessToken) {
-      throw new Error('Missing access token')
+    const { accessToken, user } = await authService.refreshToken()
+    if (!accessToken || !user) {
+      throw new Error('Missing session data')
     }
-    const user = await authService.getCurrentUser()
     persistSessionSnapshot(user, true)
     return user
   } catch (error) {

@@ -7,6 +7,7 @@ import ChallengeSearch from '@/components/challenge/ChallengeSearch'
 import LessonSearch from '@/components/lesson/LessonSearch'
 import { favoritesService } from '@/services/api/favorites.service'
 import { LearnedLessonService } from '@/services/api/learned-lesson.service'
+import { apiClient } from '@/config/axios.config'
 import { useAuth } from '@/hooks/api/useAuth'
 import { Trophy, Sparkles, Bookmark } from 'lucide-react'
 import type { Challenge } from '@/types/challenge.types'
@@ -19,6 +20,10 @@ const BookmarksPage: React.FC = () => {
   const [lessons, setLessons] = useState<Lesson[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
+  const [userRank, setUserRank] = useState<{
+    rank: number
+    rankingPoint: number
+  } | null>(null)
 
   // Challenge filters state
   const [challengeQuery, setChallengeQuery] = useState<string>('')
@@ -145,6 +150,40 @@ const BookmarksPage: React.FC = () => {
     fetchFavorites()
   }, [isAuthenticated])
 
+  useEffect(() => {
+    let cancelled = false
+
+    if (!isAuthenticated || !user?.id) {
+      setUserRank(null)
+      return
+    }
+
+    setUserRank(null)
+    apiClient
+      .get(`/leaderboard/user/${user.id}`)
+      .then(response => {
+        const rank = Number(response.data?.data?.rank)
+        const rankingPoint = Number(response.data?.data?.rankingPoint)
+
+        if (
+          !cancelled &&
+          Number.isFinite(rank) &&
+          Number.isFinite(rankingPoint)
+        ) {
+          setUserRank({ rank, rankingPoint })
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setUserRank(null)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isAuthenticated, user?.id])
+
   const filtered = useMemo(() => {
     return challenges.filter(c => {
       if (
@@ -195,22 +234,18 @@ const BookmarksPage: React.FC = () => {
   }
 
   const rankDisplay = useMemo(() => {
-    if (!user || user.rank === undefined || user.rank === null) {
+    if (!userRank) {
       return '—'
     }
-    return new Intl.NumberFormat().format(user.rank)
-  }, [user])
+    return new Intl.NumberFormat().format(userRank.rank)
+  }, [userRank])
 
   const rankingPointDisplay = useMemo(() => {
-    if (
-      !user ||
-      user.rankingPoint === undefined ||
-      user.rankingPoint === null
-    ) {
+    if (!userRank) {
       return '—'
     }
-    return new Intl.NumberFormat().format(user.rankingPoint)
-  }, [user])
+    return new Intl.NumberFormat().format(userRank.rankingPoint)
+  }, [userRank])
 
   if (!isAuthenticated) {
     return (

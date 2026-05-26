@@ -5,8 +5,6 @@ export interface User {
   lastname: string
   role: string
   avatar?: string
-  rankingPoint?: number
-  rank?: number
   createdAt: string
   lastLoginAt: string
 }

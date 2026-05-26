@@ -145,7 +145,7 @@ export class AuthService {
     }
   }
 
-  async refreshToken(): Promise<{ accessToken: string }> {
+  async refreshToken(): Promise<{ accessToken: string; user: User }> {
     try {
       const silentAxios = axios.create({
         validateStatus: () => true, // Don't throw on any status code
@@ -208,14 +208,15 @@ export class AuthService {
         nested?.tokens?.accessToken ||
         nested?.accessToken ||
         response.data?.accessToken
+      const user: User = nested?.user || response.data?.user
 
-      if (!accessToken) {
-        throw new Error('Access token not found in refresh response')
+      if (!accessToken || !user) {
+        throw new Error('Invalid refresh response')
       }
 
       tokenManager.setAccessToken(accessToken)
 
-      return { accessToken }
+      return { accessToken, user }
     } catch (error) {
       // Re-throw refresh token expired/revoked errors as-is
       if (
