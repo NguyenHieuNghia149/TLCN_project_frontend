@@ -80,12 +80,13 @@ class RoadmapService {
 
   async listRoadmaps(
     limit = 20,
-    offset = 0
+    offset = 0,
+    visibility?: 'public' | 'private'
   ): Promise<{ roadmaps: Roadmap[]; total: number }> {
     const response = await apiClient.get<
       ApiEnvelope<{ roadmaps: Roadmap[]; total: number }>
     >('/roadmaps', {
-      params: { limit, offset },
+      params: { limit, offset, visibility },
     })
     return response.data.data
   }
@@ -156,6 +157,24 @@ class RoadmapService {
         }>
       >(`/roadmaps/${roadmapId}/items/${itemId}/complete`)
       return response.data.data
+    } catch (error) {
+      return mapRoadmapApiError(error)
+    }
+  }
+
+  /**
+   * Mark a problem as completed in a specific roadmap (by problem ID, not roadmapItem UUID).
+   * Called from ProblemDetailPage after an ACCEPTED submission when user came from a roadmap.
+   */
+  async markProblemCompletedInRoadmap(
+    roadmapId: string,
+    problemId: string
+  ): Promise<void> {
+    try {
+      await apiClient.post(`/roadmaps/${roadmapId}/complete-by-content`, {
+        contentId: problemId,
+        itemType: 'problem',
+      })
     } catch (error) {
       return mapRoadmapApiError(error)
     }

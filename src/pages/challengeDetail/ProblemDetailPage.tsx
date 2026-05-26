@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useLocation } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 
 import CodeEditorSection from '@/components/editor/CodeEditorSection'
@@ -11,9 +11,11 @@ import { useProblemNavigation } from '@/hooks/common/useProblemNavigation'
 import { useLanguageDrafts } from '@/hooks/useLanguageDrafts'
 import { useSubmissionExecution } from '@/hooks/useSubmissionExecution'
 import { challengeService } from '@/services/api/challenge.service'
+import { roadmapService } from '@/services/api/roadmap.service'
 import type { RootState } from '@/store/stores'
 import type { TestCase } from '@/types/editor.types'
 import type { ProblemDetailResponse } from '@/types/challenge.types'
+import { normalizeExecutionStatus } from '@/utils/submissionExecution'
 
 export default function ProblemDetailPage({
   problemIdOverride,
@@ -22,6 +24,10 @@ export default function ProblemDetailPage({
 }) {
   const params = useParams<{ id?: string }>()
   const id = problemIdOverride ?? params.id
+  const location = useLocation()
+  // roadmapId is set by RoadmapDetailPage when navigating here via a roadmap
+  const roadmapId =
+    new URLSearchParams(location.search).get('roadmapId') ?? undefined
   const [activeTab, setActiveTab] = useState<
     'question' | 'solution' | 'submissions' | 'discussion'
   >('question')
@@ -76,6 +82,38 @@ export default function ProblemDetailPage({
 
   const { output, run, submit, resetOutput } = useSubmissionExecution({
     testCases,
+    onSubmitCompleted: useCallback(
+      async (
+        snapshot:
+          | import('@/types/submission.types').SubmissionDetail
+          | import('@/types/submission.types').SubmissionStreamPayload
+      ) => {
+        // Only mark roadmap completion if user came from a specific roadmap
+        // and the problem was ACCEPTED
+        if (!roadmapId || !problemData?.problem.id) return
+        const status = normalizeExecutionStatus(
+          'overall_status' in snapshot
+            ? (snapshot as { overall_status: string }).overall_status
+            : snapshot.status
+        )
+        if (status !== 'accepted') return
+
+        try {
+          await roadmapService.markProblemCompletedInRoadmap(
+            roadmapId,
+            problemData.problem.id
+          )
+          window.dispatchEvent(
+            new CustomEvent('roadmap-progress-updated', {
+              detail: { problemId: problemData.problem.id, roadmapId },
+            })
+          )
+        } catch (err) {
+          console.error('Failed to mark problem completed in roadmap', err)
+        }
+      },
+      [roadmapId, problemData?.problem.id]
+    ),
   })
 
   const { navigationLoading, hasPrev, hasNext, goPrev, goNext } =

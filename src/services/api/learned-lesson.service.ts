@@ -42,13 +42,22 @@ export class LearnedLessonService {
   }
 
   /**
-   * Mark a lesson as completed
+   * Mark a lesson as completed.
+   * Pass roadmapId when coming from a specific roadmap so progress
+   * is only recorded for that roadmap (not all roadmaps containing the lesson).
    */
-  async markLessonAsCompleted(lessonId: string): Promise<boolean> {
+  async markLessonAsCompleted(
+    lessonId: string,
+    roadmapId?: string
+  ): Promise<boolean> {
     try {
-      const response = await apiClient.post('/learned-lessons/mark-completed', {
-        lessonId,
-      })
+      const body: Record<string, string> = { lessonId }
+      if (roadmapId) body.roadmapId = roadmapId
+
+      const response = await apiClient.post(
+        '/learned-lessons/mark-completed',
+        body
+      )
       return response.data?.success ?? response.data?.data?.success ?? false
     } catch (error) {
       console.error(`Error marking lesson ${lessonId} as completed:`, error)

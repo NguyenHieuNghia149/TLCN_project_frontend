@@ -78,9 +78,20 @@ export const asyncCreateRoadmap = createAsyncThunk(
 
 export const asyncFetchRoadmaps = createAsyncThunk(
   'roadmap/fetchList',
-  async (params: { limit: number; offset: number }, { rejectWithValue }) => {
+  async (
+    params: {
+      limit: number
+      offset: number
+      visibility?: 'public' | 'private'
+    },
+    { rejectWithValue }
+  ) => {
     try {
-      return await roadmapService.listRoadmaps(params.limit, params.offset)
+      return await roadmapService.listRoadmaps(
+        params.limit,
+        params.offset,
+        params.visibility
+      )
     } catch (error) {
       return rejectWithValue(getErrorMessage(error))
     }
