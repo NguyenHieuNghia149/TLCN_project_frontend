@@ -6,9 +6,10 @@ import type { Exam } from '@/types/exam.types'
  */
 export function filterVisibleListExams(
   exams: Exam[],
-  canManageExam: boolean
+  canManageExam: boolean,
+  isParticipatedList = false
 ): Exam[] {
-  if (canManageExam) {
+  if (canManageExam || isParticipatedList) {
     return exams
   }
 

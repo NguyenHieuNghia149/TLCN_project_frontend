@@ -41,4 +41,14 @@ describe('filterVisibleListExams', () => {
     const visible = filterVisibleListExams(exams, true)
     expect(visible.map(item => item.id)).toEqual(['open', 'invite'])
   })
+
+  it('keeps invite-only exams in the learner participated list', () => {
+    const exams = [
+      buildExam('open', 'open_registration'),
+      buildExam('invite', 'invite_only'),
+    ]
+
+    const visible = filterVisibleListExams(exams, false, true)
+    expect(visible.map(item => item.id)).toEqual(['open', 'invite'])
+  })
 })

@@ -328,8 +328,13 @@ const ExamList: React.FC = () => {
 
   // Learner list must hide invite-only exams (invite path is link-driven).
   const filteredExams = useMemo(
-    () => filterVisibleListExams(exams, canManageExam),
-    [canManageExam, exams]
+    () =>
+      filterVisibleListExams(
+        exams,
+        canManageExam,
+        filterType === 'participated'
+      ),
+    [canManageExam, exams, filterType]
   )
 
   // Pagination
