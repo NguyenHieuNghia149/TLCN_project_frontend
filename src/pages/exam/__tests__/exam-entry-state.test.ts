@@ -101,9 +101,8 @@ describe('exam entry reason priority', () => {
 })
 
 describe('entry panel mapping', () => {
-  it('maps opened and verified to verification panel', () => {
+  it('maps opened to verification panel', () => {
     expect(resolveEntryPanelKind('opened')).toBe('verification')
-    expect(resolveEntryPanelKind('verified')).toBe('verification')
   })
 
   it('maps eligible and started to lobby panel', () => {

@@ -115,13 +115,7 @@ type ParticipantTableRow = {
     | null
   inviteSentAt: string | null
   latestInviteExpiresAt: string | null
-  latestEntrySessionStatus:
-    | 'opened'
-    | 'verified'
-    | 'eligible'
-    | 'started'
-    | 'expired'
-    | null
+  latestEntrySessionStatus: 'opened' | 'eligible' | 'started' | 'expired' | null
   latestParticipationStatus: string | null
   attemptsUsed: number
   canUseInviteLink: boolean

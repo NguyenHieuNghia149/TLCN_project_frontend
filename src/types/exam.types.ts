@@ -126,13 +126,7 @@ export interface AdminExamParticipant {
   latestInviteId: string | null
   latestInviteExpiresAt: string | null
   latestEntrySessionId: string | null
-  latestEntrySessionStatus:
-    | 'opened'
-    | 'verified'
-    | 'eligible'
-    | 'started'
-    | 'expired'
-    | null
+  latestEntrySessionStatus: 'opened' | 'eligible' | 'started' | 'expired' | null
   latestParticipationId: string | null
   latestParticipationStatus: string | null
   attemptsUsed: number
@@ -168,13 +162,7 @@ export interface ExamAccessState {
     | 'revoked'
     | 'completed'
     | null
-  entrySessionStatus:
-    | 'opened'
-    | 'verified'
-    | 'eligible'
-    | 'started'
-    | 'expired'
-    | null
+  entrySessionStatus: 'opened' | 'eligible' | 'started' | 'expired' | null
   canStart: boolean
   examStartsAt: string
   participationExpiresAt: string | null

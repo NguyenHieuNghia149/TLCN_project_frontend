@@ -19,7 +19,7 @@ export type EntryPanelKind = 'verification' | 'lobby' | 'expired' | 'none'
 export function resolveEntryPanelKind(
   entrySessionStatus: ExamAccessState['entrySessionStatus']
 ): EntryPanelKind {
-  if (entrySessionStatus === 'opened' || entrySessionStatus === 'verified') {
+  if (entrySessionStatus === 'opened') {
     return 'verification'
   }
   if (entrySessionStatus === 'eligible' || entrySessionStatus === 'started') {
