@@ -2,6 +2,42 @@ import { useState, useEffect, useCallback } from 'react'
 import type { Challenge, Cursor } from '@/types/challenge.types'
 import { challengeService } from '@/services/api/challenge.service'
 
+type RawChallengeItem = {
+  id: string
+  title: string
+  description?: string | null
+  difficulty?: unknown
+  difficult?: unknown
+  topic?: string
+  topicName?: string
+  createdAt?: string
+  totalPoints?: number
+  isSolved?: boolean
+  isFavorite?: boolean
+}
+
+function normalizeDifficulty(value: unknown): Challenge['difficulty'] {
+  const difficulty = typeof value === 'string' ? value.toLowerCase() : ''
+  if (difficulty === 'medium' || difficulty === 'hard') {
+    return difficulty
+  }
+  return 'easy'
+}
+
+function mapChallengeItem(item: RawChallengeItem): Challenge {
+  return {
+    id: item.id,
+    title: item.title,
+    description: item.description || '',
+    difficulty: normalizeDifficulty(item.difficulty ?? item.difficult),
+    topic: item.topic || item.topicName || '',
+    createdAt: item.createdAt,
+    totalPoints: item.totalPoints,
+    isSolved: Boolean(item.isSolved),
+    isFavorite: Boolean(item.isFavorite),
+  }
+}
+
 /**
  * Custom Hook: useInfiniteChallenges
  * Implements cursor-based pagination for lazy loading challenges
@@ -36,23 +72,7 @@ export const useInfiniteChallenges = (
       )
 
       // Map ChallengeItem to Challenge format
-      const mappedChallenges: Challenge[] = response.items.map(item => {
-        const difficulty = (item.difficulty || 'easy')
-          .toString()
-          .toLowerCase() as Challenge['difficulty']
-
-        return {
-          id: item.id,
-          title: item.title,
-          description: item.description || '',
-          difficulty: difficulty,
-          topic: '', // Will be set from context if needed
-          createdAt: item.createdAt,
-          totalPoints: item.totalPoints,
-          isSolved: Boolean(item.isSolved),
-          isFavorite: Boolean(item.isFavorite),
-        }
-      })
+      const mappedChallenges: Challenge[] = response.items.map(mapChallengeItem)
 
       // Append new items to existing challenges
       setChallenges(prev => [...prev, ...mappedChallenges])
@@ -96,23 +116,8 @@ export const useInfiniteChallenges = (
           )
 
           // Map ChallengeItem to Challenge format
-          const mappedChallenges: Challenge[] = response.items.map(item => {
-            const difficulty = (item.difficulty || 'easy')
-              .toString()
-              .toLowerCase() as Challenge['difficulty']
-
-            return {
-              id: item.id,
-              title: item.title,
-              description: item.description || '',
-              difficulty: difficulty,
-              topic: '', // Will be set from context if needed
-              createdAt: item.createdAt,
-              totalPoints: item.totalPoints,
-              isSolved: Boolean(item.isSolved),
-              isFavorite: Boolean(item.isFavorite),
-            }
-          })
+          const mappedChallenges: Challenge[] =
+            response.items.map(mapChallengeItem)
 
           setChallenges(mappedChallenges)
           setNextCursor(response.nextCursor)

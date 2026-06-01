@@ -191,14 +191,27 @@ export function useSubmissionExecution(options: {
           return
         }
         closeStream()
+        if (!isSubmit) {
+          setOutput({
+            status: 'rejected',
+            message:
+              'Execution stream disconnected before results were received. Please run again.',
+            error: 'Execution stream disconnected',
+            isSubmit,
+          })
+          completedRef.current = true
+          return
+        }
         void startPolling(submissionId, isSubmit)
       }
 
-      streamFallbackTimerRef.current = window.setTimeout(() => {
-        if (!receivedMessage) {
-          fallbackToPolling()
-        }
-      }, fallbackDelayMs)
+      if (isSubmit) {
+        streamFallbackTimerRef.current = window.setTimeout(() => {
+          if (!receivedMessage) {
+            fallbackToPolling()
+          }
+        }, fallbackDelayMs)
+      }
 
       eventSource.onmessage = async event => {
         receivedMessage = true
@@ -260,13 +273,13 @@ export function useSubmissionExecution(options: {
             : await submissionsService.runCode(requestPayload)
 
         const submissionId = created.submissionId
-        const completedDuringHydration = await hydrateSubmission(
-          submissionId,
-          kind === 'submit'
-        )
+        const isSubmit = kind === 'submit'
+        const completedDuringHydration = isSubmit
+          ? await hydrateSubmission(submissionId, isSubmit)
+          : false
 
         if (!completedDuringHydration) {
-          startStream(submissionId, kind === 'submit', fallbackDelayMs)
+          startStream(submissionId, isSubmit, fallbackDelayMs)
         }
       } catch (error) {
         setOutput({
