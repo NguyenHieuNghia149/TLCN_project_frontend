@@ -10,7 +10,7 @@ export const notificationService = {
           params: { limit, offset },
         }
       )
-      return response.data.data
+      return response.data.data || response.data
     } catch (error) {
       console.error('Failed to fetch notifications', error)
       return { notifications: [], unreadCount: 0 }

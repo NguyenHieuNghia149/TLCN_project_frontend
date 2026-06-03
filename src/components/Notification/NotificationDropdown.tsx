@@ -60,8 +60,13 @@ const NotificationDropdown: React.FC = () => {
   useEffect(() => {
     if (!user) return
 
-    const socketUrl =
-      import.meta.env.REACT_APP_API_URL || 'https://api.algoforge.site'
+    //const socketUrl =
+    //  import.meta.env.REACT_APP_API_URL || 'https://api.algoforge.site'
+    const configuredApiUrl =
+      import.meta.env.VITE_API_URL || import.meta.env.REACT_APP_API_URL
+    const socketUrl = configuredApiUrl
+      ? configuredApiUrl.replace(/\/api\/?$/, '')
+      : window.location.origin
     const socket = io(socketUrl, {
       transports: ['websocket', 'polling'],
       withCredentials: true,
