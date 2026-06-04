@@ -24,6 +24,7 @@ const Header: React.FC = () => {
     { path: '/dashboard', label: 'Prepare' },
     { path: '/lessons', label: 'Lesson' },
     { path: '/exam', label: 'Exam' },
+    { path: '/roadmaps', label: 'Roadmaps' },
   ]
 
   const profileItems = [

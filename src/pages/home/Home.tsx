@@ -566,6 +566,9 @@ const HomePage: React.FC = () => {
     Record<string, RoadmapDetail | null>
   >({})
   const [isLoadingRoadmaps, setIsLoadingRoadmaps] = useState<boolean>(false)
+  const [availableRoadmaps, setAvailableRoadmaps] = useState<Roadmap[]>([])
+  const [isLoadingAvailableRoadmaps, setIsLoadingAvailableRoadmaps] =
+    useState<boolean>(false)
   const navigate = useNavigate()
   const dispatch = useDispatch<AppDispatch>()
   const isAuthenticated = useSelector(
@@ -594,6 +597,32 @@ const HomePage: React.FC = () => {
       .finally(() => {
         if (!isMounted) return
         setIsLoadingTopics(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  // Fetch available roadmaps from system
+  useEffect(() => {
+    let isMounted = true
+
+    setIsLoadingAvailableRoadmaps(true)
+
+    roadmapService
+      .listRoadmaps(20, 0, 'public')
+      .then(data => {
+        if (!isMounted) return
+        setAvailableRoadmaps(data.roadmaps || [])
+      })
+      .catch(() => {
+        if (!isMounted) return
+        setAvailableRoadmaps([])
+      })
+      .finally(() => {
+        if (!isMounted) return
+        setIsLoadingAvailableRoadmaps(false)
       })
 
     return () => {
@@ -773,46 +802,51 @@ const HomePage: React.FC = () => {
           )}
 
         {/* Continue Roadmap Section - Show current/active roadmap */}
-        {isAuthenticated && !isLoadingRoadmaps && userRoadmaps.length > 0 && (
-          <div className="mb-12 mt-12">
-            <h2 className="mb-6 text-2xl font-semibold text-foreground">
-              Continue Roadmap
-            </h2>
-            {(() => {
-              // Get up to 4 roadmaps with some progress, or just the first ones if no progress
-              const continueRoadmaps = userRoadmaps
-                .filter(
-                  rm => roadmapProgressMap[rm.id]?.percentage !== undefined
-                )
-                .slice(0, 4)
+        {isAuthenticated &&
+          !isLoadingRoadmaps &&
+          userRoadmaps.length > 0 &&
+          Object.values(roadmapProgressMap).some(
+            p => p && p.percentage > 0
+          ) && (
+            <div className="mb-12 mt-12">
+              <h2 className="mb-6 text-2xl font-semibold text-foreground">
+                Continue Roadmap
+              </h2>
+              {(() => {
+                // Get up to 4 roadmaps with some progress, or just the first ones if no progress
+                const continueRoadmaps = userRoadmaps
+                  .filter(
+                    rm => roadmapProgressMap[rm.id]?.percentage !== undefined
+                  )
+                  .slice(0, 4)
 
-              // If none found with progress, just show the first 4
-              const displayRoadmaps =
-                continueRoadmaps.length > 0
-                  ? continueRoadmaps
-                  : userRoadmaps.slice(0, 4)
+                // If none found with progress, just show the first 4
+                const displayRoadmaps =
+                  continueRoadmaps.length > 0
+                    ? continueRoadmaps
+                    : userRoadmaps.slice(0, 4)
 
-              if (displayRoadmaps.length > 0) {
-                return (
-                  <div className="flex flex-col gap-6">
-                    {displayRoadmaps.map(rm => (
-                      <ContinueRoadmapCard
-                        key={rm.id}
-                        roadmap={rm}
-                        progress={roadmapProgressMap[rm.id] || null}
-                        isLocked={false}
-                        onRoadmapClick={id => navigate(`/roadmaps/${id}`)}
-                        roadmapDetail={roadmapDetailMap[rm.id] || null}
-                      />
-                    ))}
-                  </div>
-                )
-              }
+                if (displayRoadmaps.length > 0) {
+                  return (
+                    <div className="flex flex-col gap-6">
+                      {displayRoadmaps.map(rm => (
+                        <ContinueRoadmapCard
+                          key={rm.id}
+                          roadmap={rm}
+                          progress={roadmapProgressMap[rm.id] || null}
+                          isLocked={false}
+                          onRoadmapClick={id => navigate(`/roadmaps/${id}`)}
+                          roadmapDetail={roadmapDetailMap[rm.id] || null}
+                        />
+                      ))}
+                    </div>
+                  )
+                }
 
-              return null
-            })()}
-          </div>
-        )}
+                return null
+              })()}
+            </div>
+          )}
 
         {/* Programming Roadmaps Section */}
         {isAuthenticated && (
@@ -820,7 +854,7 @@ const HomePage: React.FC = () => {
             <div className="mb-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <h2 className="text-xl font-semibold text-foreground">
-                  Programming Roadmaps
+                  Latest Roadmaps
                 </h2>
                 <span className="rounded-full bg-gradient-to-r from-blue-500 to-purple-600 px-3 py-1 text-xs font-medium text-white">
                   New
@@ -835,14 +869,14 @@ const HomePage: React.FC = () => {
               </button>
             </div>
 
-            {isLoadingRoadmaps ? (
+            {isLoadingAvailableRoadmaps ? (
               <div className="flex items-center justify-center py-12">
                 <div className="flex flex-col items-center gap-3">
                   <div className="h-8 w-8 animate-spin rounded-full border-4 border-green-500 border-t-transparent" />
                   <p className="text-sm text-slate-500">Loading roadmaps...</p>
                 </div>
               </div>
-            ) : userRoadmaps.length === 0 ? (
+            ) : availableRoadmaps.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border bg-card/50 px-6 py-12 text-center">
                 <p className="text-sm text-muted-foreground">
                   No roadmaps yet. Start your learning journey by exploring
@@ -858,14 +892,12 @@ const HomePage: React.FC = () => {
             ) : (
               <>
                 {(() => {
-                  // Get 4 random roadmaps
-                  const randomRoadmaps = [...userRoadmaps]
-                    .sort(() => 0.5 - Math.random())
-                    .slice(0, 4)
+                  // Get 4 latest roadmaps
+                  const latestRoadmaps = availableRoadmaps.slice(0, 4)
 
                   return (
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                      {randomRoadmaps.map(roadmap => (
+                      {latestRoadmaps.map(roadmap => (
                         <RoadmapCard
                           key={roadmap.id}
                           roadmap={roadmap}
