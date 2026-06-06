@@ -66,6 +66,12 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false)
 
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const consolePanelRef = useRef<HTMLDivElement | null>(null)
+  const isDraggingRef = useRef(false)
+  const dragStartYRef = useRef(0)
+  const dragStartHeightRef = useRef(0)
+  const rafIdRef = useRef<number | null>(null)
+  const pendingHeightRef = useRef<number | null>(null)
   const { theme: appTheme } = useTheme()
 
   const availableLanguageOptions =
@@ -102,39 +108,79 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
     }
   }, [isFullscreen])
 
+  // Setup resize listeners ONCE
+  useEffect(() => {
+    const containerElement = containerRef.current
+    if (!containerElement) return
+
+    const handleMouseMove = (event: MouseEvent) => {
+      if (!isDraggingRef.current) return
+      event.preventDefault()
+
+      const containerRect = containerElement.getBoundingClientRect()
+      const maxHeight = Math.max(120, Math.floor(containerRect.height * 0.9))
+      const delta = dragStartYRef.current - event.clientY
+      const nextHeight = Math.min(
+        maxHeight,
+        Math.max(120, dragStartHeightRef.current + delta)
+      )
+      pendingHeightRef.current = nextHeight
+
+      // Throttle updates with RAF - update DOM directly to avoid re-renders
+      if (rafIdRef.current === null) {
+        rafIdRef.current = requestAnimationFrame(() => {
+          if (pendingHeightRef.current !== null && consolePanelRef.current) {
+            // Update DOM directly without state update to avoid expensive re-renders
+            consolePanelRef.current.style.height = `${pendingHeightRef.current}px`
+            // Ensure console is expanded by adding inline style
+            if (!consoleExpanded) {
+              setConsoleExpanded(true)
+            }
+          }
+          rafIdRef.current = null
+        })
+      }
+    }
+
+    const handleMouseUp = () => {
+      isDraggingRef.current = false
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current)
+        rafIdRef.current = null
+      }
+      // Update state after drag is done so it persists
+      if (pendingHeightRef.current !== null) {
+        setConsoleHeight(pendingHeightRef.current)
+        pendingHeightRef.current = null
+      }
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [consoleExpanded])
+
+  // Sync wrapper height with state when not dragging
+  useEffect(() => {
+    if (!isDraggingRef.current && consolePanelRef.current) {
+      const targetHeight = consoleExpanded ? consoleHeight : 110
+      consolePanelRef.current.style.height = `${targetHeight}px`
+    }
+  }, [consoleHeight, consoleExpanded])
+
   const startResizeConsole = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       event.preventDefault()
       event.stopPropagation()
-      const startY = event.clientY
-      const startHeight = consoleHeight
-      const containerElement = containerRef.current
-      const containerRect = containerElement?.getBoundingClientRect()
-      const maxHeight = containerRect
-        ? Math.max(120, Math.floor(containerRect.height * 0.9))
-        : 600
-
-      const onMove = (moveEvent: MouseEvent) => {
-        const delta = startY - moveEvent.clientY
-        const nextHeight = Math.min(
-          maxHeight,
-          Math.max(120, startHeight + delta)
-        )
-        setConsoleHeight(nextHeight)
-        if (!consoleExpanded) {
-          setConsoleExpanded(true)
-        }
-      }
-
-      const onUp = () => {
-        window.removeEventListener('mousemove', onMove)
-        window.removeEventListener('mouseup', onUp)
-      }
-
-      window.addEventListener('mousemove', onMove)
-      window.addEventListener('mouseup', onUp)
+      isDraggingRef.current = true
+      dragStartYRef.current = event.clientY
+      dragStartHeightRef.current = consoleHeight
     },
-    [consoleExpanded, consoleHeight]
+    [consoleHeight]
   )
 
   const handleCopyCode = async () => {
@@ -401,6 +447,7 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
           />
 
           <ConsolePanel
+            ref={consolePanelRef}
             consoleExpanded={consoleExpanded}
             onToggleConsole={() => setConsoleExpanded(!consoleExpanded)}
             consoleHeight={consoleHeight}
