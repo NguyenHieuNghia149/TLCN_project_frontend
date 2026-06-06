@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react'
+import React, { Suspense, memo } from 'react'
 import MonacoEditor from './MonacoEditor'
 
 interface MonacoEditorWrapperProps {
@@ -13,7 +13,7 @@ interface MonacoEditorWrapperProps {
   wordWrap?: 'on' | 'off'
 }
 
-const MonacoEditorWrapper: React.FC<MonacoEditorWrapperProps> = props => {
+const MonacoEditorWrapper: React.FC<MonacoEditorWrapperProps> = memo(props => {
   return (
     <Suspense
       fallback={
@@ -28,6 +28,8 @@ const MonacoEditorWrapper: React.FC<MonacoEditorWrapperProps> = props => {
       <MonacoEditor {...props} />
     </Suspense>
   )
-}
+})
+
+MonacoEditorWrapper.displayName = 'MonacoEditorWrapper'
 
 export default MonacoEditorWrapper

@@ -31,6 +31,7 @@ import { useNavigate } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { RootState, AppDispatch } from '@/store/stores'
 import { asyncFetchUserRoadmaps } from '@/store/slices/roadmapSlice'
+import { useTheme } from '@/contexts/useTheme'
 import type {
   Roadmap,
   ProgressStats,
@@ -185,6 +186,8 @@ const ContinueRoadmapCard: React.FC<RoadmapCardProps> = ({
   onRoadmapClick,
   roadmapDetail,
 }) => {
+  const { theme } = useTheme()
+  const isDark = theme === 'dark'
   const percentage = progress?.percentage ?? 0
   const total = progress?.total ?? 0
   const completed = progress?.completed ?? 0
@@ -260,13 +263,23 @@ const ContinueRoadmapCard: React.FC<RoadmapCardProps> = ({
   }
 
   return (
-    <div className="continue-roadmap-card rounded-2xl border border-slate-700/50 bg-slate-900/80 p-6 backdrop-blur-sm transition-all duration-300 hover:shadow-lg">
+    <div
+      className={`continue-roadmap-card rounded-2xl border p-6 backdrop-blur-sm transition-all duration-300 hover:shadow-lg ${
+        isDark
+          ? 'border-slate-700/50 bg-slate-900/80'
+          : 'border-slate-200/50 bg-white/80'
+      }`}
+    >
       <div className="flex items-center gap-6">
         {/* Left side: Icon with progress circle */}
         <div className="relative flex flex-shrink-0 flex-col items-center">
           {getRoadmapIcon(roadmap.title)}
           {/* Progress circle */}
-          <div className="absolute -bottom-2 -right-2 flex h-14 w-14 items-center justify-center rounded-full border-4 border-green-500 bg-slate-900">
+          <div
+            className={`absolute -bottom-2 -right-2 flex h-14 w-14 items-center justify-center rounded-full border-4 border-green-500 ${
+              isDark ? 'bg-slate-900' : 'bg-white'
+            }`}
+          >
             <div className="flex flex-col items-center">
               <span className="text-xs font-bold text-green-400">
                 {percentage}%
@@ -278,22 +291,41 @@ const ContinueRoadmapCard: React.FC<RoadmapCardProps> = ({
         {/* Left-middle: Title and info */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-3">
-            <h3 className="text-xl font-bold text-white">{roadmap.title}</h3>
-            <span className="rounded border border-blue-500/50 bg-blue-500/30 px-3 py-1 text-xs font-medium text-blue-300">
+            <h3
+              className={`text-xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}
+            >
+              {roadmap.title}
+            </h3>
+            <span
+              className={`rounded border px-3 py-1 text-xs font-medium ${
+                isDark
+                  ? 'border-blue-500/50 bg-blue-500/30 text-blue-300'
+                  : 'border-blue-300/50 bg-blue-100/50 text-blue-700'
+              }`}
+            >
               Cơ bản
             </span>
           </div>
 
           {/* Progress text */}
-          <div className="text-sm text-slate-300">
+          <div
+            className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}
+          >
             <span className="font-semibold text-green-400">
               {completed}/{total}
             </span>
-            <span className="text-slate-400"> bài hoàn thành</span>
+            <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>
+              {' '}
+              bài hoàn thành
+            </span>
           </div>
 
           {/* Details */}
-          <div className="flex items-center gap-3 text-xs text-slate-400">
+          <div
+            className={`flex items-center gap-3 text-xs ${
+              isDark ? 'text-slate-400' : 'text-slate-500'
+            }`}
+          >
             <span>{lessonCount} bài học</span>
             <span>•</span>
             <span>{problemCount} bài tập</span>
@@ -301,9 +333,23 @@ const ContinueRoadmapCard: React.FC<RoadmapCardProps> = ({
         </div>
 
         {/* Middle: Current item info */}
-        <div className="hidden flex-col gap-1 border-l border-slate-700/50 px-6 lg:flex">
-          <div className="text-xs text-slate-400">Bài hiện tại</div>
-          <div className="text-sm font-semibold text-white">
+        <div
+          className={`hidden flex-col gap-1 border-l px-6 lg:flex ${
+            isDark ? 'border-slate-700/50' : 'border-slate-200/50'
+          }`}
+        >
+          <div
+            className={`text-xs ${
+              isDark ? 'text-slate-400' : 'text-slate-500'
+            }`}
+          >
+            Bài hiện tại
+          </div>
+          <div
+            className={`text-sm font-semibold ${
+              isDark ? 'text-white' : 'text-slate-900'
+            }`}
+          >
             {currentItemTitle}
           </div>
         </div>
@@ -343,7 +389,9 @@ const ContinueRoadmapCard: React.FC<RoadmapCardProps> = ({
                 return (
                   <div
                     key={i}
-                    className="flex h-6 w-6 flex-shrink-0 items-center justify-center text-xs font-semibold text-slate-500"
+                    className={`flex h-6 w-6 flex-shrink-0 items-center justify-center text-xs font-semibold ${
+                      isDark ? 'text-slate-500' : 'text-slate-400'
+                    }`}
                   >
                     {itemNum}
                   </div>
@@ -356,7 +404,10 @@ const ContinueRoadmapCard: React.FC<RoadmapCardProps> = ({
                     key={i}
                     className="flex h-6 w-6 flex-shrink-0 items-center justify-center"
                   >
-                    <Lock size={14} className="text-slate-600" />
+                    <Lock
+                      size={14}
+                      className={isDark ? 'text-slate-600' : 'text-slate-400'}
+                    />
                   </div>
                 )
               }
@@ -376,7 +427,11 @@ const ContinueRoadmapCard: React.FC<RoadmapCardProps> = ({
             </button>
             <button
               onClick={() => onRoadmapClick(roadmap.id)}
-              className="text-sm font-medium text-blue-400 transition-colors hover:text-blue-300"
+              className={`text-sm font-medium transition-colors ${
+                isDark
+                  ? 'text-blue-400 hover:text-blue-300'
+                  : 'text-blue-600 hover:text-blue-700'
+              }`}
             >
               Xem lộ trình →
             </button>
