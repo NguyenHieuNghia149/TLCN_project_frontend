@@ -27,6 +27,8 @@ import useAutosaveSession from '@/hooks/useAutosaveSession'
 import { useTheme } from '@/contexts/useTheme'
 import { canResumeExamWorkspace } from './exam-workspace-access'
 import { computeExamRemainingSeconds } from './exam-countdown'
+import { useExamProctoring } from '@/hooks/useExamProctoring'
+import { submitExamWithFinalProctoringFlush } from './proctoringSubmit'
 
 type MobileWorkspacePanel = 'problem' | 'editor' | 'output' | 'challenges'
 
@@ -104,6 +106,12 @@ const ExamChallengeDetail: React.FC = () => {
   const reduxExpiresAt = useSelector(
     (s: RootState) => s.exam?.currentParticipationExpiresAt
   )
+  const currentUserId = useSelector((s: RootState) => s.auth?.session?.user?.id)
+  const proctoring = useExamProctoring({
+    examSlug: examSlug ?? '',
+    participationId: reduxParticipationId,
+    userId: currentUserId,
+  })
   const mobileWorkspacePanelStorageKey =
     resolvedExamId && reduxParticipationId
       ? `exam_workspace_mobile_panel_${resolvedExamId}_${reduxParticipationId}`
@@ -740,13 +748,24 @@ const ExamChallengeDetail: React.FC = () => {
       try {
         const participationId = reduxParticipationId
         if (resolvedExamId && participationId) {
-          await examService.submitExam(resolvedExamId, participationId)
           // Flush any pending autosave before navigating
           try {
             await flushAutosave()
           } catch {
             // ignore autosave flush errors on submit
             void 0
+          }
+
+          if (examSlug && proctoring.proctoringRequired) {
+            await submitExamWithFinalProctoringFlush({
+              examSlug,
+              participationId,
+              finalFlush: proctoring.finalFlush,
+              submitExam: (slug, payload) =>
+                examService.submitExamBySlug(slug, payload),
+            })
+          } else {
+            await examService.submitExam(resolvedExamId, participationId)
           }
 
           // Clear participation from Redux since exam is completed
@@ -773,6 +792,8 @@ const ExamChallengeDetail: React.FC = () => {
       examSlug,
       flushAutosave,
       navigate,
+      proctoring.finalFlush,
+      proctoring.proctoringRequired,
       resolvedExamId,
       reduxParticipationId,
     ]
@@ -1302,6 +1323,47 @@ const ExamChallengeDetail: React.FC = () => {
             )}
         </div>
       </header>
+
+      {proctoring.screenShareBlocked ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.72)' }}
+          role="alertdialog"
+          aria-modal="true"
+          aria-label="Screen share required"
+        >
+          <div
+            className="w-full max-w-md rounded-xl border p-6 text-center"
+            style={{
+              backgroundColor: 'var(--background-color)',
+              borderColor: 'var(--exam-danger)',
+              color: 'var(--text-color)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+            }}
+          >
+            <AlertTriangle
+              size={40}
+              style={{ color: 'var(--exam-danger)', margin: '0 auto' }}
+            />
+            <h2 className="mt-3 text-lg font-semibold">
+              Screen share required
+            </h2>
+            <p className="mt-2 text-sm" style={{ color: 'var(--muted-text)' }}>
+              Continue sharing your screen to keep working in this proctored
+              exam. The system records status metadata only.
+            </p>
+            <Button
+              type="button"
+              className="mt-5"
+              onClick={() => {
+                void proctoring.requestScreenShare()
+              }}
+            >
+              Reshare screen
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       {/* Main Content */}
       {isMobileWorkspace ? (

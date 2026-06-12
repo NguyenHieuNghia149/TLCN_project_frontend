@@ -171,6 +171,124 @@ export interface ExamAccessState {
   requiresPassword: boolean
 }
 
+export type ProctoringDisplaySurface =
+  | 'monitor'
+  | 'window'
+  | 'browser'
+  | 'surface_unknown'
+
+export interface ProctoringSettings {
+  examId: string
+  enabled: boolean
+  requireCamera: boolean
+  requireScreenShare: boolean
+  requireFullscreen: boolean
+  requireMonitorDisplaySurface: boolean
+  precheckValiditySeconds: number
+  heartbeatIntervalSeconds: number
+  missedHeartbeatGraceMultiplier: number
+  screenShareResumeTimeoutSeconds: number
+  fullscreenResumeTimeoutSeconds: number
+  allowedEventTypesJson: string[]
+  riskWeightsJson: Record<string, number>
+  riskThresholdsJson: Record<string, number>
+  clipboardPolicy: 'log_only' | 'block' | 'ignore' | string
+  aiAnomalyEnabled: boolean
+  aiShadowMode: boolean
+  aiJobWindowSeconds: number
+  consentNoticeVersion: string
+  legalLinksJson: Record<string, string>
+  dataRetentionDays: number
+  dataDeletionSlaDays: number
+  sensitiveDataDeletionTargetHours: number
+}
+
+export interface ProctoringConsentRecord {
+  id: string
+  status: 'accepted' | 'withdrawn' | 'superseded'
+  acceptedAt?: string
+  withdrawnAt?: string | null
+}
+
+export interface ProctoringPrecheckRecord {
+  id: string
+  passed: boolean
+  expiresAt: string
+  failureReasonsJson?: string[]
+}
+
+export interface ProctoringBypassGrant {
+  bypassCodeId: string
+  status: 'issued' | 'used' | 'revoked' | 'expired'
+  expiresAt?: string
+}
+
+export interface ProctoringStartPayload {
+  clientSessionId: string
+  consentRecordId?: string
+  precheckId?: string
+  bypassCodeId?: string
+}
+
+export interface ProctoringSubmitPayload {
+  submitAttemptId: string
+  finalFlushReceiptId?: string
+}
+
+export interface ProctoringFinalFlushResponse {
+  receiptId?: string
+  finalFlushReceiptId?: string
+  status?: string
+}
+
+export type AdminProctoringReviewDecision =
+  | 'pending'
+  | 'no_action'
+  | 'needs_re_review'
+  | 'refer_for_policy_review'
+
+export interface AdminProctoringReview {
+  summary: {
+    id: string
+    examId: string
+    participationId: string
+    riskScore: number
+    riskLevel: string
+    eventCountsJson: Record<string, number>
+    velocityJson: Record<string, unknown>
+    finalFlushStatus: string | null
+    deterministicSchemaVersion: string
+    computedAt: string | null
+    reviewerDecision: AdminProctoringReviewDecision | string
+    reviewerId: string | null
+    reviewerNotes: string | null
+    reviewedAt: string | null
+  } | null
+  timeline: {
+    items: Array<{
+      id: string
+      type: string
+      eventName: string
+      severity: string
+      clientSeq: number
+      capturedAt: string | null
+      receivedAt: string | null
+      finalFlushReceiptId: string | null
+      payloadJson: Record<string, unknown>
+    }>
+    total: number
+    limit: number
+    offset: number
+  }
+  evidence: {
+    consent: Array<Record<string, unknown>>
+    precheck: Array<Record<string, unknown>>
+    bypass: Array<Record<string, unknown>>
+    finalFlush: Array<Record<string, unknown>>
+    dataRequests: Array<Record<string, unknown>>
+  }
+}
+
 export type ExamSyncStatus = 'active' | 'submitted' | 'expired'
 
 export interface ExamSessionSyncResponse {

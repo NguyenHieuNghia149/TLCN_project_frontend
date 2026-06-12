@@ -13,6 +13,15 @@ import type {
   ExamInviteResolution,
   ExamParticipation,
   ExamSessionSyncResponse,
+  AdminProctoringReview,
+  AdminProctoringReviewDecision,
+  ProctoringBypassGrant,
+  ProctoringConsentRecord,
+  ProctoringFinalFlushResponse,
+  ProctoringPrecheckRecord,
+  ProctoringSettings,
+  ProctoringStartPayload,
+  ProctoringSubmitPayload,
   PublicExamLanding,
 } from '@/types/exam.types'
 import type { ChallengeItem } from '@/types/challenge.types'
@@ -545,7 +554,8 @@ export class ExamService {
 
   async startEntrySession(
     entrySessionId: string,
-    examPassword?: string
+    examPassword?: string,
+    proctoring?: ProctoringStartPayload
   ): Promise<{
     participationId: string
     expiresAt: string
@@ -553,7 +563,7 @@ export class ExamService {
   }> {
     const response = await apiClient.post(
       `/exams/entry-sessions/${entrySessionId}/start`,
-      { examPassword }
+      { examPassword, ...proctoring }
     )
     return unwrapResponseData<{
       participationId: string
@@ -562,12 +572,134 @@ export class ExamService {
     }>(response.data)
   }
 
-  async submitExamBySlug(slug: string): Promise<{
+  async getProctoringSettings(slug: string): Promise<ProctoringSettings> {
+    const response = await apiClient.get(`/exams/${slug}/proctoring/settings`)
+    return unwrapResponseData<ProctoringSettings>(response.data)
+  }
+
+  async acceptProctoringConsent(
+    slug: string,
+    payload: {
+      accepted: true
+      clientSessionId: string
+      entrySessionId?: string | null
+      participationId?: string | null
+      acceptedCapabilitiesJson?: Record<string, boolean>
+    }
+  ): Promise<ProctoringConsentRecord> {
+    const response = await apiClient.post(
+      `/exams/${slug}/proctoring/consent`,
+      payload
+    )
+    return unwrapResponseData<ProctoringConsentRecord>(response.data)
+  }
+
+  async submitProctoringPrecheck(
+    slug: string,
+    payload: {
+      consentRecordId: string
+      clientSessionId: string
+      browserName?: string
+      browserVersion?: string
+      osName?: string
+      getUserMediaSupported: boolean
+      cameraPermissionGranted: boolean
+      getDisplayMediaSupported: boolean
+      displaySurface?: string
+      monitorValidated?: boolean
+      fullscreenSupported: boolean
+      browserSupported: boolean
+    }
+  ): Promise<ProctoringPrecheckRecord> {
+    const response = await apiClient.post(
+      `/exams/${slug}/proctoring/precheck`,
+      payload
+    )
+    return unwrapResponseData<ProctoringPrecheckRecord>(response.data)
+  }
+
+  async verifyProctoringBypass(
+    slug: string,
+    payload: {
+      bypassCode: string
+      clientSessionId: string
+      entrySessionId?: string | null
+      participationId?: string | null
+    }
+  ): Promise<ProctoringBypassGrant> {
+    const response = await apiClient.post(
+      `/exams/${slug}/proctoring/bypass/verify`,
+      payload
+    )
+    return unwrapResponseData<ProctoringBypassGrant>(response.data)
+  }
+
+  async submitProctoringFinalFlush(
+    participationId: string,
+    payload: {
+      clientSessionId: string
+      submitAttemptId: string
+      finalFlushReceiptId?: string
+      events: unknown[]
+      firstClientSeq: number | null
+      lastClientSeq: number | null
+      expectedEventCount: number
+    }
+  ): Promise<ProctoringFinalFlushResponse> {
+    const response = await apiClient.post(
+      `/exams/participations/${participationId}/proctoring/final-flush`,
+      payload
+    )
+    return unwrapResponseData<ProctoringFinalFlushResponse>(response.data)
+  }
+
+  async getAdminProctoringReview(
+    examId: string,
+    participationId: string,
+    params?: { eventName?: string; limit?: number; offset?: number }
+  ): Promise<AdminProctoringReview> {
+    const response = await apiClient.get(
+      `/admin/exams/${examId}/participations/${participationId}/proctoring`,
+      { params }
+    )
+    return unwrapResponseData<AdminProctoringReview>(response.data)
+  }
+
+  async recomputeAdminProctoringReview(
+    examId: string,
+    participationId: string,
+    payload: { needsReReview?: boolean } = {}
+  ): Promise<AdminProctoringReview['summary']> {
+    const response = await apiClient.post(
+      `/admin/exams/${examId}/participations/${participationId}/proctoring/recompute`,
+      payload
+    )
+    return unwrapResponseData<AdminProctoringReview['summary']>(response.data)
+  }
+
+  async reviewAdminProctoring(
+    examId: string,
+    participationId: string,
+    payload: { decision: AdminProctoringReviewDecision; notes?: string }
+  ): Promise<AdminProctoringReview['summary']> {
+    const response = await apiClient.post(
+      `/admin/exams/${examId}/participations/${participationId}/proctoring/review`,
+      payload
+    )
+    return unwrapResponseData<AdminProctoringReview['summary']>(response.data)
+  }
+
+  async submitExamBySlug(
+    slug: string,
+    proctoring?: ProctoringSubmitPayload
+  ): Promise<{
     participationId: string
     submittedAt: string
     scoreStatus: string
   }> {
-    const response = await apiClient.post(`/exams/${slug}/submit`, {})
+    const response = await apiClient.post(`/exams/${slug}/submit`, {
+      ...proctoring,
+    })
     return unwrapResponseData<{
       participationId: string
       submittedAt: string

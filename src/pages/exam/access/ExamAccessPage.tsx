@@ -14,6 +14,10 @@ import { useAuth } from '@/hooks/api/useAuth'
 import ExamEntryLobbyPanel from '@/pages/exam/access/components/ExamEntryLobbyPanel'
 import ExamEntryStatusPanel from '@/pages/exam/access/components/ExamEntryStatusPanel'
 import ExamEntryVerificationPanel from '@/pages/exam/access/components/ExamEntryVerificationPanel'
+import ProctoringBypassPanel from '@/pages/exam/access/components/ProctoringBypassPanel'
+import ProctoringConsentPanel from '@/pages/exam/access/components/ProctoringConsentPanel'
+import ProctoringPrecheckPanel from '@/pages/exam/access/components/ProctoringPrecheckPanel'
+import { useExamProctoring } from '@/hooks/useExamProctoring'
 import { isLegacyExamId } from '@/pages/exam/legacy/legacy-exam-redirect'
 import { examService } from '@/services/api/exam.service'
 import { tokenManager } from '@/services/auth/token.service'
@@ -142,6 +146,15 @@ const ExamAccessPage: React.FC = () => {
     otp: '',
   })
   const [accessPassword, setAccessPassword] = useState('')
+  const currentEntrySessionId =
+    accessState?.entrySessionId || inviteState?.entrySessionId || null
+  const currentParticipationId = accessState?.participationId ?? null
+  const proctoring = useExamProctoring({
+    examSlug,
+    entrySessionId: currentEntrySessionId,
+    participationId: currentParticipationId,
+    userId: user?.id,
+  })
 
   const refreshAccessState = useCallback(async () => {
     if (!examSlug) return
@@ -342,16 +355,34 @@ const ExamAccessPage: React.FC = () => {
       return
     }
 
+    const startingNewParticipation = !accessState?.participationId
+    if (
+      startingNewParticipation &&
+      proctoring.proctoringRequired &&
+      !proctoring.startReady
+    ) {
+      setError(
+        proctoring.consentAccepted
+          ? 'Complete device precheck or use an approved bypass before starting this proctored exam.'
+          : 'Accept proctoring consent before starting this proctored exam.'
+      )
+      return
+    }
+
     try {
       setActionLoading(true)
       setError(null)
       const result = await examService.startEntrySession(
         entrySessionId,
-        requiresAccessPassword ? accessPassword : undefined
+        requiresAccessPassword ? accessPassword : undefined,
+        startingNewParticipation && proctoring.proctoringRequired
+          ? proctoring.startPayload
+          : undefined
       )
       if (!result.firstChallengeId) {
         throw new Error('Exam does not have any configured challenge.')
       }
+      proctoring.markStartSucceeded()
 
       dispatch(
         setParticipation({
@@ -465,6 +496,20 @@ const ExamAccessPage: React.FC = () => {
     () => computeEntryBlockReasons(exam, accessState),
     [exam, accessState]
   )
+  const proctoringStartBlockReason =
+    !hasStartedParticipation &&
+    proctoring.proctoringRequired &&
+    !proctoring.startReady
+      ? proctoring.consentAccepted
+        ? 'Complete device precheck or use an approved bypass before starting this proctored exam.'
+        : 'Accept proctoring consent before starting this proctored exam.'
+      : null
+  const lobbyCanStart =
+    Boolean(accessState?.canStart) && !proctoringStartBlockReason
+  const lobbyPrimaryReason = primaryReason || proctoringStartBlockReason
+  const lobbyReasons = proctoringStartBlockReason
+    ? Array.from(new Set([...allReasons, proctoringStartBlockReason]))
+    : allReasons
   const inviteResolutionFailed =
     !!inviteToken &&
     !!error &&
@@ -888,23 +933,69 @@ const ExamAccessPage: React.FC = () => {
             ) : null}
 
             {entryPanelKind === 'lobby' && effectiveEntrySessionStatus ? (
-              <ExamEntryLobbyPanel
-                status={
-                  effectiveEntrySessionStatus === 'started'
-                    ? 'started'
-                    : 'eligible'
-                }
-                canStart={Boolean(accessState?.canStart)}
-                actionLoading={actionLoading}
-                primaryReason={primaryReason}
-                allReasons={allReasons}
-                requiresPassword={Boolean(accessState?.requiresPassword)}
-                passwordValue={accessPassword}
-                onPasswordChange={setAccessPassword}
-                onStartOrResume={() => {
-                  void handleStartOrResume()
-                }}
-              />
+              <>
+                {proctoring.settings?.enabled ? (
+                  <>
+                    <ProctoringConsentPanel
+                      settings={proctoring.settings}
+                      consentAccepted={proctoring.consentAccepted}
+                      loading={proctoring.loading}
+                      onAccept={() => {
+                        void proctoring.acceptConsent()
+                      }}
+                    />
+                    <ProctoringPrecheckPanel
+                      consentAccepted={proctoring.consentAccepted}
+                      precheckPassed={proctoring.precheckPassed}
+                      bypassActive={proctoring.bypassActive}
+                      loading={proctoring.loading}
+                      failureReasons={
+                        proctoring.precheckRecord?.failureReasonsJson ?? []
+                      }
+                      onRunPrecheck={() => {
+                        void proctoring.runPrecheck()
+                      }}
+                    />
+                    <ProctoringBypassPanel
+                      consentAccepted={proctoring.consentAccepted}
+                      precheckPassed={proctoring.precheckPassed}
+                      bypassActive={proctoring.bypassActive}
+                      loading={proctoring.loading}
+                      onVerify={proctoring.verifyBypass}
+                    />
+                    {proctoring.error ? (
+                      <section
+                        className="mt-4 rounded-xl border px-4 py-3 text-sm"
+                        style={{
+                          borderColor: 'var(--exam-danger-subtle)',
+                          backgroundColor: 'var(--exam-danger-subtle)',
+                          color: 'var(--exam-danger)',
+                        }}
+                      >
+                        {proctoring.error}
+                      </section>
+                    ) : null}
+                  </>
+                ) : null}
+
+                <ExamEntryLobbyPanel
+                  status={
+                    effectiveEntrySessionStatus === 'started'
+                      ? 'started'
+                      : 'eligible'
+                  }
+                  canStart={lobbyCanStart}
+                  actionLoading={actionLoading}
+                  primaryReason={lobbyPrimaryReason}
+                  allReasons={lobbyReasons}
+                  requiresPassword={Boolean(accessState?.requiresPassword)}
+                  passwordValue={accessPassword}
+                  onPasswordChange={setAccessPassword}
+                  onStartOrResume={() => {
+                    void handleStartOrResume()
+                  }}
+                />
+              </>
             ) : null}
 
             {entryPanelKind === 'none' ? (
