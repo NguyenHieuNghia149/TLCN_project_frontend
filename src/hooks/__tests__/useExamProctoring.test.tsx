@@ -10,6 +10,7 @@ const examServiceMock = vi.hoisted(() => ({
   acceptProctoringConsent: vi.fn(),
   submitProctoringPrecheck: vi.fn(),
   verifyProctoringBypass: vi.fn(),
+  createProctoringSocketToken: vi.fn(),
   submitProctoringFinalFlush: vi.fn(),
 }))
 
@@ -18,6 +19,7 @@ const socketMock = vi.hoisted(() => ({
   disconnect: vi.fn(),
   sendBatch: vi.fn(),
   requestFinalFlush: vi.fn(),
+  onSessionRejected: vi.fn(),
 }))
 
 vi.mock('@/services/api/exam.service', () => ({
@@ -88,6 +90,10 @@ describe('useExamProctoring', () => {
       passed: true,
       expiresAt: '2099-06-12T10:00:00.000Z',
     })
+    examServiceMock.createProctoringSocketToken.mockResolvedValue({
+      token: 'socket-token-1',
+      expiresAt: '2099-06-12T10:00:00.000Z',
+    })
     examServiceMock.submitProctoringFinalFlush.mockResolvedValue({
       receiptId: 'receipt-1',
       status: 'persisted',
@@ -115,11 +121,20 @@ describe('useExamProctoring', () => {
       expect(result.current.settings?.enabled).toBe(true)
     })
 
-    expect(socketMock.connect).toHaveBeenCalledWith({
-      participationId: 'participation-1',
-      clientSessionId: 'client-uuid-1',
-      userId: 'candidate-1',
-      lastSeenClientSeq: 0,
+    await waitFor(() => {
+      expect(examServiceMock.createProctoringSocketToken).toHaveBeenCalledWith(
+        'participation-1',
+        { clientSessionId: 'client-uuid-1' }
+      )
+      expect(socketMock.connect).toHaveBeenCalledWith(
+        {
+          participationId: 'participation-1',
+          clientSessionId: 'client-uuid-1',
+          userId: 'candidate-1',
+          lastSeenClientSeq: 0,
+        },
+        { proctoringToken: 'socket-token-1' }
+      )
     })
     expect(result.current.startReady).toBe(false)
 

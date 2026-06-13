@@ -20,6 +20,7 @@ import type {
   ProctoringFinalFlushResponse,
   ProctoringPrecheckRecord,
   ProctoringSettings,
+  ProctoringSocketTokenResponse,
   ProctoringStartPayload,
   ProctoringSubmitPayload,
   PublicExamLanding,
@@ -651,6 +652,17 @@ export class ExamService {
       payload
     )
     return unwrapResponseData<ProctoringFinalFlushResponse>(response.data)
+  }
+
+  async createProctoringSocketToken(
+    participationId: string,
+    payload: { clientSessionId: string }
+  ): Promise<ProctoringSocketTokenResponse> {
+    const response = await apiClient.post(
+      `/exams/participations/${participationId}/proctoring/socket-token`,
+      payload
+    )
+    return unwrapResponseData<ProctoringSocketTokenResponse>(response.data)
   }
 
   async getAdminProctoringReview(

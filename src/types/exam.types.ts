@@ -241,6 +241,11 @@ export interface ProctoringFinalFlushResponse {
   status?: string
 }
 
+export interface ProctoringSocketTokenResponse {
+  token: string
+  expiresAt: string
+}
+
 export type AdminProctoringReviewDecision =
   | 'pending'
   | 'no_action'

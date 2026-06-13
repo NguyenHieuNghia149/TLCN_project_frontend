@@ -18,6 +18,10 @@ type SessionHelloPayload = {
   lastSeenClientSeq: number
 }
 
+type ConnectOptions = {
+  proctoringToken: string
+}
+
 function resolveSocketBaseURL(baseURL: string): string {
   try {
     const url = new URL(baseURL)
@@ -33,6 +37,7 @@ export class ProctoringSocketClient {
   private readonly baseURL: string
   private readonly timeoutMs: number
   private lastHello: SessionHelloPayload | null = null
+  private sessionRejectedListener: (() => void) | null = null
 
   constructor(options: ProctoringSocketClientOptions = {}) {
     this.baseURL = resolveSocketBaseURL(options.baseURL ?? API_CONFIG.baseURL)
@@ -43,7 +48,7 @@ export class ProctoringSocketClient {
     return Boolean(this.socket?.connected)
   }
 
-  connect(hello: SessionHelloPayload): void {
+  connect(hello: SessionHelloPayload, options: ConnectOptions): void {
     this.lastHello = hello
     if (!this.socket) {
       this.socket = io(`${this.baseURL}/proctoring`, {
@@ -54,6 +59,9 @@ export class ProctoringSocketClient {
         reconnectionDelay: 500,
         reconnectionDelayMax: 8000,
         randomizationFactor: 0.5,
+        auth: {
+          proctoringToken: options.proctoringToken,
+        },
       })
 
       this.socket.on('connect', () => {
@@ -67,6 +75,14 @@ export class ProctoringSocketClient {
       this.socket.on('disconnect', () => {
         // Disconnects are retryable for the candidate UI.
       })
+      this.socket.on('session.rejected', () => {
+        this.sessionRejectedListener?.()
+      })
+    } else {
+      this.socket.auth = {
+        ...(this.socket.auth as Record<string, unknown> | undefined),
+        proctoringToken: options.proctoringToken,
+      }
     }
 
     if (!this.socket.connected) {
@@ -75,6 +91,10 @@ export class ProctoringSocketClient {
     }
 
     this.socket.emit('session.hello', hello)
+  }
+
+  onSessionRejected(listener: () => void): void {
+    this.sessionRejectedListener = listener
   }
 
   disconnect(): void {

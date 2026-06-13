@@ -274,16 +274,42 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
       return
     }
 
+    let cancelled = false
     const socketClient = new ProctoringSocketClient()
     socketClientRef.current = socketClient
-    socketClient.connect({
-      participationId: options.participationId,
-      clientSessionId,
-      userId: options.userId,
-      lastSeenClientSeq: initialClientSeq,
+    const connectWithFreshToken = async () => {
+      try {
+        const token = await examService.createProctoringSocketToken(
+          options.participationId as string,
+          { clientSessionId }
+        )
+        if (cancelled) return
+        socketClient.connect(
+          {
+            participationId: options.participationId as string,
+            clientSessionId,
+            userId: options.userId as string,
+            lastSeenClientSeq: initialClientSeq,
+          },
+          { proctoringToken: token.token }
+        )
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : 'Failed to create proctoring socket token'
+          )
+        }
+      }
+    }
+    socketClient.onSessionRejected(() => {
+      void connectWithFreshToken()
     })
+    void connectWithFreshToken()
 
     return () => {
+      cancelled = true
       socketClient.disconnect()
       if (socketClientRef.current === socketClient) {
         socketClientRef.current = null
