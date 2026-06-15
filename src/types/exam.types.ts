@@ -252,6 +252,63 @@ export type AdminProctoringReviewDecision =
   | 'needs_re_review'
   | 'refer_for_policy_review'
 
+export interface AiFeatureContribution {
+  featureName: string
+  numericValue: number
+  contribution: number
+  direction: 'increased_risk' | 'decreased_risk'
+  displayLabel: string
+}
+
+export interface AdminProctoringAiAdvisory {
+  visible: boolean
+  status: 'hidden_shadow_mode' | 'hidden_no_gate' | 'visible' | 'unavailable'
+  modelVersion?: string
+  featureSchemaVersion?: string
+  scoringSchemaVersion?: string
+  latestRiskLevel?: string
+  maxAnomalyScore?: number
+  windows: Array<{
+    windowId: string
+    windowStart: string | null
+    windowEnd: string | null
+    anomalyScore: number
+    riskLevel: string
+    explanationStatus: string
+    topContributors: AiFeatureContribution[]
+  }>
+}
+
+export interface AdminProctoringLlmSummary {
+  visible: boolean
+  status:
+    | 'hidden_disabled'
+    | 'pending'
+    | 'accepted'
+    | 'validation_failed'
+    | 'provider_failed'
+    | 'dead_letter'
+    | 'unavailable'
+  summaryId?: string
+  provider?: string
+  modelVersion?: string
+  judgeModelVersion?: string | null
+  promptVersion?: string
+  validationStatus?: string
+  validationScore?: number | null
+  summaryText?: string
+  riskFacts: Array<{
+    type: string
+    count: number
+    totalDurationMs: number
+    evidenceEventIds: string[]
+  }>
+  citations: Array<{ eventId: string; reason: string }>
+  missingDataNotes: string[]
+  modelNotes: string[]
+  completedAt?: string | null
+}
+
 export interface AdminProctoringReview {
   summary: {
     id: string
@@ -292,6 +349,8 @@ export interface AdminProctoringReview {
     finalFlush: Array<Record<string, unknown>>
     dataRequests: Array<Record<string, unknown>>
   }
+  aiAdvisory?: AdminProctoringAiAdvisory
+  llmSummary?: AdminProctoringLlmSummary
 }
 
 export type ExamSyncStatus = 'active' | 'submitted' | 'expired'

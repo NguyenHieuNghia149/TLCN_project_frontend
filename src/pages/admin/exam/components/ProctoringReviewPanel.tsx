@@ -37,6 +37,10 @@ function compactJson(value: unknown) {
   return JSON.stringify(value)
 }
 
+function formatScore(value: number | undefined) {
+  return typeof value === 'number' ? value.toFixed(2) : '--'
+}
+
 const ProctoringReviewPanel: React.FC<ProctoringReviewPanelProps> = ({
   review,
   loading,
@@ -157,6 +161,136 @@ const ProctoringReviewPanel: React.FC<ProctoringReviewPanelProps> = ({
         <span>Final flush: {evidenceCounts.finalFlush}</span>
         <span>Data requests: {evidenceCounts.dataRequests}</span>
       </div>
+
+      {review.aiAdvisory ? (
+        <div className="mt-4 rounded-lg border p-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold">AI advisory signal</p>
+              <p className="mt-1 text-xs opacity-75">
+                Advisory only. Human review remains required.
+              </p>
+            </div>
+            <span className="text-xs opacity-70">
+              {review.aiAdvisory.visible
+                ? review.aiAdvisory.status
+                : review.aiAdvisory.status.replace(/_/g, ' ')}
+            </span>
+          </div>
+          {review.aiAdvisory.visible ? (
+            <div className="mt-3 grid gap-3">
+              <div className="grid grid-cols-1 gap-2 text-xs md:grid-cols-3">
+                <span>Model: {review.aiAdvisory.modelVersion ?? '--'}</span>
+                <span>
+                  Max anomaly score:{' '}
+                  {formatScore(review.aiAdvisory.maxAnomalyScore)}
+                </span>
+                <span>
+                  Latest advisory level:{' '}
+                  {review.aiAdvisory.latestRiskLevel ?? '--'}
+                </span>
+              </div>
+              {review.aiAdvisory.windows.length > 0 ? (
+                <div className="space-y-2">
+                  {review.aiAdvisory.windows.map(window => (
+                    <article
+                      key={`${window.windowId}-${window.riskLevel}`}
+                      className="rounded-lg border p-3 text-sm"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-semibold">
+                          {window.riskLevel} window
+                        </span>
+                        <span className="text-xs opacity-70">
+                          {formatScore(window.anomalyScore)} -{' '}
+                          {window.explanationStatus}
+                        </span>
+                      </div>
+                      {window.topContributors.length > 0 ? (
+                        <ul className="mt-2 space-y-1 text-xs">
+                          {window.topContributors.map(contributor => (
+                            <li key={contributor.featureName}>
+                              {contributor.displayLabel}:{' '}
+                              {contributor.numericValue}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm opacity-75">
+                  No high or critical advisory windows available.
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm opacity-75">
+              Advisory signal is hidden for this review state.
+            </p>
+          )}
+        </div>
+      ) : null}
+
+      {review.llmSummary ? (
+        <div className="mt-4 rounded-lg border p-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold">LLM review summary</p>
+              <p className="mt-1 text-xs opacity-75">
+                Assistive summary only. Human review remains required.
+              </p>
+            </div>
+            <span className="text-xs opacity-70">
+              {review.llmSummary.status.replace(/_/g, ' ')}
+            </span>
+          </div>
+          {!review.llmSummary.visible ? (
+            <p className="mt-3 text-sm opacity-75">
+              {review.llmSummary.status === 'hidden_disabled'
+                ? 'Summary generation is disabled.'
+                : 'Summary is hidden for this review state.'}
+            </p>
+          ) : review.llmSummary.status === 'accepted' ? (
+            <div className="mt-3 grid gap-3 text-sm">
+              <p>{review.llmSummary.summaryText ?? '--'}</p>
+              <div className="grid grid-cols-1 gap-2 text-xs md:grid-cols-3">
+                <span>Model: {review.llmSummary.modelVersion ?? '--'}</span>
+                <span>
+                  Validation: {review.llmSummary.validationStatus ?? '--'}
+                </span>
+                <span>
+                  Score:{' '}
+                  {formatScore(review.llmSummary.validationScore ?? undefined)}
+                </span>
+              </div>
+              {review.llmSummary.riskFacts.length > 0 ? (
+                <ul className="space-y-1 text-xs">
+                  {review.llmSummary.riskFacts.map(fact => (
+                    <li key={`${fact.type}-${fact.count}`}>
+                      {fact.type}: {fact.count}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {review.llmSummary.citations.length > 0 ? (
+                <p className="text-xs opacity-75">
+                  Citations:{' '}
+                  {review.llmSummary.citations
+                    .map(citation => citation.eventId)
+                    .join(', ')}
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm opacity-75">
+              Generated output failed validation and is not shown as an accepted
+              summary.
+            </p>
+          )}
+        </div>
+      ) : null}
 
       <div className="mt-4">
         <p className="text-sm font-semibold">Timeline</p>

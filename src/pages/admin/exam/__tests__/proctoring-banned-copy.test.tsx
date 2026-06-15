@@ -8,6 +8,7 @@ import ProctoringBypassPanel from '@/pages/exam/access/components/ProctoringBypa
 import ProctoringConsentPanel from '@/pages/exam/access/components/ProctoringConsentPanel'
 import ProctoringPrecheckPanel from '@/pages/exam/access/components/ProctoringPrecheckPanel'
 import ProctoringReviewPanel from '@/pages/admin/exam/components/ProctoringReviewPanel'
+import type { AdminProctoringReview } from '@/types/exam.types'
 
 const BANNED_TERMS = [
   'Cheating Probability',
@@ -31,7 +32,7 @@ const consentSettings = {
   legalLinksJson: {},
 }
 
-function makeReview() {
+function makeReview(): AdminProctoringReview {
   return {
     summary: {
       id: 's-1',
@@ -56,6 +57,14 @@ function makeReview() {
       bypass: [],
       finalFlush: [],
       dataRequests: [],
+    },
+    aiAdvisory: {
+      visible: true,
+      status: 'visible',
+      modelVersion: 'iforest-v1',
+      latestRiskLevel: 'high',
+      maxAnomalyScore: 0.82,
+      windows: [],
     },
   }
 }

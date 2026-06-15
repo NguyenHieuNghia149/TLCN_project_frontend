@@ -32,6 +32,7 @@ import type {
 import {
   computeEntryBlockReasons,
   resolveEntryPanelKind,
+  shouldShowResumeExamButton,
 } from './exam-entry-reasons'
 
 function isFullAccessState(
@@ -514,6 +515,11 @@ const ExamAccessPage: React.FC = () => {
     !!inviteToken &&
     !!error &&
     /invite|token|expired|not found|invalid/i.test(error)
+  const showResumeExamButton = shouldShowResumeExamButton({
+    hasStartedParticipation,
+    examLifecycleBlocked,
+    canStart: Boolean(accessState?.canStart),
+  })
 
   if (loading) {
     return <LoadingSpinner />
@@ -826,13 +832,13 @@ const ExamAccessPage: React.FC = () => {
             }
             tone={examLifecycleBlocked ? 'warning' : 'success'}
           >
-            {examLifecycleBlocked ? (
-              <Button onClick={handleGoToResults} variant="secondary">
-                View results
-              </Button>
-            ) : (
+            {showResumeExamButton ? (
               <Button onClick={handleStartOrResume} loading={actionLoading}>
                 Resume exam
+              </Button>
+            ) : (
+              <Button onClick={handleGoToResults} variant="secondary">
+                View results
               </Button>
             )}
           </ExamEntryStatusPanel>
