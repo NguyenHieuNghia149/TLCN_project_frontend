@@ -29,6 +29,8 @@ import { canResumeExamWorkspace } from './exam-workspace-access'
 import { computeExamRemainingSeconds } from './exam-countdown'
 import { useExamProctoring } from '@/hooks/useExamProctoring'
 import { submitExamWithFinalProctoringFlush } from './proctoringSubmit'
+import ProctoringFullscreenOverlay from './components/ProctoringFullscreenOverlay'
+import ProctoringPreviewWidget from './components/ProctoringPreviewWidget'
 
 type MobileWorkspacePanel = 'problem' | 'editor' | 'output' | 'challenges'
 
@@ -768,6 +770,9 @@ const ExamChallengeDetail: React.FC = () => {
             await examService.submitExam(resolvedExamId, participationId)
           }
 
+          // Stop all media streams after successful submission
+          proctoring.stopAllMedia()
+
           // Clear participation from Redux since exam is completed
           dispatch({ type: 'exam/clearParticipation' })
           submitted = true
@@ -794,10 +799,33 @@ const ExamChallengeDetail: React.FC = () => {
       navigate,
       proctoring.finalFlush,
       proctoring.proctoringRequired,
+      proctoring.stopAllMedia,
       resolvedExamId,
       reduxParticipationId,
     ]
   )
+
+  const proctoringRequiredRef = useRef(proctoring.proctoringRequired)
+  const reduxParticipationIdRef = useRef(reduxParticipationId)
+  const stopAllMediaRef = useRef(proctoring.stopAllMedia)
+
+  useEffect(() => {
+    proctoringRequiredRef.current = proctoring.proctoringRequired
+    reduxParticipationIdRef.current = reduxParticipationId
+    stopAllMediaRef.current = proctoring.stopAllMedia
+  }, [
+    proctoring.proctoringRequired,
+    reduxParticipationId,
+    proctoring.stopAllMedia,
+  ])
+
+  useEffect(() => {
+    return () => {
+      if (proctoringRequiredRef.current && reduxParticipationIdRef.current) {
+        stopAllMediaRef.current()
+      }
+    }
+  }, [])
 
   // Initialize and manage countdown separately so hooks don't depend on `handleSubmitExam` definition order
   useEffect(() => {
@@ -1363,6 +1391,24 @@ const ExamChallengeDetail: React.FC = () => {
             </Button>
           </div>
         </div>
+      ) : null}
+
+      {proctoring.fullscreenBlocked ? (
+        <ProctoringFullscreenOverlay
+          onRequestFullscreen={proctoring.onRequestFullscreen}
+        />
+      ) : null}
+
+      {proctoring.settings?.enabled && reduxParticipationId ? (
+        <ProctoringPreviewWidget
+          cameraActive={proctoring.cameraActive}
+          screenShareActive={proctoring.screenShareActive}
+          fullscreenActive={proctoring.fullscreenActive}
+          cameraRequired={proctoring.settings?.requireCamera ?? false}
+          screenShareRequired={proctoring.settings?.requireScreenShare ?? false}
+          fullscreenRequired={proctoring.settings?.requireFullscreen ?? false}
+          cameraStream={proctoring.cameraStream}
+        />
       ) : null}
 
       {/* Main Content */}

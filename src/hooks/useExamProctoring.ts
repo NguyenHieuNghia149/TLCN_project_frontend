@@ -6,6 +6,10 @@ import {
   ProctoringTelemetryQueue,
   type ProctoringClientEventName,
 } from '@/services/proctoring/proctoringTelemetryQueue'
+import {
+  proctoringMediaSession,
+  useProctoringMediaSession,
+} from '@/services/proctoring/proctoringMediaSession'
 import type {
   ProctoringBypassGrant,
   ProctoringConsentRecord,
@@ -80,6 +84,20 @@ function storageScope(options: UseExamProctoringOptions): string {
   ].join(':')
 }
 
+function optionalSessionIds(options: UseExamProctoringOptions): {
+  entrySessionId?: string
+  participationId?: string
+} {
+  return {
+    ...(options.entrySessionId
+      ? { entrySessionId: options.entrySessionId }
+      : {}),
+    ...(options.participationId
+      ? { participationId: options.participationId }
+      : {}),
+  }
+}
+
 function parseBypassGrant(raw: string | null): ProctoringBypassGrant | null {
   if (!raw) return null
   try {
@@ -112,7 +130,9 @@ async function stopStream(stream: MediaStream | null): Promise<void> {
 }
 
 async function collectBrowserPrecheck(
-  settings: ProctoringSettings | null
+  settings: ProctoringSettings | null,
+  skipDisplayMedia = false,
+  skipCamera = false
 ): Promise<BrowserPrecheckSnapshot> {
   const mediaDevices = navigator.mediaDevices as
     | (MediaDevices & {
@@ -130,7 +150,7 @@ async function collectBrowserPrecheck(
   let displaySurface = 'surface_unknown'
   let monitorValidated = !settings?.requireMonitorDisplaySurface
 
-  if (settings?.requireCamera && mediaDevices?.getUserMedia) {
+  if (settings?.requireCamera && mediaDevices?.getUserMedia && !skipCamera) {
     let cameraStream: MediaStream | null = null
     try {
       cameraStream = await mediaDevices.getUserMedia({
@@ -145,7 +165,11 @@ async function collectBrowserPrecheck(
     }
   }
 
-  if (settings?.requireScreenShare && mediaDevices?.getDisplayMedia) {
+  if (
+    settings?.requireScreenShare &&
+    mediaDevices?.getDisplayMedia &&
+    !skipDisplayMedia
+  ) {
     let displayStream: MediaStream | null = null
     try {
       displayStream = await mediaDevices.getDisplayMedia({
@@ -166,7 +190,7 @@ async function collectBrowserPrecheck(
 
   return {
     browserName: navigator.userAgent ? 'browser' : undefined,
-    browserVersion: navigator.userAgent,
+    browserVersion: navigator.userAgent?.slice(0, 80),
     osName: navigator.platform,
     getUserMediaSupported,
     cameraPermissionGranted,
@@ -185,6 +209,17 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
   const bypassKey = `${BYPASS_PREFIX}:${scope}`
 
   const [clientSessionId] = useState(() => {
+    // Check for participation-scoped ID first (from entry page)
+    if (options.participationId) {
+      const participationKey = `${CLIENT_SESSION_PREFIX}:${options.examSlug}:${options.participationId}`
+      const fromEntry = readStorage(participationKey)
+      if (fromEntry) {
+        // Copy to current scope key for consistency
+        writeStorage(clientSessionKey, fromEntry)
+        return fromEntry
+      }
+    }
+
     const existing = readStorage(clientSessionKey)
     if (existing) return existing
     const created = createClientSessionId()
@@ -201,9 +236,16 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [screenShareActive, setScreenShareActive] = useState(false)
-  const screenStreamRef = useRef<MediaStream | null>(null)
+  const [fullscreenActive, setFullscreenActive] = useState(
+    () => typeof document !== 'undefined' && document.fullscreenElement !== null
+  )
+  const mediaSession = useProctoringMediaSession()
+  const screenShareActive = mediaSession.screenShareActive
+  const cameraActive = mediaSession.cameraActive
   const socketClientRef = useRef<ProctoringSocketClient | null>(null)
+  const precheckSnapshotRef = useRef<BrowserPrecheckSnapshot | null>(null)
+  const consentRecordRef = useRef<ProctoringConsentRecord | null>(null)
+  const precheckRecordRef = useRef<ProctoringPrecheckRecord | null>(null)
 
   const initialClientSeq = Number(readStorage(clientSeqKey) ?? '0') || 0
   const telemetryQueue = useMemo(
@@ -336,9 +378,9 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
       )
     }
     const onFullscreenChange = () => {
-      recordTelemetry(
-        document.fullscreenElement ? 'fullscreen_enter' : 'fullscreen_exit'
-      )
+      const isFullscreen = document.fullscreenElement !== null
+      setFullscreenActive(isFullscreen)
+      recordTelemetry(isFullscreen ? 'fullscreen_enter' : 'fullscreen_exit')
     }
     const onOffline = () => recordTelemetry('network_offline')
     const onOnline = () => recordTelemetry('network_online')
@@ -395,8 +437,7 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
         {
           accepted: true,
           clientSessionId,
-          entrySessionId: options.entrySessionId,
-          participationId: options.participationId,
+          ...optionalSessionIds(options),
           acceptedCapabilitiesJson: {
             camera: Boolean(settings?.requireCamera),
             screenShare: Boolean(settings?.requireScreenShare),
@@ -405,6 +446,7 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
         }
       )
       setConsentRecord(result)
+      consentRecordRef.current = result
       return result
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to record consent')
@@ -422,21 +464,64 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
     settings?.requireScreenShare,
   ])
 
-  const runPrecheck = useCallback(async () => {
-    if (!options.examSlug || !consentRecord?.id) return null
+  const checkDevices = useCallback(async () => {
+    if (!options.examSlug || !consentRecordRef.current?.id) return null
     setLoading(true)
     setError(null)
     try {
-      const snapshot = await collectBrowserPrecheck(settings)
+      // Skip camera check if requireCamera is true (requestCamera will handle it)
+      const snapshot = await collectBrowserPrecheck(
+        settings,
+        true,
+        settings?.requireCamera ?? false
+      )
+      precheckSnapshotRef.current = snapshot
+      return snapshot
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to check devices')
+      return null
+    } finally {
+      setLoading(false)
+    }
+  }, [consentRecord?.id, options.examSlug, settings])
+
+  const enterPrecheckFullscreen = useCallback(async () => {
+    if (!document.documentElement.requestFullscreen) return false
+    try {
+      await document.documentElement.requestFullscreen()
+      const active = Boolean(document.fullscreenElement)
+      setFullscreenActive(active)
+      return active
+    } catch {
+      setFullscreenActive(false)
+      return false
+    }
+  }, [])
+
+  const runPrecheck = useCallback(async () => {
+    if (!options.examSlug || !consentRecordRef.current?.id) return null
+    setLoading(true)
+    setError(null)
+    try {
+      const snapshot =
+        precheckSnapshotRef.current ??
+        (await collectBrowserPrecheck(settings, true))
+      const fullscreenActiveNow =
+        typeof document !== 'undefined' && document.fullscreenElement !== null
       const result = await examService.submitProctoringPrecheck(
         options.examSlug,
         {
-          consentRecordId: consentRecord.id,
+          consentRecordId: consentRecordRef.current.id,
           clientSessionId,
           ...snapshot,
+          fullscreenActive: settings?.requireFullscreen
+            ? fullscreenActiveNow
+            : false,
         }
       )
       setPrecheckRecord(result)
+      precheckRecordRef.current = result
+      precheckSnapshotRef.current = null
       return result
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to run precheck')
@@ -457,8 +542,7 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
           {
             bypassCode,
             clientSessionId,
-            entrySessionId: options.entrySessionId,
-            participationId: options.participationId,
+            ...optionalSessionIds(options),
           }
         )
         setBypassGrant(result)
@@ -485,6 +569,40 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
     removeStorage(bypassKey)
   }, [bypassKey])
 
+  const requestCamera = useCallback(async () => {
+    const mediaDevices = navigator.mediaDevices as
+      | (MediaDevices & {
+          getUserMedia?: (
+            constraints: MediaStreamConstraints
+          ) => Promise<MediaStream>
+        })
+      | undefined
+    if (!mediaDevices?.getUserMedia) {
+      return false
+    }
+
+    try {
+      const stream = await mediaDevices.getUserMedia({
+        video: true,
+        audio: false,
+      })
+      proctoringMediaSession.setCameraStream(stream)
+
+      // Update precheck snapshot with camera permission granted
+      if (precheckSnapshotRef.current) {
+        precheckSnapshotRef.current = {
+          ...precheckSnapshotRef.current,
+          cameraPermissionGranted: true,
+          getUserMediaSupported: true,
+        }
+      }
+
+      return true
+    } catch {
+      return false
+    }
+  }, [])
+
   const requestScreenShare = useCallback(async () => {
     const mediaDevices = navigator.mediaDevices as
       | (MediaDevices & {
@@ -503,14 +621,28 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
         video: true,
         audio: false,
       })
-      await stopStream(screenStreamRef.current)
-      screenStreamRef.current = stream
-      setScreenShareActive(true)
-      stream.getTracks().forEach(track => {
+      proctoringMediaSession.setScreenStream(stream)
+
+      const [track] = stream.getVideoTracks()
+      const displaySurface = track
+        ? getDisplaySurface(track)
+        : 'surface_unknown'
+      const monitorValidated =
+        !settings?.requireMonitorDisplaySurface || displaySurface === 'monitor'
+
+      if (precheckSnapshotRef.current) {
+        precheckSnapshotRef.current = {
+          ...precheckSnapshotRef.current,
+          getDisplayMediaSupported: true,
+          displaySurface,
+          monitorValidated,
+        }
+      }
+
+      stream.getVideoTracks().forEach(track => {
         track.addEventListener(
           'ended',
           () => {
-            setScreenShareActive(false)
             recordTelemetry('screen_share_ended', {
               displaySurface: getDisplaySurface(track),
             })
@@ -520,15 +652,12 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
       })
       return true
     } catch {
-      setScreenShareActive(false)
       return false
     }
-  }, [recordTelemetry])
+  }, [recordTelemetry, settings?.requireMonitorDisplaySurface])
 
-  useEffect(() => {
-    return () => {
-      void stopStream(screenStreamRef.current)
-    }
+  const stopAllMedia = useCallback(() => {
+    proctoringMediaSession.stopAllMedia()
   }, [])
 
   const finalFlush = useCallback(
@@ -564,8 +693,11 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
     !proctoringRequired || (consentAccepted && (precheckPassed || bypassActive))
   const startPayload: ProctoringStartPayload = {
     clientSessionId,
-    consentRecordId: consentRecord?.id,
-    precheckId: precheckPassed ? precheckRecord?.id : undefined,
+    consentRecordId: consentRecordRef.current?.id ?? consentRecord?.id,
+    precheckId:
+      (precheckRecordRef.current?.passed
+        ? precheckRecordRef.current?.id
+        : undefined) ?? (precheckPassed ? precheckRecord?.id : undefined),
     bypassCodeId: bypassActive ? bypassGrant?.bypassCodeId : undefined,
   }
   const screenShareBlocked = Boolean(
@@ -574,6 +706,20 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
     options.participationId &&
     !screenShareActive
   )
+  const fullscreenBlocked = Boolean(
+    settings?.enabled &&
+    settings.requireFullscreen &&
+    options.participationId &&
+    !fullscreenActive
+  )
+  const onRequestFullscreen = useCallback(async () => {
+    if (!document.documentElement.requestFullscreen) return
+    try {
+      await document.documentElement.requestFullscreen()
+    } catch {
+      // User denied or browser rejected fullscreen
+    }
+  }, [])
 
   return {
     settings,
@@ -586,17 +732,28 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
     bypassActive,
     loading,
     error,
+    setError,
     proctoringRequired,
     startReady,
     startPayload,
     telemetryQueue,
     screenShareActive,
     screenShareBlocked,
+    fullscreenActive,
+    fullscreenBlocked,
+    cameraActive,
+    cameraStream: mediaSession.cameraStream,
+    screenStream: mediaSession.screenStream,
+    onRequestFullscreen,
     acceptConsent,
     runPrecheck,
+    checkDevices,
+    enterPrecheckFullscreen,
     verifyBypass,
     markStartSucceeded,
+    requestCamera,
     requestScreenShare,
+    stopAllMedia,
     recordTelemetry,
     finalFlush,
   }

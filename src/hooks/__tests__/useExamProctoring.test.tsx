@@ -31,6 +31,7 @@ vi.mock('@/services/proctoring/proctoringSocketClient', () => ({
 }))
 
 import { useExamProctoring } from '@/hooks/useExamProctoring'
+import { proctoringMediaSession } from '@/services/proctoring/proctoringMediaSession'
 
 function makeSettings(overrides: Partial<ProctoringSettings> = {}) {
   return {
@@ -64,6 +65,7 @@ function makeSettings(overrides: Partial<ProctoringSettings> = {}) {
 describe('useExamProctoring', () => {
   beforeEach(() => {
     window.sessionStorage.clear()
+    proctoringMediaSession.stopAllMedia()
 
     Object.defineProperty(globalThis, 'crypto', {
       configurable: true,
@@ -207,5 +209,682 @@ describe('useExamProctoring', () => {
 
     unmount()
     expect(socketMock.disconnect).toHaveBeenCalledTimes(1)
+  })
+
+  it('checkDevices does not call requestFullscreen (separated gesture)', async () => {
+    examServiceMock.getProctoringSettings.mockResolvedValue(
+      makeSettings({ requireFullscreen: true })
+    )
+
+    const { result } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        entrySessionId: 'entry-1',
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.settings?.enabled).toBe(true)
+    })
+
+    await act(async () => {
+      await result.current.acceptConsent()
+    })
+
+    // Device check should NOT call requestFullscreen
+    const requestFullscreenSpy = vi.spyOn(
+      document.documentElement,
+      'requestFullscreen'
+    )
+
+    await act(async () => {
+      await result.current.checkDevices()
+    })
+
+    expect(requestFullscreenSpy).not.toHaveBeenCalled()
+    requestFullscreenSpy.mockRestore()
+  })
+
+  it('omits null participation id when accepting consent for an entry session', async () => {
+    const { result } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        entrySessionId: 'entry-1',
+        participationId: null,
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.settings?.enabled).toBe(true)
+    })
+
+    await act(async () => {
+      await result.current.acceptConsent()
+    })
+
+    expect(examServiceMock.acceptProctoringConsent).toHaveBeenCalledWith(
+      'spring-midterm',
+      expect.objectContaining({
+        accepted: true,
+        clientSessionId: 'client-uuid-1',
+        entrySessionId: 'entry-1',
+      })
+    )
+    expect(
+      examServiceMock.acceptProctoringConsent.mock.calls[0][1]
+    ).not.toHaveProperty('participationId')
+  })
+
+  it('omits null participation id when verifying bypass for an entry session', async () => {
+    examServiceMock.verifyProctoringBypass.mockResolvedValue({
+      bypassCodeId: 'bypass-1',
+      status: 'used',
+    })
+
+    const { result } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        entrySessionId: 'entry-1',
+        participationId: null,
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.settings?.enabled).toBe(true)
+    })
+
+    await act(async () => {
+      await result.current.verifyBypass('BP-CODE-123')
+    })
+
+    expect(examServiceMock.verifyProctoringBypass).toHaveBeenCalledWith(
+      'spring-midterm',
+      expect.objectContaining({
+        bypassCode: 'BP-CODE-123',
+        clientSessionId: 'client-uuid-1',
+        entrySessionId: 'entry-1',
+      })
+    )
+    expect(
+      examServiceMock.verifyProctoringBypass.mock.calls[0][1]
+    ).not.toHaveProperty('participationId')
+  })
+
+  it('checkDevices works immediately after acceptConsent without waiting for re-render', async () => {
+    const { result } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        entrySessionId: 'entry-1',
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.settings?.enabled).toBe(true)
+    })
+
+    await act(async () => {
+      await result.current.acceptConsent()
+    })
+
+    await act(async () => {
+      const snapshot = await result.current.checkDevices()
+      expect(snapshot).not.toBeNull()
+    })
+  })
+
+  it('runPrecheck works immediately after acceptConsent without waiting for re-render', async () => {
+    const { result } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        entrySessionId: 'entry-1',
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.settings?.enabled).toBe(true)
+    })
+
+    await act(async () => {
+      await result.current.acceptConsent()
+    })
+
+    await act(async () => {
+      const precheck = await result.current.runPrecheck()
+      expect(precheck).not.toBeNull()
+    })
+  })
+
+  it('enterPrecheckFullscreen calls requestFullscreen with fresh gesture', async () => {
+    examServiceMock.getProctoringSettings.mockResolvedValue(
+      makeSettings({ requireFullscreen: true })
+    )
+
+    const { result } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        entrySessionId: 'entry-1',
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.settings?.enabled).toBe(true)
+    })
+
+    const requestFullscreenSpy = vi.spyOn(
+      document.documentElement,
+      'requestFullscreen'
+    )
+    requestFullscreenSpy.mockResolvedValue(undefined)
+
+    // Mock document.fullscreenElement
+    const originalFullscreenElement = Object.getOwnPropertyDescriptor(
+      Document.prototype,
+      'fullscreenElement'
+    )
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => document.documentElement,
+    })
+
+    await act(async () => {
+      const ok = await result.current.enterPrecheckFullscreen()
+      expect(ok).toBe(true)
+    })
+
+    expect(requestFullscreenSpy).toHaveBeenCalledTimes(1)
+
+    // Cleanup
+    requestFullscreenSpy.mockRestore()
+    if (originalFullscreenElement) {
+      Object.defineProperty(
+        document,
+        'fullscreenElement',
+        originalFullscreenElement
+      )
+    }
+  })
+
+  it('submitPrecheckPrecheck sends fullscreenActive from document state', async () => {
+    examServiceMock.getProctoringSettings.mockResolvedValue(
+      makeSettings({
+        requireFullscreen: true,
+        requireCamera: false,
+        requireScreenShare: false,
+      })
+    )
+
+    const { result } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        entrySessionId: 'entry-1',
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.settings?.enabled).toBe(true)
+    })
+
+    await act(async () => {
+      await result.current.acceptConsent()
+    })
+
+    // Mock fullscreenActive as true
+    const originalFullscreenElement = Object.getOwnPropertyDescriptor(
+      Document.prototype,
+      'fullscreenElement'
+    )
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => document.documentElement,
+    })
+
+    await act(async () => {
+      await result.current.runPrecheck()
+    })
+
+    expect(examServiceMock.submitProctoringPrecheck).toHaveBeenCalledWith(
+      'spring-midterm',
+      expect.objectContaining({
+        fullscreenActive: true,
+      })
+    )
+
+    if (originalFullscreenElement) {
+      Object.defineProperty(
+        document,
+        'fullscreenElement',
+        originalFullscreenElement
+      )
+    }
+  })
+
+  it('runPrecheck sends fullscreenActive false when fullscreenElement is null', async () => {
+    examServiceMock.getProctoringSettings.mockResolvedValue(
+      makeSettings({
+        requireFullscreen: true,
+        requireCamera: false,
+        requireScreenShare: false,
+      })
+    )
+
+    const { result } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        entrySessionId: 'entry-1',
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.settings?.enabled).toBe(true)
+    })
+
+    await act(async () => {
+      await result.current.acceptConsent()
+    })
+
+    // Ensure fullscreenElement is null
+    const originalFullscreenElement = Object.getOwnPropertyDescriptor(
+      Document.prototype,
+      'fullscreenElement'
+    )
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => null,
+    })
+
+    await act(async () => {
+      await result.current.runPrecheck()
+    })
+
+    expect(examServiceMock.submitProctoringPrecheck).toHaveBeenCalledWith(
+      'spring-midterm',
+      expect.objectContaining({
+        fullscreenActive: false,
+      })
+    )
+
+    if (originalFullscreenElement) {
+      Object.defineProperty(
+        document,
+        'fullscreenElement',
+        originalFullscreenElement
+      )
+    }
+  })
+
+  it('runPrecheck sends fullscreenActive false when requireFullscreen is false (regardless of state)', async () => {
+    examServiceMock.getProctoringSettings.mockResolvedValue(
+      makeSettings({ requireFullscreen: false })
+    )
+
+    const { result } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        entrySessionId: 'entry-1',
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.settings?.enabled).toBe(true)
+    })
+
+    await act(async () => {
+      await result.current.acceptConsent()
+    })
+
+    // Mock fullscreen as active (should not matter)
+    const originalFullscreenElement = Object.getOwnPropertyDescriptor(
+      Document.prototype,
+      'fullscreenElement'
+    )
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => document.documentElement,
+    })
+
+    await act(async () => {
+      await result.current.runPrecheck()
+    })
+
+    expect(examServiceMock.submitProctoringPrecheck).toHaveBeenCalledWith(
+      'spring-midterm',
+      expect.objectContaining({
+        fullscreenActive: false,
+      })
+    )
+
+    if (originalFullscreenElement) {
+      Object.defineProperty(
+        document,
+        'fullscreenElement',
+        originalFullscreenElement
+      )
+    }
+  })
+
+  it('requestScreenShare updates snapshot so runPrecheck sends correct displaySurface and monitorValidated', async () => {
+    examServiceMock.getProctoringSettings.mockResolvedValue(
+      makeSettings({
+        requireCamera: true,
+        requireScreenShare: true,
+        requireMonitorDisplaySurface: true,
+        requireFullscreen: false,
+      })
+    )
+
+    const mockDisplayStream = {
+      getVideoTracks: () => [
+        {
+          getSettings: () => ({ displaySurface: 'monitor' }),
+          addEventListener: vi.fn(),
+        },
+      ],
+      getTracks: () => [
+        {
+          getSettings: () => ({ displaySurface: 'monitor' }),
+          addEventListener: vi.fn(),
+          stop: vi.fn(),
+        },
+      ],
+    }
+
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn().mockResolvedValue({
+          getVideoTracks: () => [],
+          getTracks: () => [],
+        }),
+        getDisplayMedia: vi.fn().mockResolvedValue(mockDisplayStream),
+      },
+    })
+
+    const { result } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        entrySessionId: 'entry-1',
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.settings?.enabled).toBe(true)
+    })
+
+    await act(async () => {
+      await result.current.acceptConsent()
+    })
+
+    await act(async () => {
+      const snapshot = await result.current.checkDevices()
+      // cameraPermissionGranted is false because checkDevices skips camera when requireCamera is true
+      expect(snapshot?.cameraPermissionGranted).toBe(false)
+    })
+
+    await act(async () => {
+      const cameraOk = await result.current.requestCamera()
+      expect(cameraOk).toBe(true)
+    })
+
+    await act(async () => {
+      const ok = await result.current.requestScreenShare()
+      expect(ok).toBe(true)
+    })
+
+    await act(async () => {
+      await result.current.runPrecheck()
+    })
+
+    expect(examServiceMock.submitProctoringPrecheck).toHaveBeenCalledWith(
+      'spring-midterm',
+      expect.objectContaining({
+        displaySurface: 'monitor',
+        monitorValidated: true,
+        getDisplayMediaSupported: true,
+      })
+    )
+  })
+
+  it('screen stream persists in media session after hook unmount', async () => {
+    examServiceMock.getProctoringSettings.mockResolvedValue(
+      makeSettings({ requireScreenShare: true })
+    )
+
+    const mockTrackStop = vi.fn()
+    const mockDisplayStream = {
+      getVideoTracks: () => [
+        {
+          getSettings: () => ({ displaySurface: 'monitor' }),
+          addEventListener: vi.fn(),
+        },
+      ],
+      getTracks: () => [
+        {
+          getSettings: () => ({ displaySurface: 'monitor' }),
+          addEventListener: vi.fn(),
+          stop: mockTrackStop,
+        },
+      ],
+    }
+
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn(),
+        getDisplayMedia: vi.fn().mockResolvedValue(mockDisplayStream),
+      },
+    })
+
+    const { result, unmount } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        entrySessionId: 'entry-1',
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.settings?.enabled).toBe(true)
+    })
+
+    await act(async () => {
+      await result.current.requestScreenShare()
+    })
+
+    expect(proctoringMediaSession.isScreenShareActive()).toBe(true)
+
+    unmount()
+
+    expect(proctoringMediaSession.isScreenShareActive()).toBe(true)
+    expect(mockTrackStop).not.toHaveBeenCalled()
+
+    proctoringMediaSession.stopAllMedia()
+  })
+
+  it('camera stream persists in media session after hook unmount', async () => {
+    examServiceMock.getProctoringSettings.mockResolvedValue(
+      makeSettings({ requireCamera: true })
+    )
+
+    const mockTrackStop = vi.fn()
+    const mockCameraStream = {
+      getVideoTracks: () => [
+        {
+          getSettings: () => ({}),
+          addEventListener: vi.fn(),
+          stop: mockTrackStop,
+        },
+      ],
+      getTracks: () => [
+        {
+          getSettings: () => ({}),
+          addEventListener: vi.fn(),
+          stop: mockTrackStop,
+        },
+      ],
+    }
+
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn().mockResolvedValue(mockCameraStream),
+        getDisplayMedia: vi.fn(),
+      },
+    })
+
+    const { result, unmount } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        entrySessionId: 'entry-1',
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.settings?.enabled).toBe(true)
+    })
+
+    await act(async () => {
+      await result.current.acceptConsent()
+    })
+
+    await act(async () => {
+      await result.current.requestCamera()
+    })
+
+    expect(proctoringMediaSession.isCameraActive()).toBe(true)
+
+    unmount()
+
+    expect(proctoringMediaSession.isCameraActive()).toBe(true)
+    expect(mockTrackStop).not.toHaveBeenCalled()
+
+    proctoringMediaSession.stopAllMedia()
+  })
+
+  it('stopAllMedia cleans up camera and screen streams', async () => {
+    examServiceMock.getProctoringSettings.mockResolvedValue(
+      makeSettings({ requireCamera: true, requireScreenShare: true })
+    )
+
+    const mockCameraStream = {
+      getVideoTracks: () => [
+        { getSettings: () => ({}), addEventListener: vi.fn(), stop: vi.fn() },
+      ],
+      getTracks: () => [
+        { getSettings: () => ({}), addEventListener: vi.fn(), stop: vi.fn() },
+      ],
+    }
+    const mockDisplayStream = {
+      getVideoTracks: () => [
+        {
+          getSettings: () => ({ displaySurface: 'monitor' }),
+          addEventListener: vi.fn(),
+          stop: vi.fn(),
+        },
+      ],
+      getTracks: () => [
+        {
+          getSettings: () => ({ displaySurface: 'monitor' }),
+          addEventListener: vi.fn(),
+          stop: vi.fn(),
+        },
+      ],
+    }
+
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn().mockResolvedValue(mockCameraStream),
+        getDisplayMedia: vi.fn().mockResolvedValue(mockDisplayStream),
+      },
+    })
+
+    const { result } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        entrySessionId: 'entry-1',
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.settings?.enabled).toBe(true)
+    })
+
+    await act(async () => {
+      await result.current.acceptConsent()
+    })
+
+    await act(async () => {
+      await result.current.requestCamera()
+    })
+
+    await act(async () => {
+      await result.current.requestScreenShare()
+    })
+
+    expect(proctoringMediaSession.isCameraActive()).toBe(true)
+    expect(proctoringMediaSession.isScreenShareActive()).toBe(true)
+
+    act(() => {
+      result.current.stopAllMedia()
+    })
+
+    expect(proctoringMediaSession.isCameraActive()).toBe(false)
+    expect(proctoringMediaSession.isScreenShareActive()).toBe(false)
+  })
+
+  it('workspace hook reuses clientSessionId stored by entry page via participation-scoped key', async () => {
+    examServiceMock.getProctoringSettings.mockResolvedValue(makeSettings())
+
+    // Step 1: Entry page hook creates clientSessionId
+    const { result: entryResult, unmount: entryUnmount } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        entrySessionId: 'entry-1',
+      })
+    )
+
+    await waitFor(() => {
+      expect(entryResult.current.settings?.enabled).toBe(true)
+    })
+
+    const entryClientSessionId = entryResult.current.clientSessionId
+    expect(entryClientSessionId).toBeTruthy()
+
+    // Step 2: Simulate startEntrySessionNow storing the ID with participation-scoped key
+    const participationId = 'participation-123'
+    window.sessionStorage.setItem(
+      `proctoring:clientSessionId:spring-midterm:${participationId}`,
+      entryClientSessionId
+    )
+
+    entryUnmount()
+
+    // Step 3: Workspace hook mounts with participationId
+    const { result: workspaceResult } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        participationId,
+        userId: 'candidate-1',
+      })
+    )
+
+    await waitFor(() => {
+      expect(workspaceResult.current.settings?.enabled).toBe(true)
+    })
+
+    // Step 4: Workspace hook should reuse the same clientSessionId
+    expect(workspaceResult.current.clientSessionId).toBe(entryClientSessionId)
+
+    // Step 5: Verify startPayload uses the same clientSessionId (finalFlush uses the same hook state)
+    await act(async () => {
+      await workspaceResult.current.acceptConsent()
+    })
+
+    await act(async () => {
+      await workspaceResult.current.runPrecheck()
+    })
+
+    expect(workspaceResult.current.startPayload.clientSessionId).toBe(
+      entryClientSessionId
+    )
   })
 })

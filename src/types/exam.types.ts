@@ -246,6 +246,19 @@ export interface ProctoringSocketTokenResponse {
   expiresAt: string
 }
 
+export interface AdminUpdateProctoringSettingsPayload {
+  enabled?: boolean
+  requireCamera?: boolean
+  requireScreenShare?: boolean
+  requireFullscreen?: boolean
+  requireMonitorDisplaySurface?: boolean
+  clipboardPolicy?: 'log_only' | 'block' | 'ignore'
+  aiAnomalyEnabled?: boolean
+  aiShadowMode?: boolean
+  aiAdvisoryVisible?: boolean
+  llmSummaryEnabled?: boolean
+}
+
 export type AdminProctoringReviewDecision =
   | 'pending'
   | 'no_action'

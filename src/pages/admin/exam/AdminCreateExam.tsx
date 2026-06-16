@@ -61,12 +61,15 @@ import {
 import InviteDispatchResult, {
   type InviteDispatchSummary,
 } from './components/notifications/InviteDispatchResult'
+import ProctoringSettingsPanel from './components/ProctoringSettingsPanel'
 import type { ChallengeItem } from '@/types/challenge.types'
 import type {
   AdminExamParticipant,
+  AdminUpdateProctoringSettingsPayload,
   AdminUserLookupItem,
   CreateExamPayload,
   Exam,
+  ProctoringSettings,
 } from '@/types/exam.types'
 
 const STEP_ITEMS = [
@@ -295,6 +298,11 @@ const AdminCreateExam: React.FC = () => {
   const [publishing, setPublishing] = useState(false)
   const [participantsLoading, setParticipantsLoading] = useState(false)
   const [bulkInviteLoading, setBulkInviteLoading] = useState(false)
+  const [proctoringSettings, setProctoringSettings] =
+    useState<ProctoringSettings | null>(null)
+  const [proctoringSettingsLoading, setProctoringSettingsLoading] =
+    useState(false)
+  const [proctoringSaveSuccess, setProctoringSaveSuccess] = useState(false)
 
   const [examRecord, setExamRecord] = useState<Exam | null>(null)
   const [persistedExamId, setPersistedExamId] = useState<string | null>(
@@ -485,6 +493,39 @@ const AdminCreateExam: React.FC = () => {
 
     void loadExam(id)
   }, [id])
+
+  useEffect(() => {
+    if (!resolvedExamId || !examRecord?.slug) {
+      setProctoringSettings(null)
+      return
+    }
+
+    let cancelled = false
+    const load = async () => {
+      setProctoringSettingsLoading(true)
+      try {
+        const settings = await examService.getProctoringSettings(
+          examRecord.slug!
+        )
+        if (!cancelled) {
+          setProctoringSettings(settings)
+        }
+      } catch {
+        if (!cancelled) {
+          setProctoringSettings(null)
+        }
+      } finally {
+        if (!cancelled) {
+          setProctoringSettingsLoading(false)
+        }
+      }
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [resolvedExamId, examRecord?.slug])
 
   const loadUserOptions = async (query: string) => {
     setUserLookupLoading(true)
@@ -738,6 +779,14 @@ const AdminCreateExam: React.FC = () => {
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleSaveProctoring = async (
+    payload: AdminUpdateProctoringSettingsPayload
+  ) => {
+    if (!resolvedExamId) return
+    await examService.updateAdminProctoringSettings(resolvedExamId, payload)
+    setProctoringSaveSuccess(true)
   }
 
   const handlePublishExam = async () => {
@@ -2005,6 +2054,30 @@ const AdminCreateExam: React.FC = () => {
             <Empty description="No challenges selected" />
           )}
         </Card>
+
+        {resolvedExamId ? (
+          <>
+            {proctoringSaveSuccess ? (
+              <Alert
+                type="success"
+                message="Proctoring settings saved"
+                showIcon
+              />
+            ) : null}
+            <ProctoringSettingsPanel
+              examId={resolvedExamId}
+              initialSettings={proctoringSettings}
+              loading={proctoringSettingsLoading}
+              onSave={handleSaveProctoring}
+            />
+          </>
+        ) : (
+          <Alert
+            type="info"
+            message="Save the exam before configuring proctoring."
+            showIcon
+          />
+        )}
 
         <div className="flex flex-wrap justify-end gap-3">
           <Button

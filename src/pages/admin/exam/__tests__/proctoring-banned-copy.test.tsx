@@ -93,6 +93,8 @@ describe('P1.T10.10 — banned accusation terms absent from proctoring views', (
         bypassActive={false}
         loading={false}
         failureReasons={[]}
+        onCheckDevices={vi.fn().mockResolvedValue({})}
+        onEnterFullscreen={vi.fn().mockResolvedValue(true)}
         onRunPrecheck={vi.fn()}
       />
     )

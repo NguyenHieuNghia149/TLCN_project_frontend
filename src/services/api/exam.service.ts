@@ -5,6 +5,9 @@ import {
 } from '@/utils/challengeResponse'
 import type {
   AdminExamParticipant,
+  AdminProctoringReview,
+  AdminProctoringReviewDecision,
+  AdminUpdateProctoringSettingsPayload,
   AdminUserLookupItem,
   CreateExamPayload,
   Exam,
@@ -13,8 +16,6 @@ import type {
   ExamInviteResolution,
   ExamParticipation,
   ExamSessionSyncResponse,
-  AdminProctoringReview,
-  AdminProctoringReviewDecision,
   ProctoringBypassGrant,
   ProctoringConsentRecord,
   ProctoringFinalFlushResponse,
@@ -578,6 +579,17 @@ export class ExamService {
     return unwrapResponseData<ProctoringSettings>(response.data)
   }
 
+  async updateAdminProctoringSettings(
+    examId: string,
+    payload: AdminUpdateProctoringSettingsPayload
+  ): Promise<ProctoringSettings> {
+    const response = await apiClient.post(
+      `/admin/exams/${examId}/proctoring/settings`,
+      payload
+    )
+    return unwrapResponseData<ProctoringSettings>(response.data)
+  }
+
   async acceptProctoringConsent(
     slug: string,
     payload: {
@@ -609,6 +621,7 @@ export class ExamService {
       displaySurface?: string
       monitorValidated?: boolean
       fullscreenSupported: boolean
+      fullscreenActive: boolean
       browserSupported: boolean
     }
   ): Promise<ProctoringPrecheckRecord> {
