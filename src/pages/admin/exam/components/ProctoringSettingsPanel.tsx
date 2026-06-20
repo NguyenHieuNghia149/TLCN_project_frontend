@@ -38,14 +38,9 @@ const ProctoringSettingsPanel: React.FC<ProctoringSettingsPanelProps> = ({
   const [requireCamera, setRequireCamera] = useState(
     initialSettings?.requireCamera ?? true
   )
-  const [requireScreenShare, setRequireScreenShare] = useState(
-    initialSettings?.requireScreenShare ?? true
-  )
   const [requireFullscreen, setRequireFullscreen] = useState(
     initialSettings?.requireFullscreen ?? true
   )
-  const [requireMonitorDisplaySurface, setRequireMonitorDisplaySurface] =
-    useState(initialSettings?.requireMonitorDisplaySurface ?? true)
   const [clipboardPolicy, setClipboardPolicy] = useState<
     'log_only' | 'block' | 'ignore'
   >(
@@ -59,11 +54,7 @@ const ProctoringSettingsPanel: React.FC<ProctoringSettingsPanelProps> = ({
     if (initialSettings) {
       setEnabled(initialSettings.enabled)
       setRequireCamera(initialSettings.requireCamera)
-      setRequireScreenShare(initialSettings.requireScreenShare)
       setRequireFullscreen(initialSettings.requireFullscreen)
-      setRequireMonitorDisplaySurface(
-        initialSettings.requireMonitorDisplaySurface
-      )
       setClipboardPolicy(
         (initialSettings.clipboardPolicy as 'log_only' | 'block' | 'ignore') ??
           'log_only'
@@ -78,9 +69,9 @@ const ProctoringSettingsPanel: React.FC<ProctoringSettingsPanelProps> = ({
       await onSave({
         enabled,
         requireCamera,
-        requireScreenShare,
+        requireScreenShare: false,
         requireFullscreen,
-        requireMonitorDisplaySurface,
+        requireMonitorDisplaySurface: false,
         clipboardPolicy,
         aiAnomalyEnabled: true,
         aiShadowMode: true,
@@ -159,42 +150,10 @@ const ProctoringSettingsPanel: React.FC<ProctoringSettingsPanelProps> = ({
             opacity: enabled ? 1 : 0.45,
           }}
         >
-          <Text strong>Require screen share</Text>
-          <Switch
-            checked={requireScreenShare}
-            onChange={setRequireScreenShare}
-            disabled={!enabled || loading || saving}
-          />
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            opacity: enabled ? 1 : 0.45,
-          }}
-        >
           <Text strong>Require fullscreen</Text>
           <Switch
             checked={requireFullscreen}
             onChange={setRequireFullscreen}
-            disabled={!enabled || loading || saving}
-          />
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            opacity: enabled ? 1 : 0.45,
-          }}
-        >
-          <Text strong>Require monitor display surface</Text>
-          <Switch
-            checked={requireMonitorDisplaySurface}
-            onChange={setRequireMonitorDisplaySurface}
             disabled={!enabled || loading || saving}
           />
         </div>

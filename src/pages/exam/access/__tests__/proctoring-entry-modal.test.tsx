@@ -13,7 +13,7 @@ function makeSettings(overrides: Partial<ProctoringSettings> = {}) {
     examId: 'exam-1',
     enabled: true,
     requireCamera: true,
-    requireScreenShare: true,
+    requireScreenShare: false,
     requireFullscreen: true,
     requireMonitorDisplaySurface: false,
     precheckValiditySeconds: 300,
@@ -260,10 +260,7 @@ describe('ProctoringEntryModal', () => {
         consentAccepted={true}
         precheckPassed={false}
         bypassActive={false}
-        failureReasons={[
-          'Camera permission denied',
-          'Screen share unsupported',
-        ]}
+        failureReasons={['Camera permission denied', 'Fullscreen blocked']}
         onAcceptAndSetup={vi.fn()}
         onVerifyBypass={vi.fn()}
         onSetupComplete={vi.fn()}
@@ -272,7 +269,7 @@ describe('ProctoringEntryModal', () => {
     )
 
     expect(screen.getByText(/Camera permission denied/i)).toBeInTheDocument()
-    expect(screen.getByText(/Screen share unsupported/i)).toBeInTheDocument()
+    expect(screen.getByText(/Fullscreen blocked/i)).toBeInTheDocument()
     expect(screen.getByText(/I have a bypass code/i)).toBeInTheDocument()
   })
 

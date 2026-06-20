@@ -16,8 +16,10 @@ import { AdminThemeContext } from '@/contexts/AdminThemeContextDef'
 import ProctoringReviewPanel from '@/pages/admin/exam/components/ProctoringReviewPanel'
 import { examService } from '@/services/api/exam.service'
 import type {
+  AdminProctoringEvidenceConfidence,
   AdminProctoringReview,
   AdminProctoringReviewDecision,
+  AdminProctoringReviewLabelOutcome,
   Exam,
 } from '@/types/exam.types'
 import { normalizeAdminResultStatus, type ResultStatus } from './result-status'
@@ -453,6 +455,36 @@ const ExamResultsAdmin: React.FC = () => {
     [examId, selectedParticipationId]
   )
 
+  const handleLabelProctoringReview = useCallback(
+    async (payload: {
+      reviewOutcome: AdminProctoringReviewLabelOutcome
+      evidenceConfidence: AdminProctoringEvidenceConfidence
+      notes?: string
+    }) => {
+      if (!examId || !selectedParticipationId) return
+      setProctoringActionLoading(true)
+      try {
+        await examService.labelAdminProctoringReview(
+          examId,
+          selectedParticipationId,
+          payload
+        )
+        const updatedReview = await examService.getAdminProctoringReview(
+          examId,
+          selectedParticipationId
+        )
+        setSelectedProctoringReview(updatedReview)
+      } catch (apiError: unknown) {
+        setError(
+          extractApiErrorMessage(apiError, 'Failed to save review label')
+        )
+      } finally {
+        setProctoringActionLoading(false)
+      }
+    },
+    [examId, selectedParticipationId]
+  )
+
   if (loading) {
     return <LoadingSpinner />
   }
@@ -813,6 +845,7 @@ const ExamResultsAdmin: React.FC = () => {
                   void handleRecomputeProctoringReview()
                 }}
                 onReview={handleReviewProctoring}
+                onLabel={handleLabelProctoringReview}
               />
 
               <section>

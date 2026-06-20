@@ -13,7 +13,7 @@ function makeSettings(overrides: Partial<ProctoringSettings> = {}) {
     examId: 'exam-1',
     enabled: true,
     requireCamera: true,
-    requireScreenShare: true,
+    requireScreenShare: false,
     requireFullscreen: true,
     requireMonitorDisplaySurface: false,
     precheckValiditySeconds: 300,

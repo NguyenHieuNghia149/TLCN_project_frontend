@@ -33,6 +33,81 @@ vi.mock('@/services/proctoring/proctoringSocketClient', () => ({
 import { useExamProctoring } from '@/hooks/useExamProctoring'
 import { proctoringMediaSession } from '@/services/proctoring/proctoringMediaSession'
 
+type MockTrackEventName = 'ended' | 'mute' | 'unmute'
+
+type MockVideoTrack = {
+  addEventListener: ReturnType<typeof vi.fn>
+  onended: (() => void) | null
+  onmute: (() => void) | null
+  onunmute: (() => void) | null
+  removeEventListener: ReturnType<typeof vi.fn>
+  dispatch: (eventName: MockTrackEventName) => void
+  getSettings: () => MediaTrackSettings
+  muted: boolean
+  readyState: 'live' | 'ended'
+  stop: ReturnType<typeof vi.fn>
+}
+
+function createMockVideoTrack(): MockVideoTrack {
+  const listeners: Partial<Record<MockTrackEventName, Set<() => void>>> = {}
+  const track = {
+    muted: false,
+    readyState: 'live' as 'live' | 'ended',
+    onended: null as (() => void) | null,
+    onmute: null as (() => void) | null,
+    onunmute: null as (() => void) | null,
+    addEventListener: vi.fn(
+      (eventName: MockTrackEventName, listener: () => void) => {
+        listeners[eventName] ??= new Set()
+        listeners[eventName]?.add(listener)
+      }
+    ),
+    removeEventListener: vi.fn(
+      (eventName: MockTrackEventName, listener: () => void) => {
+        listeners[eventName]?.delete(listener)
+      }
+    ),
+    dispatch: (eventName: MockTrackEventName) => {
+      if (eventName === 'ended') {
+        track.readyState = 'ended'
+      }
+      if (eventName === 'mute') {
+        track.muted = true
+      }
+      if (eventName === 'unmute') {
+        track.muted = false
+      }
+      if (eventName === 'ended') {
+        track.onended?.()
+      }
+      if (eventName === 'mute') {
+        track.onmute?.()
+      }
+      if (eventName === 'unmute') {
+        track.onunmute?.()
+      }
+      listeners[eventName]?.forEach(listener => listener())
+    },
+    getSettings: () => ({}),
+    stop: vi.fn(() => {
+      track.readyState = 'ended'
+    }),
+  }
+
+  return track
+}
+
+function createMockCameraStream(
+  track: MockVideoTrack,
+  active = true
+): MediaStream {
+  return {
+    active,
+    getVideoTracks: () => [track as unknown as MediaStreamTrack],
+    getTracks: () => [track as unknown as MediaStreamTrack],
+  } as MediaStream
+}
+
 function makeSettings(overrides: Partial<ProctoringSettings> = {}) {
   return {
     examId: 'exam-1',
@@ -46,7 +121,7 @@ function makeSettings(overrides: Partial<ProctoringSettings> = {}) {
     missedHeartbeatGraceMultiplier: 3,
     screenShareResumeTimeoutSeconds: 30,
     fullscreenResumeTimeoutSeconds: 15,
-    allowedEventTypesJson: ['heartbeat', 'paste'],
+    allowedEventTypesJson: ['heartbeat', 'clipboard_event'],
     riskWeightsJson: {},
     riskThresholdsJson: {},
     clipboardPolicy: 'log_only',
@@ -171,7 +246,8 @@ describe('useExamProctoring', () => {
     })
 
     act(() => {
-      result.current.recordTelemetry('paste', {
+      result.current.recordTelemetry('clipboard_event', {
+        action: 'paste',
         textLength: 7,
         clipboardText: 'secret clipboard text',
       })
@@ -199,7 +275,8 @@ describe('useExamProctoring', () => {
         events: [
           expect.objectContaining({
             payloadJson: {
-              eventName: 'paste',
+              eventName: 'clipboard_event',
+              action: 'paste',
               textLength: 7,
             },
           }),
@@ -243,6 +320,414 @@ describe('useExamProctoring', () => {
 
     expect(requestFullscreenSpy).not.toHaveBeenCalled()
     requestFullscreenSpy.mockRestore()
+  })
+
+  it('records copy as canonical clipboard_event metadata', async () => {
+    const { result } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        participationId: 'participation-1',
+        userId: 'candidate-1',
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.settings?.enabled).toBe(true)
+    })
+
+    act(() => {
+      window.dispatchEvent(new Event('copy'))
+    })
+
+    await act(async () => {
+      await result.current.finalFlush('attempt-copy')
+    })
+
+    expect(examServiceMock.submitProctoringFinalFlush).toHaveBeenCalledWith(
+      'participation-1',
+      expect.objectContaining({
+        submitAttemptId: 'attempt-copy',
+        events: [
+          expect.objectContaining({
+            payloadJson: expect.objectContaining({
+              eventName: 'clipboard_event',
+              action: 'copy',
+            }),
+          }),
+        ],
+      })
+    )
+  })
+
+  it('records cut as canonical clipboard_event metadata', async () => {
+    const { result } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        participationId: 'participation-1',
+        userId: 'candidate-1',
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.settings?.enabled).toBe(true)
+    })
+
+    act(() => {
+      window.dispatchEvent(new Event('cut'))
+    })
+
+    await act(async () => {
+      await result.current.finalFlush('attempt-cut')
+    })
+
+    expect(examServiceMock.submitProctoringFinalFlush).toHaveBeenCalledWith(
+      'participation-1',
+      expect.objectContaining({
+        submitAttemptId: 'attempt-cut',
+        events: [
+          expect.objectContaining({
+            payloadJson: expect.objectContaining({
+              eventName: 'clipboard_event',
+              action: 'cut',
+            }),
+          }),
+        ],
+      })
+    )
+  })
+
+  it('strips raw clipboard fields before flush', async () => {
+    const { result } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        participationId: 'participation-1',
+        userId: 'candidate-1',
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.settings?.enabled).toBe(true)
+    })
+
+    act(() => {
+      result.current.recordTelemetry('clipboard_event', {
+        action: 'paste',
+        textLength: 7,
+        clipboardText: 'secret clipboard text',
+        rawClipboardText: 'secret clipboard text',
+        text: 'secret clipboard text',
+        rawText: 'secret clipboard text',
+        content: 'secret clipboard text',
+      })
+    })
+
+    await act(async () => {
+      await result.current.finalFlush('attempt-strip')
+    })
+
+    const flushCalls = examServiceMock.submitProctoringFinalFlush.mock.calls
+    const lastFlushCall = flushCalls[flushCalls.length - 1]
+    const payloadJson = lastFlushCall?.[1]?.events?.[0]?.payloadJson
+
+    expect(payloadJson).toMatchObject({
+      eventName: 'clipboard_event',
+      action: 'paste',
+      textLength: 7,
+    })
+    expect(payloadJson).not.toHaveProperty('clipboardText')
+    expect(payloadJson).not.toHaveProperty('rawClipboardText')
+    expect(payloadJson).not.toHaveProperty('text')
+    expect(payloadJson).not.toHaveProperty('rawText')
+    expect(payloadJson).not.toHaveProperty('content')
+  })
+
+  it('strips camera device identity fields before flush', async () => {
+    const { result } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        participationId: 'participation-1',
+        userId: 'candidate-1',
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.settings?.enabled).toBe(true)
+    })
+
+    act(() => {
+      result.current.recordTelemetry('camera_stopped', {
+        reason: 'track_ended',
+        deviceId: 'device-1',
+        groupId: 'group-1',
+        label: 'Built-in Camera',
+        trackId: 'track-1',
+      })
+    })
+
+    await act(async () => {
+      await result.current.finalFlush('attempt-camera-sanitize')
+    })
+
+    const flushCalls = examServiceMock.submitProctoringFinalFlush.mock.calls
+    const lastFlushCall = flushCalls[flushCalls.length - 1]
+    const payloadJson = lastFlushCall?.[1]?.events?.[0]?.payloadJson
+
+    expect(payloadJson).toMatchObject({
+      eventName: 'camera_stopped',
+      reason: 'track_ended',
+    })
+    expect(payloadJson).not.toHaveProperty('deviceId')
+    expect(payloadJson).not.toHaveProperty('groupId')
+    expect(payloadJson).not.toHaveProperty('label')
+    expect(payloadJson).not.toHaveProperty('trackId')
+  })
+
+  it('records camera_started after camera permission success', async () => {
+    const track = createMockVideoTrack()
+    const stream = createMockCameraStream(track)
+
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn().mockResolvedValue(stream),
+      },
+    })
+
+    const { result } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        participationId: 'participation-1',
+        userId: 'candidate-1',
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.settings?.enabled).toBe(true)
+    })
+
+    await act(async () => {
+      await expect(result.current.requestCamera()).resolves.toBe(true)
+    })
+
+    await act(async () => {
+      await result.current.finalFlush('attempt-camera-started')
+    })
+
+    expect(examServiceMock.submitProctoringFinalFlush).toHaveBeenCalledWith(
+      'participation-1',
+      expect.objectContaining({
+        submitAttemptId: 'attempt-camera-started',
+        events: [
+          expect.objectContaining({
+            payloadJson: expect.objectContaining({
+              eventName: 'camera_started',
+            }),
+          }),
+        ],
+      })
+    )
+  })
+
+  it('records camera_stopped after the camera track ends', async () => {
+    const track = createMockVideoTrack()
+    const stream = createMockCameraStream(track)
+
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn().mockResolvedValue(stream),
+      },
+    })
+
+    const { result } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        participationId: 'participation-1',
+        userId: 'candidate-1',
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.settings?.enabled).toBe(true)
+    })
+
+    await act(async () => {
+      await expect(result.current.requestCamera()).resolves.toBe(true)
+    })
+
+    act(() => {
+      track.dispatch('ended')
+    })
+
+    await waitFor(() => {
+      expect(result.current.cameraActive).toBe(false)
+    })
+
+    await act(async () => {
+      await result.current.finalFlush('attempt-camera-stopped')
+    })
+
+    expect(examServiceMock.submitProctoringFinalFlush).toHaveBeenCalledWith(
+      'participation-1',
+      expect.objectContaining({
+        submitAttemptId: 'attempt-camera-stopped',
+        events: expect.arrayContaining([
+          expect.objectContaining({
+            payloadJson: expect.objectContaining({
+              eventName: 'camera_stopped',
+              reason: 'track_ended',
+              trackState: 'ended',
+            }),
+          }),
+        ]),
+      })
+    )
+  })
+
+  it('records camera_track_muted and camera_track_unmuted from track events', async () => {
+    const track = createMockVideoTrack()
+    const stream = createMockCameraStream(track)
+
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn().mockResolvedValue(stream),
+      },
+    })
+
+    const { result } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        participationId: 'participation-1',
+        userId: 'candidate-1',
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.settings?.enabled).toBe(true)
+    })
+
+    await act(async () => {
+      await expect(result.current.requestCamera()).resolves.toBe(true)
+    })
+
+    act(() => {
+      track.dispatch('mute')
+      track.dispatch('unmute')
+    })
+
+    await act(async () => {
+      await result.current.finalFlush('attempt-camera-muted')
+    })
+
+    expect(examServiceMock.submitProctoringFinalFlush).toHaveBeenCalledWith(
+      'participation-1',
+      expect.objectContaining({
+        submitAttemptId: 'attempt-camera-muted',
+        events: expect.arrayContaining([
+          expect.objectContaining({
+            payloadJson: expect.objectContaining({
+              eventName: 'camera_track_muted',
+            }),
+          }),
+          expect.objectContaining({
+            payloadJson: expect.objectContaining({
+              eventName: 'camera_track_unmuted',
+            }),
+          }),
+        ]),
+      })
+    )
+  })
+
+  it('records camera_permission_denied when getUserMedia is rejected with NotAllowedError', async () => {
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: vi
+          .fn()
+          .mockRejectedValue(new DOMException('Denied', 'NotAllowedError')),
+      },
+    })
+
+    const { result } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        participationId: 'participation-1',
+        userId: 'candidate-1',
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.settings?.enabled).toBe(true)
+    })
+
+    await act(async () => {
+      await expect(result.current.requestCamera()).resolves.toBe(false)
+    })
+
+    await act(async () => {
+      await result.current.finalFlush('attempt-camera-permission-denied')
+    })
+
+    expect(examServiceMock.submitProctoringFinalFlush).toHaveBeenCalledWith(
+      'participation-1',
+      expect.objectContaining({
+        submitAttemptId: 'attempt-camera-permission-denied',
+        events: [
+          expect.objectContaining({
+            payloadJson: expect.objectContaining({
+              eventName: 'camera_permission_denied',
+            }),
+          }),
+        ],
+      })
+    )
+  })
+
+  it('records camera_error when getUserMedia fails with a non-permission error', async () => {
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: vi
+          .fn()
+          .mockRejectedValue(new Error('Camera disconnected')),
+      },
+    })
+
+    const { result } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        participationId: 'participation-1',
+        userId: 'candidate-1',
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.settings?.enabled).toBe(true)
+    })
+
+    await act(async () => {
+      await expect(result.current.requestCamera()).resolves.toBe(false)
+    })
+
+    await act(async () => {
+      await result.current.finalFlush('attempt-camera-error')
+    })
+
+    expect(examServiceMock.submitProctoringFinalFlush).toHaveBeenCalledWith(
+      'participation-1',
+      expect.objectContaining({
+        submitAttemptId: 'attempt-camera-error',
+        events: [
+          expect.objectContaining({
+            payloadJson: expect.objectContaining({
+              eventName: 'camera_error',
+            }),
+          }),
+        ],
+      })
+    )
   })
 
   it('omits null participation id when accepting consent for an entry session', async () => {
@@ -829,6 +1314,170 @@ describe('useExamProctoring', () => {
 
     expect(proctoringMediaSession.isCameraActive()).toBe(false)
     expect(proctoringMediaSession.isScreenShareActive()).toBe(false)
+  })
+
+  it('regression: camera+fullscreen required, screen share disabled still setups and starts', async () => {
+    examServiceMock.getProctoringSettings.mockResolvedValue(
+      makeSettings({
+        requireCamera: true,
+        requireScreenShare: false,
+        requireFullscreen: true,
+      })
+    )
+
+    const mockTrackStop = vi.fn()
+    const mockCameraStream = {
+      getVideoTracks: () => [
+        {
+          getSettings: () => ({}),
+          addEventListener: vi.fn(),
+          stop: mockTrackStop,
+        },
+      ],
+      getTracks: () => [
+        {
+          getSettings: () => ({}),
+          addEventListener: vi.fn(),
+          stop: mockTrackStop,
+        },
+      ],
+    }
+
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn().mockResolvedValue(mockCameraStream),
+      },
+    })
+
+    const requestFullscreenSpy = vi.spyOn(
+      document.documentElement,
+      'requestFullscreen'
+    )
+    requestFullscreenSpy.mockResolvedValue(undefined)
+
+    const originalFullscreenElement = Object.getOwnPropertyDescriptor(
+      Document.prototype,
+      'fullscreenElement'
+    )
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => document.documentElement,
+    })
+
+    const { result } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        entrySessionId: 'entry-1',
+        participationId: 'participation-1',
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.settings?.enabled).toBe(true)
+    })
+
+    expect(result.current.screenShareActive).toBe(false)
+    expect(result.current.startReady).toBe(false)
+
+    await act(async () => {
+      await result.current.acceptConsent()
+    })
+
+    await act(async () => {
+      const cameraOk = await result.current.requestCamera()
+      expect(cameraOk).toBe(true)
+    })
+
+    await act(async () => {
+      const fsOk = await result.current.enterPrecheckFullscreen()
+      expect(fsOk).toBe(true)
+    })
+
+    await act(async () => {
+      await result.current.runPrecheck()
+    })
+
+    expect(result.current.startReady).toBe(true)
+    expect(result.current.screenShareActive).toBe(false)
+
+    expect(examServiceMock.acceptProctoringConsent).toHaveBeenCalledWith(
+      'spring-midterm',
+      expect.objectContaining({
+        acceptedCapabilitiesJson: {
+          camera: true,
+          screenShare: false,
+          fullscreen: true,
+        },
+      })
+    )
+
+    requestFullscreenSpy.mockRestore()
+    if (originalFullscreenElement) {
+      Object.defineProperty(
+        document,
+        'fullscreenElement',
+        originalFullscreenElement
+      )
+    }
+    proctoringMediaSession.stopAllMedia()
+  })
+
+  it('settingsLoading starts true and becomes false after settings resolve', async () => {
+    // Delay settings resolution so we can observe the loading state
+    let resolveSettings: (value: ProctoringSettings) => void
+    examServiceMock.getProctoringSettings.mockReturnValue(
+      new Promise<ProctoringSettings>(resolve => {
+        resolveSettings = resolve
+      })
+    )
+
+    const { result } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        entrySessionId: 'entry-1',
+      })
+    )
+
+    // settingsLoading should be true on initial render
+    expect(result.current.settingsLoading).toBe(true)
+    expect(result.current.settingsError).toBeNull()
+    expect(result.current.settings).toBeNull()
+
+    // Resolve settings
+    await act(async () => {
+      resolveSettings!(makeSettings())
+    })
+
+    await waitFor(() => {
+      expect(result.current.settingsLoading).toBe(false)
+    })
+
+    expect(result.current.settingsError).toBeNull()
+    expect(result.current.settings?.enabled).toBe(true)
+  })
+
+  it('settings load failure sets settingsError and keeps settingsLoading false', async () => {
+    examServiceMock.getProctoringSettings.mockRejectedValue(
+      new Error('Network error')
+    )
+
+    const { result } = renderHook(() =>
+      useExamProctoring({
+        examSlug: 'spring-midterm',
+        entrySessionId: 'entry-1',
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.settingsLoading).toBe(false)
+    })
+
+    expect(result.current.settingsError).toBe(
+      'Failed to load proctoring settings. Please refresh the page and try again.'
+    )
+    expect(result.current.settings).toBeNull()
+    expect(result.current.proctoringRequired).toBe(false)
   })
 
   it('workspace hook reuses clientSessionId stored by entry page via participation-scoped key', async () => {

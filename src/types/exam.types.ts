@@ -265,6 +265,20 @@ export type AdminProctoringReviewDecision =
   | 'needs_re_review'
   | 'refer_for_policy_review'
 
+export type AdminProctoringReviewLabelOutcome =
+  | 'no_action_needed'
+  | 'follow_up_required'
+  | 'policy_review_required'
+  | 'inconclusive'
+
+export type AdminProctoringEvidenceConfidence = 'low' | 'medium' | 'high'
+
+export interface AdminProctoringReviewLabelPayload {
+  reviewOutcome: AdminProctoringReviewLabelOutcome
+  evidenceConfidence: AdminProctoringEvidenceConfidence
+  notes?: string
+}
+
 export interface AiFeatureContribution {
   featureName: string
   numericValue: number
@@ -364,6 +378,14 @@ export interface AdminProctoringReview {
   }
   aiAdvisory?: AdminProctoringAiAdvisory
   llmSummary?: AdminProctoringLlmSummary
+  reviewLabel?: {
+    id: string
+    reviewOutcome: AdminProctoringReviewLabelOutcome
+    evidenceConfidence: AdminProctoringEvidenceConfidence
+    notes: string | null
+    reviewerId: string
+    createdAt: string | null
+  } | null
 }
 
 export type ExamSyncStatus = 'active' | 'submitted' | 'expired'

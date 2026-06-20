@@ -34,7 +34,7 @@ describe('candidate proctoring access panels', () => {
           settings={{
             enabled: true,
             requireCamera: true,
-            requireScreenShare: true,
+            requireScreenShare: false,
             requireFullscreen: true,
             requireMonitorDisplaySurface: true,
             consentNoticeVersion: 'phase-1',
@@ -77,7 +77,7 @@ describe('candidate proctoring access panels', () => {
           settings={{
             enabled: true,
             requireCamera: true,
-            requireScreenShare: true,
+            requireScreenShare: false,
             requireFullscreen: true,
             requireMonitorDisplaySurface: true,
             consentNoticeVersion: 'phase-1',

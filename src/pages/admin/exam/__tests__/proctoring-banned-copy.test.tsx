@@ -14,6 +14,10 @@ const BANNED_TERMS = [
   'Cheating Probability',
   'Suspected Cheating',
   'Serious Violation',
+  'cheating',
+  'fraud',
+  'caught',
+  'suspicious',
   'gian lận',
   'cố ý',
   'tra cứu',
@@ -121,9 +125,24 @@ describe('P1.T10.10 — banned accusation terms absent from proctoring views', (
   })
 
   it('ProctoringReviewPanel has no accusation terms', () => {
+    const review = makeReview()
+    review.timeline.items = [
+      {
+        id: 'event-1',
+        type: 'telemetry.batch',
+        eventName: 'camera_track_muted',
+        severity: 'warning',
+        clientSeq: 1,
+        capturedAt: '2026-06-12T10:00:00.000Z',
+        receivedAt: '2026-06-12T10:00:01.000Z',
+        finalFlushReceiptId: null,
+        payloadJson: {},
+      },
+    ]
+
     render(
       <ProctoringReviewPanel
-        review={makeReview()}
+        review={review}
         loading={false}
         actionLoading={false}
         onRefresh={vi.fn()}
@@ -136,6 +155,18 @@ describe('P1.T10.10 — banned accusation terms absent from proctoring views', (
     }
     expect(
       screen.getByText(/Deterministic proctoring review/i)
+    ).toBeInTheDocument()
+    expect(screen.getByText(/Review attention/i)).toBeInTheDocument()
+    expect(screen.getByText(/Review recommended/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /Used for model evaluation only\. This helps compare AI signals with human review later\. It does not change the official exam result\./i
+      )
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /Official human-entered review status for this attempt\./i
+      )
     ).toBeInTheDocument()
   })
 })

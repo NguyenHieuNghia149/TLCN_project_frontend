@@ -39,9 +39,7 @@ const ProctoringEntryModal: React.FC<ProctoringEntryModalProps> = ({
 
   const requiredCapabilities = [
     settings.requireCamera ? 'camera availability check' : null,
-    settings.requireScreenShare ? 'screen share availability check' : null,
     settings.requireFullscreen ? 'fullscreen status' : null,
-    settings.requireMonitorDisplaySurface ? 'monitor display surface' : null,
   ].filter(Boolean)
 
   const setupComplete = precheckPassed || bypassActive
@@ -168,8 +166,8 @@ const ProctoringEntryModal: React.FC<ProctoringEntryModalProps> = ({
         {showBypass && !bypassActive ? (
           <div className="mt-4 space-y-3">
             <p className="text-sm" style={{ color: 'var(--muted-text)' }}>
-              Use an organizer-issued bypass code only if camera, screen share,
-              or fullscreen setup cannot pass.
+              Use an organizer-issued bypass code only if camera or fullscreen
+              setup cannot pass.
             </p>
             <form
               className="flex flex-col gap-3 sm:flex-row"

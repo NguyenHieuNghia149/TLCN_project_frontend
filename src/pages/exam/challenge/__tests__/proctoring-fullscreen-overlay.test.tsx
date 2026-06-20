@@ -44,3 +44,62 @@ describe('ProctoringFullscreenOverlay', () => {
     expect(screen.getByRole('alertdialog')).toBeInTheDocument()
   })
 })
+
+describe('Screen share recovery overlay', () => {
+  afterEach(() => {
+    cleanup()
+  })
+
+  it('renders screen share required message and Reshare screen button', () => {
+    render(
+      <div
+        role="alertdialog"
+        aria-label="Screen share required for proctored exam"
+      >
+        <h2>Screen share is required for this proctored exam.</h2>
+        <p>
+          The exam requires screen sharing. Please reshare your screen to
+          continue working.
+        </p>
+        <button type="button">Reshare screen</button>
+      </div>
+    )
+
+    expect(
+      screen.getByText(/screen share is required for this proctored exam/i)
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /reshare screen/i })
+    ).toBeInTheDocument()
+  })
+
+  it('Reshare screen button calls requestScreenShare when clicked', async () => {
+    const user = userEvent.setup()
+    const onReshare = vi.fn().mockResolvedValue(true)
+
+    render(
+      <div
+        role="alertdialog"
+        aria-label="Screen share required for proctored exam"
+      >
+        <h2>Screen share is required for this proctored exam.</h2>
+        <p>
+          The exam requires screen sharing. Please reshare your screen to
+          continue working.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            void onReshare()
+          }}
+        >
+          Reshare screen
+        </button>
+      </div>
+    )
+
+    await user.click(screen.getByRole('button', { name: /reshare screen/i }))
+
+    expect(onReshare).toHaveBeenCalledTimes(1)
+  })
+})

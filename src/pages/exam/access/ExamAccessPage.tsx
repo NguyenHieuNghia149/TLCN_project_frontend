@@ -428,6 +428,15 @@ const ExamAccessPage: React.FC = () => {
       return
     }
 
+    if (proctoring.settingsLoading) {
+      return
+    }
+
+    if (proctoring.settingsError) {
+      setError(proctoring.settingsError)
+      return
+    }
+
     const startingNewParticipation = !accessState?.participationId
     if (
       startingNewParticipation &&
@@ -452,6 +461,8 @@ const ExamAccessPage: React.FC = () => {
     inviteState?.entrySessionId,
     proctoring.proctoringRequired,
     proctoring.startReady,
+    proctoring.settingsLoading,
+    proctoring.settingsError,
     startEntrySessionNow,
   ])
 
@@ -475,17 +486,6 @@ const ExamAccessPage: React.FC = () => {
       if (!cameraOk) {
         proctoring.setError(
           'Camera access was denied. Please allow camera access and try again.'
-        )
-        proctoring.stopAllMedia()
-        return false
-      }
-    }
-
-    if (proctoring.settings?.requireScreenShare) {
-      const screenOk = await proctoring.requestScreenShare()
-      if (!screenOk) {
-        proctoring.setError(
-          'Screen sharing was denied. Please share your screen and try again.'
         )
         proctoring.stopAllMedia()
         return false
@@ -602,6 +602,8 @@ const ExamAccessPage: React.FC = () => {
     [exam, accessState]
   )
   const lobbyCanStart = Boolean(accessState?.canStart)
+  const startEnabled =
+    lobbyCanStart && !proctoring.settingsLoading && !proctoring.settingsError
   const lobbyPrimaryReason = primaryReason
   const lobbyReasons = allReasons
   const inviteResolutionFailed =
@@ -1046,13 +1048,39 @@ const ExamAccessPage: React.FC = () => {
                   </section>
                 ) : null}
 
+                {proctoring.settingsLoading ? (
+                  <section
+                    className="mt-4 rounded-xl border px-4 py-3 text-sm"
+                    style={{
+                      borderColor: 'var(--exam-card-border)',
+                      backgroundColor: 'var(--exam-card-bg)',
+                      color: 'var(--exam-muted)',
+                    }}
+                  >
+                    Loading proctoring settings...
+                  </section>
+                ) : null}
+
+                {proctoring.settingsError ? (
+                  <section
+                    className="mt-4 rounded-xl border px-4 py-3 text-sm"
+                    style={{
+                      borderColor: 'var(--exam-danger-subtle)',
+                      backgroundColor: 'var(--exam-danger-subtle)',
+                      color: 'var(--exam-danger)',
+                    }}
+                  >
+                    {proctoring.settingsError}
+                  </section>
+                ) : null}
+
                 <ExamEntryLobbyPanel
                   status={
                     effectiveEntrySessionStatus === 'started'
                       ? 'started'
                       : 'eligible'
                   }
-                  canStart={lobbyCanStart}
+                  canStart={startEnabled}
                   actionLoading={actionLoading}
                   primaryReason={lobbyPrimaryReason}
                   allReasons={lobbyReasons}

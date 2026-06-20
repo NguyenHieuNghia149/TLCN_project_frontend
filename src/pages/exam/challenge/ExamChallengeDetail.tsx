@@ -29,6 +29,7 @@ import { canResumeExamWorkspace } from './exam-workspace-access'
 import { computeExamRemainingSeconds } from './exam-countdown'
 import { useExamProctoring } from '@/hooks/useExamProctoring'
 import { submitExamWithFinalProctoringFlush } from './proctoringSubmit'
+import ProctoringCameraOverlay from './components/ProctoringCameraOverlay'
 import ProctoringFullscreenOverlay from './components/ProctoringFullscreenOverlay'
 import ProctoringPreviewWidget from './components/ProctoringPreviewWidget'
 
@@ -114,6 +115,12 @@ const ExamChallengeDetail: React.FC = () => {
     participationId: reduxParticipationId,
     userId: currentUserId,
   })
+  const cameraBlocked = Boolean(
+    proctoring.settings?.enabled &&
+    proctoring.settings.requireCamera &&
+    reduxParticipationId &&
+    !proctoring.cameraActive
+  )
   const mobileWorkspacePanelStorageKey =
     resolvedExamId && reduxParticipationId
       ? `exam_workspace_mobile_panel_${resolvedExamId}_${reduxParticipationId}`
@@ -735,6 +742,16 @@ const ExamChallengeDetail: React.FC = () => {
     resetOutput()
   }
 
+  const handleWorkspaceCameraRequest = useCallback(async () => {
+    const ok = await proctoring.requestCamera()
+    if (!ok) {
+      proctoring.setError(
+        'Camera access was denied. Please allow camera access and try again.'
+      )
+    }
+    return ok
+  }, [proctoring])
+
   const handleSubmitExam = useCallback(
     async (options?: { force?: boolean }) => {
       if (
@@ -1352,13 +1369,27 @@ const ExamChallengeDetail: React.FC = () => {
         </div>
       </header>
 
-      {proctoring.screenShareBlocked ? (
+      {cameraBlocked ? (
+        <ProctoringCameraOverlay
+          onRequestCamera={handleWorkspaceCameraRequest}
+        />
+      ) : null}
+
+      {!cameraBlocked && proctoring.fullscreenBlocked ? (
+        <ProctoringFullscreenOverlay
+          onRequestFullscreen={proctoring.onRequestFullscreen}
+        />
+      ) : null}
+
+      {!cameraBlocked &&
+      !proctoring.fullscreenBlocked &&
+      proctoring.screenShareBlocked ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center px-4"
           style={{ backgroundColor: 'rgba(0,0,0,0.72)' }}
           role="alertdialog"
           aria-modal="true"
-          aria-label="Screen share required"
+          aria-label="Screen share required for proctored exam"
         >
           <div
             className="w-full max-w-md rounded-xl border p-6 text-center"
@@ -1369,16 +1400,12 @@ const ExamChallengeDetail: React.FC = () => {
               boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
             }}
           >
-            <AlertTriangle
-              size={40}
-              style={{ color: 'var(--exam-danger)', margin: '0 auto' }}
-            />
-            <h2 className="mt-3 text-lg font-semibold">
-              Screen share required
+            <h2 className="text-lg font-semibold">
+              Screen share is required for this proctored exam.
             </h2>
             <p className="mt-2 text-sm" style={{ color: 'var(--muted-text)' }}>
-              Continue sharing your screen to keep working in this proctored
-              exam. The system records status metadata only.
+              The exam requires screen sharing. Please reshare your screen to
+              continue working.
             </p>
             <Button
               type="button"
@@ -1393,21 +1420,16 @@ const ExamChallengeDetail: React.FC = () => {
         </div>
       ) : null}
 
-      {proctoring.fullscreenBlocked ? (
-        <ProctoringFullscreenOverlay
-          onRequestFullscreen={proctoring.onRequestFullscreen}
-        />
-      ) : null}
-
       {proctoring.settings?.enabled && reduxParticipationId ? (
         <ProctoringPreviewWidget
           cameraActive={proctoring.cameraActive}
-          screenShareActive={proctoring.screenShareActive}
           fullscreenActive={proctoring.fullscreenActive}
+          screenShareActive={proctoring.screenShareActive}
           cameraRequired={proctoring.settings?.requireCamera ?? false}
-          screenShareRequired={proctoring.settings?.requireScreenShare ?? false}
           fullscreenRequired={proctoring.settings?.requireFullscreen ?? false}
+          screenShareRequired={proctoring.settings?.requireScreenShare ?? false}
           cameraStream={proctoring.cameraStream}
+          onRequestCamera={handleWorkspaceCameraRequest}
         />
       ) : null}
 

@@ -38,9 +38,13 @@ describe('ProctoringTelemetryQueue', () => {
   it('removes raw clipboard, media, keystroke, and source code fields', () => {
     expect(
       sanitizeProctoringPayload({
-        eventName: 'paste',
+        eventName: 'clipboard_event',
+        action: 'paste',
         clipboardText: 'secret',
         rawClipboardText: 'secret',
+        text: 'secret',
+        rawText: 'secret',
+        content: 'secret',
         sourceCode: 'return 1',
         nested: {
           media: 'blob',
@@ -49,7 +53,8 @@ describe('ProctoringTelemetryQueue', () => {
         },
       })
     ).toEqual({
-      eventName: 'paste',
+      eventName: 'clipboard_event',
+      action: 'paste',
       nested: {
         safe: 'metadata',
       },
@@ -62,7 +67,7 @@ describe('ProctoringTelemetryQueue', () => {
       clientSessionId: 'client-1',
       now: () => new Date('2026-06-12T10:00:00.000Z'),
     })
-    queue.enqueue('paste', { textLength: 12 })
+    queue.enqueue('clipboard_event', { action: 'paste', textLength: 12 })
 
     const wsFlush = vi.fn().mockResolvedValue(false)
     const httpFlush = vi.fn().mockResolvedValue({ receiptId: 'receipt-1' })
@@ -87,11 +92,36 @@ describe('ProctoringTelemetryQueue', () => {
         events: [
           expect.objectContaining({
             clientSeq: 1,
-            payloadJson: { eventName: 'paste', textLength: 12 },
+            payloadJson: {
+              eventName: 'clipboard_event',
+              action: 'paste',
+              textLength: 12,
+            },
           }),
         ],
       })
     )
     expect(result).toEqual({ finalFlushReceiptId: 'receipt-1' })
+  })
+
+  it('strips text-like payload keys regardless of nesting', () => {
+    expect(
+      sanitizeProctoringPayload({
+        eventName: 'clipboard_event',
+        action: 'paste',
+        text: 'secret',
+        nested: {
+          rawText: 'secret',
+          content: 'secret',
+          safe: 'metadata',
+        },
+      })
+    ).toEqual({
+      eventName: 'clipboard_event',
+      action: 'paste',
+      nested: {
+        safe: 'metadata',
+      },
+    })
   })
 })

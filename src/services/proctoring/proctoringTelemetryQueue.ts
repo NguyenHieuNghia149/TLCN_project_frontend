@@ -7,10 +7,17 @@ export type ProctoringClientEventName =
   | 'visibility_visible'
   | 'fullscreen_exit'
   | 'fullscreen_enter'
+  | 'camera_started'
+  | 'camera_stopped'
+  | 'camera_permission_denied'
+  | 'camera_track_muted'
+  | 'camera_track_unmuted'
+  | 'camera_error'
   | 'screen_share_ended'
   | 'network_offline'
   | 'network_online'
   | 'heartbeat'
+  | 'clipboard_event'
   | 'paste'
 
 export type ProctoringTelemetryFrame = {
@@ -71,8 +78,15 @@ const forbiddenPayloadKeys = new Set([
   'imagedata',
   'videodata',
   'audiodata',
+  'deviceid',
+  'groupid',
+  'label',
+  'trackid',
   'clipboardtext',
   'rawclipboardtext',
+  'text',
+  'rawtext',
+  'content',
   'keystrokes',
   'keystrokecontent',
   'keycontent',
@@ -84,8 +98,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
+function normalizedKey(key: string): string {
+  return key.toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
 function isForbiddenKey(key: string) {
-  return forbiddenPayloadKeys.has(key.toLowerCase())
+  return forbiddenPayloadKeys.has(normalizedKey(key))
 }
 
 export function sanitizeProctoringPayload(

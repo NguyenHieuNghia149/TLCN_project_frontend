@@ -5,8 +5,10 @@ import {
 } from '@/utils/challengeResponse'
 import type {
   AdminExamParticipant,
+  AdminProctoringEvidenceConfidence,
   AdminProctoringReview,
   AdminProctoringReviewDecision,
+  AdminProctoringReviewLabelOutcome,
   AdminUpdateProctoringSettingsPayload,
   AdminUserLookupItem,
   CreateExamPayload,
@@ -712,6 +714,22 @@ export class ExamService {
       payload
     )
     return unwrapResponseData<AdminProctoringReview['summary']>(response.data)
+  }
+
+  async labelAdminProctoringReview(
+    examId: string,
+    participationId: string,
+    payload: {
+      reviewOutcome: AdminProctoringReviewLabelOutcome
+      evidenceConfidence: AdminProctoringEvidenceConfidence
+      notes?: string
+    }
+  ): Promise<unknown> {
+    const response = await apiClient.post(
+      `/admin/exams/${examId}/participations/${participationId}/proctoring/labels`,
+      payload
+    )
+    return unwrapResponseData(response.data)
   }
 
   async submitExamBySlug(

@@ -12,7 +12,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Code,
-  Languages,
 } from 'lucide-react'
 import './AdminNav.scss'
 
@@ -76,12 +75,12 @@ const AdminNav: React.FC<AdminNavProps> = ({ isCollapsed, onToggle }) => {
       path: '/admin/challenges',
       icon: <Code size={20} />,
     },
-    {
-      id: 'languages',
-      label: 'Manage Languages',
-      path: '/admin/languages',
-      icon: <Languages size={20} />,
-    },
+    // {
+    //   id: 'languages',
+    //   label: 'Manage Languages',
+    //   path: '/admin/languages',
+    //   icon: <Languages size={20} />,
+    // },
     {
       id: 'exams',
       label: 'Manage Exams',

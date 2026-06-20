@@ -38,6 +38,8 @@ type BrowserPrecheckSnapshot = {
   browserSupported: boolean
 }
 
+type CameraTrackState = 'live' | 'ended' | 'muted'
+
 const CLIENT_SEQ_PREFIX = 'proctoring:clientSeq'
 const CLIENT_SESSION_PREFIX = 'proctoring:clientSessionId'
 const BYPASS_PREFIX = 'proctoring:bypassGrant'
@@ -227,6 +229,8 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
     return created
   })
   const [settings, setSettings] = useState<ProctoringSettings | null>(null)
+  const [settingsLoading, setSettingsLoading] = useState(true)
+  const [settingsError, setSettingsError] = useState<string | null>(null)
   const [consentRecord, setConsentRecord] =
     useState<ProctoringConsentRecord | null>(null)
   const [precheckRecord, setPrecheckRecord] =
@@ -246,8 +250,11 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
   const precheckSnapshotRef = useRef<BrowserPrecheckSnapshot | null>(null)
   const consentRecordRef = useRef<ProctoringConsentRecord | null>(null)
   const precheckRecordRef = useRef<ProctoringPrecheckRecord | null>(null)
+  const cameraTrackCleanupRef = useRef<(() => void) | null>(null)
 
-  const initialClientSeq = Number(readStorage(clientSeqKey) ?? '0') || 0
+  const [initialClientSeq] = useState(
+    () => Number(readStorage(clientSeqKey) ?? '0') || 0
+  )
   const telemetryQueue = useMemo(
     () =>
       new ProctoringTelemetryQueue({
@@ -272,6 +279,8 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
     let cancelled = false
 
     const loadSettings = async () => {
+      setSettingsLoading(true)
+      setSettingsError(null)
       try {
         const result = await examService.getProctoringSettings(options.examSlug)
         if (!cancelled) {
@@ -279,7 +288,13 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
         }
       } catch {
         if (!cancelled) {
-          setSettings(null)
+          setSettingsError(
+            'Failed to load proctoring settings. Please refresh the page and try again.'
+          )
+        }
+      } finally {
+        if (!cancelled) {
+          setSettingsLoading(false)
         }
       }
     }
@@ -310,6 +325,44 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
     },
     [options.participationId, telemetryQueue]
   )
+
+  const recordCameraTelemetry = useCallback(
+    (
+      eventName:
+        | 'camera_started'
+        | 'camera_stopped'
+        | 'camera_permission_denied'
+        | 'camera_track_muted'
+        | 'camera_track_unmuted'
+        | 'camera_error',
+      payload: Record<string, unknown> = {}
+    ) => {
+      recordTelemetry(eventName, {
+        ...payload,
+        capturedAt: new Date().toISOString(),
+      })
+    },
+    [recordTelemetry]
+  )
+
+  const clearCameraTrackHandlers = useCallback(() => {
+    cameraTrackCleanupRef.current?.()
+    cameraTrackCleanupRef.current = null
+  }, [])
+
+  const getCameraTrackState = useCallback(
+    (track: MediaStreamTrack): CameraTrackState => {
+      if (track.readyState === 'ended') {
+        return 'ended'
+      }
+
+      const mutedTrack = track as MediaStreamTrack & { muted?: boolean }
+      return mutedTrack.muted ? 'muted' : 'live'
+    },
+    []
+  )
+
+  useEffect(() => clearCameraTrackHandlers, [clearCameraTrackHandlers])
 
   useEffect(() => {
     if (!options.participationId || !options.userId) {
@@ -384,12 +437,28 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
     }
     const onOffline = () => recordTelemetry('network_offline')
     const onOnline = () => recordTelemetry('network_online')
+    const onCopy = () => {
+      recordTelemetry('clipboard_event', {
+        action: 'copy',
+        capturedAt: new Date().toISOString(),
+      })
+      // Do NOT read selected text or editor contents.
+    }
+    const onCut = () => {
+      recordTelemetry('clipboard_event', {
+        action: 'cut',
+        capturedAt: new Date().toISOString(),
+      })
+      // Do NOT read selected text or editor contents.
+    }
     const onPaste = (event: ClipboardEvent) => {
       const clipboardData = event.clipboardData
       const text = clipboardData?.getData('text/plain') ?? ''
-      recordTelemetry('paste', {
+      recordTelemetry('clipboard_event', {
+        action: 'paste',
         textLength: text.length,
         mimeTypes: clipboardData ? Array.from(clipboardData.types) : [],
+        capturedAt: new Date().toISOString(),
       })
     }
 
@@ -399,6 +468,8 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
     document.addEventListener('fullscreenchange', onFullscreenChange)
     window.addEventListener('offline', onOffline)
     window.addEventListener('online', onOnline)
+    window.addEventListener('copy', onCopy)
+    window.addEventListener('cut', onCut)
     window.addEventListener('paste', onPaste)
 
     const heartbeatId = window.setInterval(
@@ -418,6 +489,8 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
       document.removeEventListener('fullscreenchange', onFullscreenChange)
       window.removeEventListener('offline', onOffline)
       window.removeEventListener('online', onOnline)
+      window.removeEventListener('copy', onCopy)
+      window.removeEventListener('cut', onCut)
       window.removeEventListener('paste', onPaste)
       window.clearInterval(heartbeatId)
     }
@@ -586,7 +659,44 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
         video: true,
         audio: false,
       })
+      const [track] = stream.getVideoTracks()
+
+      clearCameraTrackHandlers()
       proctoringMediaSession.setCameraStream(stream)
+
+      if (track) {
+        const handleEnded = () => {
+          recordCameraTelemetry('camera_stopped', {
+            reason: 'track_ended',
+            devicePresent: Boolean(navigator.mediaDevices?.getUserMedia),
+            trackState: getCameraTrackState(track),
+          })
+        }
+        const handleMute = () => {
+          recordCameraTelemetry('camera_track_muted')
+        }
+        const handleUnmute = () => {
+          recordCameraTelemetry('camera_track_unmuted')
+        }
+
+        track.onended = handleEnded
+        track.onmute = handleMute
+        track.onunmute = handleUnmute
+
+        cameraTrackCleanupRef.current = () => {
+          if (track.onended === handleEnded) {
+            track.onended = null
+          }
+          if (track.onmute === handleMute) {
+            track.onmute = null
+          }
+          if (track.onunmute === handleUnmute) {
+            track.onunmute = null
+          }
+        }
+      }
+
+      recordCameraTelemetry('camera_started')
 
       // Update precheck snapshot with camera permission granted
       if (precheckSnapshotRef.current) {
@@ -598,10 +708,15 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
       }
 
       return true
-    } catch {
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'NotAllowedError') {
+        recordCameraTelemetry('camera_permission_denied')
+      } else {
+        recordCameraTelemetry('camera_error')
+      }
       return false
     }
-  }, [])
+  }, [clearCameraTrackHandlers, getCameraTrackState, recordCameraTelemetry])
 
   const requestScreenShare = useCallback(async () => {
     const mediaDevices = navigator.mediaDevices as
@@ -657,8 +772,9 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
   }, [recordTelemetry, settings?.requireMonitorDisplaySurface])
 
   const stopAllMedia = useCallback(() => {
+    clearCameraTrackHandlers()
     proctoringMediaSession.stopAllMedia()
-  }, [])
+  }, [clearCameraTrackHandlers])
 
   const finalFlush = useCallback(
     async (submitAttemptId: string) => {
@@ -723,6 +839,8 @@ export function useExamProctoring(options: UseExamProctoringOptions) {
 
   return {
     settings,
+    settingsLoading,
+    settingsError,
     clientSessionId,
     consentRecord,
     consentAccepted,

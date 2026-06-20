@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import '@testing-library/jest-dom/vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -29,11 +29,11 @@ describe('ProctoringPreviewWidget', () => {
     render(
       <ProctoringPreviewWidget
         cameraActive={true}
-        screenShareActive={false}
         fullscreenActive={false}
         cameraRequired={true}
-        screenShareRequired={false}
         fullscreenRequired={false}
+        screenShareActive={false}
+        screenShareRequired={false}
         cameraStream={null}
       />
     )
@@ -46,11 +46,11 @@ describe('ProctoringPreviewWidget', () => {
     render(
       <ProctoringPreviewWidget
         cameraActive={false}
-        screenShareActive={false}
         fullscreenActive={false}
         cameraRequired={true}
-        screenShareRequired={false}
         fullscreenRequired={false}
+        screenShareActive={false}
+        screenShareRequired={false}
         cameraStream={null}
       />
     )
@@ -58,47 +58,15 @@ describe('ProctoringPreviewWidget', () => {
     expect(screen.getByText(/camera inactive/i)).toBeInTheDocument()
   })
 
-  it('shows Screen sharing active when screen share is active and required', () => {
-    render(
-      <ProctoringPreviewWidget
-        cameraActive={false}
-        screenShareActive={true}
-        fullscreenActive={false}
-        cameraRequired={false}
-        screenShareRequired={true}
-        fullscreenRequired={false}
-        cameraStream={null}
-      />
-    )
-
-    expect(screen.getByText(/screen sharing active/i)).toBeInTheDocument()
-  })
-
-  it('shows Screen sharing inactive when screen share is required but not active', () => {
-    render(
-      <ProctoringPreviewWidget
-        cameraActive={false}
-        screenShareActive={false}
-        fullscreenActive={false}
-        cameraRequired={false}
-        screenShareRequired={true}
-        fullscreenRequired={false}
-        cameraStream={null}
-      />
-    )
-
-    expect(screen.getByText(/screen sharing inactive/i)).toBeInTheDocument()
-  })
-
   it('shows Fullscreen active when fullscreen is active and required', () => {
     render(
       <ProctoringPreviewWidget
         cameraActive={false}
-        screenShareActive={false}
         fullscreenActive={true}
         cameraRequired={false}
-        screenShareRequired={false}
         fullscreenRequired={true}
+        screenShareActive={false}
+        screenShareRequired={false}
         cameraStream={null}
       />
     )
@@ -110,11 +78,11 @@ describe('ProctoringPreviewWidget', () => {
     render(
       <ProctoringPreviewWidget
         cameraActive={false}
-        screenShareActive={false}
         fullscreenActive={false}
         cameraRequired={false}
-        screenShareRequired={false}
         fullscreenRequired={true}
+        screenShareActive={false}
+        screenShareRequired={false}
         cameraStream={null}
       />
     )
@@ -126,17 +94,16 @@ describe('ProctoringPreviewWidget', () => {
     render(
       <ProctoringPreviewWidget
         cameraActive={true}
-        screenShareActive={true}
         fullscreenActive={true}
         cameraRequired={false}
-        screenShareRequired={false}
         fullscreenRequired={false}
+        screenShareActive={false}
+        screenShareRequired={false}
         cameraStream={null}
       />
     )
 
     expect(screen.queryByText(/camera/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/screen/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/fullscreen/i)).not.toBeInTheDocument()
   })
 
@@ -144,11 +111,11 @@ describe('ProctoringPreviewWidget', () => {
     render(
       <ProctoringPreviewWidget
         cameraActive={true}
-        screenShareActive={true}
         fullscreenActive={true}
         cameraRequired={true}
-        screenShareRequired={true}
         fullscreenRequired={true}
+        screenShareActive={false}
+        screenShareRequired={false}
         cameraStream={null}
       />
     )
@@ -160,11 +127,11 @@ describe('ProctoringPreviewWidget', () => {
     const { container } = render(
       <ProctoringPreviewWidget
         cameraActive={true}
-        screenShareActive={true}
         fullscreenActive={true}
         cameraRequired={true}
-        screenShareRequired={true}
         fullscreenRequired={true}
+        screenShareActive={false}
+        screenShareRequired={false}
         cameraStream={null}
       />
     )
@@ -179,11 +146,11 @@ describe('ProctoringPreviewWidget', () => {
     const { container } = render(
       <ProctoringPreviewWidget
         cameraActive={true}
-        screenShareActive={false}
         fullscreenActive={false}
         cameraRequired={true}
-        screenShareRequired={false}
         fullscreenRequired={false}
+        screenShareActive={false}
+        screenShareRequired={false}
         cameraStream={stream}
       />
     )
@@ -194,15 +161,46 @@ describe('ProctoringPreviewWidget', () => {
     expect(video?.autoplay).toBe(true)
   })
 
+  it('rebinds the camera stream after minimize and restore', async () => {
+    const user = userEvent.setup()
+    const stream = createMockStream()
+    const { container } = render(
+      <ProctoringPreviewWidget
+        cameraActive={true}
+        fullscreenActive={true}
+        cameraRequired={true}
+        fullscreenRequired={true}
+        screenShareActive={false}
+        screenShareRequired={false}
+        cameraStream={stream}
+      />
+    )
+
+    const initialVideo = container.querySelector(
+      'video'
+    ) as HTMLVideoElement | null
+    expect(initialVideo).not.toBeNull()
+    expect(initialVideo?.srcObject).toBe(stream)
+
+    await user.click(screen.getByRole('button', { name: /minimize/i }))
+    await user.click(screen.getByRole('button', { name: /restore/i }))
+
+    const restoredVideo = container.querySelector(
+      'video'
+    ) as HTMLVideoElement | null
+    expect(restoredVideo).not.toBeNull()
+    expect(restoredVideo?.srcObject).toBe(stream)
+  })
+
   it('does not render video element when camera is not required', () => {
     const { container } = render(
       <ProctoringPreviewWidget
         cameraActive={false}
-        screenShareActive={false}
         fullscreenActive={false}
         cameraRequired={false}
-        screenShareRequired={false}
         fullscreenRequired={false}
+        screenShareActive={false}
+        screenShareRequired={false}
         cameraStream={null}
       />
     )
@@ -216,11 +214,11 @@ describe('ProctoringPreviewWidget', () => {
     render(
       <ProctoringPreviewWidget
         cameraActive={true}
-        screenShareActive={true}
         fullscreenActive={true}
         cameraRequired={true}
-        screenShareRequired={true}
         fullscreenRequired={true}
+        screenShareActive={false}
+        screenShareRequired={false}
         cameraStream={null}
       />
     )
@@ -243,11 +241,11 @@ describe('ProctoringPreviewWidget', () => {
     const { container } = render(
       <ProctoringPreviewWidget
         cameraActive={true}
-        screenShareActive={false}
         fullscreenActive={false}
         cameraRequired={true}
-        screenShareRequired={false}
         fullscreenRequired={false}
+        screenShareActive={false}
+        screenShareRequired={false}
         cameraStream={null}
       />
     )
@@ -264,11 +262,11 @@ describe('ProctoringPreviewWidget', () => {
     const { container } = render(
       <ProctoringPreviewWidget
         cameraActive={false}
-        screenShareActive={false}
         fullscreenActive={false}
         cameraRequired={false}
-        screenShareRequired={false}
         fullscreenRequired={false}
+        screenShareActive={false}
+        screenShareRequired={false}
         cameraStream={null}
       />
     )
@@ -281,11 +279,11 @@ describe('ProctoringPreviewWidget', () => {
     const { container } = render(
       <ProctoringPreviewWidget
         cameraActive={true}
-        screenShareActive={false}
         fullscreenActive={false}
         cameraRequired={true}
-        screenShareRequired={false}
         fullscreenRequired={false}
+        screenShareActive={false}
+        screenShareRequired={false}
         cameraStream={null}
       />
     )
@@ -306,11 +304,11 @@ describe('ProctoringPreviewWidget', () => {
     const { container } = render(
       <ProctoringPreviewWidget
         cameraActive={false}
-        screenShareActive={false}
         fullscreenActive={false}
         cameraRequired={true}
-        screenShareRequired={false}
         fullscreenRequired={false}
+        screenShareActive={false}
+        screenShareRequired={false}
         cameraStream={null}
       />
     )
@@ -324,5 +322,58 @@ describe('ProctoringPreviewWidget', () => {
     const dot = indicator?.querySelector('.inline-block')
     expect(dot).not.toBeNull()
     expect(dot?.getAttribute('style')).toContain('var(--exam-warning)')
+  })
+
+  it('shows a camera request action when required camera is inactive', async () => {
+    const user = userEvent.setup()
+    const onRequestCamera = vi.fn().mockResolvedValue(true)
+    render(
+      <ProctoringPreviewWidget
+        cameraActive={false}
+        fullscreenActive={true}
+        cameraRequired={true}
+        fullscreenRequired={true}
+        screenShareActive={false}
+        screenShareRequired={false}
+        cameraStream={null}
+        onRequestCamera={onRequestCamera}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: /turn on camera/i }))
+
+    expect(onRequestCamera).toHaveBeenCalledTimes(1)
+  })
+
+  it('can be dragged away from the default corner', () => {
+    const { container } = render(
+      <ProctoringPreviewWidget
+        cameraActive={true}
+        fullscreenActive={true}
+        cameraRequired={true}
+        fullscreenRequired={true}
+        screenShareActive={false}
+        screenShareRequired={false}
+        cameraStream={null}
+      />
+    )
+
+    fireEvent.pointerDown(screen.getByLabelText(/drag proctoring preview/i), {
+      clientX: 100,
+      clientY: 120,
+      pointerId: 1,
+    })
+    fireEvent.pointerMove(window, {
+      clientX: 75,
+      clientY: 90,
+      pointerId: 1,
+    })
+    fireEvent.pointerUp(window, { pointerId: 1 })
+
+    const widget = container.querySelector(
+      '[data-testid="proctoring-preview-widget"]'
+    )
+    expect(widget).not.toBeNull()
+    expect(widget?.getAttribute('style')).toContain('translate(-25px, -30px)')
   })
 })

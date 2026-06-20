@@ -32,9 +32,7 @@ const ProctoringConsentPanel: React.FC<ProctoringConsentPanelProps> = ({
 
   const requiredCapabilities = [
     settings.requireCamera ? 'camera availability check' : null,
-    settings.requireScreenShare ? 'screen share availability check' : null,
     settings.requireFullscreen ? 'fullscreen status' : null,
-    settings.requireMonitorDisplaySurface ? 'monitor display surface' : null,
   ].filter(Boolean)
 
   return (
