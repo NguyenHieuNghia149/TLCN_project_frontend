@@ -4,6 +4,7 @@ import type { ExamAccessState, PublicExamLanding } from '@/types/exam.types'
 import {
   computeEntryBlockReasons,
   resolveEntryPanelKind,
+  shouldShowResumeExamButton,
 } from '@/pages/exam/access/exam-entry-reasons'
 
 function makeExam(
@@ -113,5 +114,27 @@ describe('entry panel mapping', () => {
   it('maps expired to expired panel and null to none', () => {
     expect(resolveEntryPanelKind('expired')).toBe('expired')
     expect(resolveEntryPanelKind(null)).toBe('none')
+  })
+})
+
+describe('resume exam CTA visibility', () => {
+  it('shows resume when an in-progress session can still start', () => {
+    expect(
+      shouldShowResumeExamButton({
+        hasStartedParticipation: true,
+        examLifecycleBlocked: false,
+        canStart: true,
+      })
+    ).toBe(true)
+  })
+
+  it('hides resume when an in-progress session cannot start because attempts are exhausted', () => {
+    expect(
+      shouldShowResumeExamButton({
+        hasStartedParticipation: true,
+        examLifecycleBlocked: false,
+        canStart: false,
+      })
+    ).toBe(false)
   })
 })

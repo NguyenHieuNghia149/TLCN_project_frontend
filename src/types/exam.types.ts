@@ -171,6 +171,223 @@ export interface ExamAccessState {
   requiresPassword: boolean
 }
 
+export type ProctoringDisplaySurface =
+  | 'monitor'
+  | 'window'
+  | 'browser'
+  | 'surface_unknown'
+
+export interface ProctoringSettings {
+  examId: string
+  enabled: boolean
+  requireCamera: boolean
+  requireScreenShare: boolean
+  requireFullscreen: boolean
+  requireMonitorDisplaySurface: boolean
+  precheckValiditySeconds: number
+  heartbeatIntervalSeconds: number
+  missedHeartbeatGraceMultiplier: number
+  screenShareResumeTimeoutSeconds: number
+  fullscreenResumeTimeoutSeconds: number
+  allowedEventTypesJson: string[]
+  riskWeightsJson: Record<string, number>
+  riskThresholdsJson: Record<string, number>
+  clipboardPolicy: 'log_only' | 'block' | 'ignore' | string
+  aiAnomalyEnabled: boolean
+  aiShadowMode: boolean
+  aiJobWindowSeconds: number
+  consentNoticeVersion: string
+  legalLinksJson: Record<string, string>
+  dataRetentionDays: number
+  dataDeletionSlaDays: number
+  sensitiveDataDeletionTargetHours: number
+}
+
+export interface ProctoringConsentRecord {
+  id: string
+  status: 'accepted' | 'withdrawn' | 'superseded'
+  acceptedAt?: string
+  withdrawnAt?: string | null
+}
+
+export interface ProctoringPrecheckRecord {
+  id: string
+  passed: boolean
+  expiresAt: string
+  failureReasonsJson?: string[]
+}
+
+export interface ProctoringBypassGrant {
+  bypassCodeId: string
+  status: 'issued' | 'used' | 'revoked' | 'expired'
+  expiresAt?: string
+}
+
+export interface ProctoringStartPayload {
+  clientSessionId: string
+  consentRecordId?: string
+  precheckId?: string
+  bypassCodeId?: string
+}
+
+export interface ProctoringSubmitPayload {
+  submitAttemptId: string
+  finalFlushReceiptId?: string
+}
+
+export interface ProctoringFinalFlushResponse {
+  receiptId?: string
+  finalFlushReceiptId?: string
+  status?: string
+}
+
+export interface ProctoringSocketTokenResponse {
+  token: string
+  expiresAt: string
+}
+
+export interface AdminUpdateProctoringSettingsPayload {
+  enabled?: boolean
+  requireCamera?: boolean
+  requireScreenShare?: boolean
+  requireFullscreen?: boolean
+  requireMonitorDisplaySurface?: boolean
+  clipboardPolicy?: 'log_only' | 'block' | 'ignore'
+  aiAnomalyEnabled?: boolean
+  aiShadowMode?: boolean
+  aiAdvisoryVisible?: boolean
+  llmSummaryEnabled?: boolean
+}
+
+export type AdminProctoringReviewDecision =
+  | 'pending'
+  | 'no_action'
+  | 'needs_re_review'
+  | 'refer_for_policy_review'
+
+export type AdminProctoringReviewLabelOutcome =
+  | 'no_action_needed'
+  | 'follow_up_required'
+  | 'policy_review_required'
+  | 'inconclusive'
+
+export type AdminProctoringEvidenceConfidence = 'low' | 'medium' | 'high'
+
+export interface AdminProctoringReviewLabelPayload {
+  reviewOutcome: AdminProctoringReviewLabelOutcome
+  evidenceConfidence: AdminProctoringEvidenceConfidence
+  notes?: string
+}
+
+export interface AiFeatureContribution {
+  featureName: string
+  numericValue: number
+  contribution: number
+  direction: 'increased_risk' | 'decreased_risk'
+  displayLabel: string
+}
+
+export interface AdminProctoringAiAdvisory {
+  visible: boolean
+  status: 'hidden_shadow_mode' | 'hidden_no_gate' | 'visible' | 'unavailable'
+  modelVersion?: string
+  featureSchemaVersion?: string
+  scoringSchemaVersion?: string
+  latestRiskLevel?: string
+  maxAnomalyScore?: number
+  windows: Array<{
+    windowId: string
+    windowStart: string | null
+    windowEnd: string | null
+    anomalyScore: number
+    riskLevel: string
+    explanationStatus: string
+    topContributors: AiFeatureContribution[]
+  }>
+}
+
+export interface AdminProctoringLlmSummary {
+  visible: boolean
+  status:
+    | 'hidden_disabled'
+    | 'pending'
+    | 'accepted'
+    | 'validation_failed'
+    | 'provider_failed'
+    | 'dead_letter'
+    | 'unavailable'
+  summaryId?: string
+  provider?: string
+  modelVersion?: string
+  judgeModelVersion?: string | null
+  promptVersion?: string
+  validationStatus?: string
+  validationScore?: number | null
+  summaryText?: string
+  riskFacts: Array<{
+    type: string
+    count: number
+    totalDurationMs: number
+    evidenceEventIds: string[]
+  }>
+  citations: Array<{ eventId: string; reason: string }>
+  missingDataNotes: string[]
+  modelNotes: string[]
+  completedAt?: string | null
+}
+
+export interface AdminProctoringReview {
+  summary: {
+    id: string
+    examId: string
+    participationId: string
+    riskScore: number
+    riskLevel: string
+    eventCountsJson: Record<string, number>
+    velocityJson: Record<string, unknown>
+    finalFlushStatus: string | null
+    deterministicSchemaVersion: string
+    computedAt: string | null
+    reviewerDecision: AdminProctoringReviewDecision | string
+    reviewerId: string | null
+    reviewerNotes: string | null
+    reviewedAt: string | null
+  } | null
+  timeline: {
+    items: Array<{
+      id: string
+      type: string
+      eventName: string
+      severity: string
+      clientSeq: number
+      capturedAt: string | null
+      receivedAt: string | null
+      finalFlushReceiptId: string | null
+      payloadJson: Record<string, unknown>
+    }>
+    total: number
+    limit: number
+    offset: number
+  }
+  evidence: {
+    consent: Array<Record<string, unknown>>
+    precheck: Array<Record<string, unknown>>
+    bypass: Array<Record<string, unknown>>
+    finalFlush: Array<Record<string, unknown>>
+    dataRequests: Array<Record<string, unknown>>
+  }
+  aiAdvisory?: AdminProctoringAiAdvisory
+  llmSummary?: AdminProctoringLlmSummary
+  reviewLabel?: {
+    id: string
+    reviewOutcome: AdminProctoringReviewLabelOutcome
+    evidenceConfidence: AdminProctoringEvidenceConfidence
+    notes: string | null
+    reviewerId: string
+    createdAt: string | null
+  } | null
+}
+
 export type ExamSyncStatus = 'active' | 'submitted' | 'expired'
 
 export interface ExamSessionSyncResponse {

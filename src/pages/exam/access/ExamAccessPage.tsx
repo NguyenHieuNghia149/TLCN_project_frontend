@@ -14,6 +14,8 @@ import { useAuth } from '@/hooks/api/useAuth'
 import ExamEntryLobbyPanel from '@/pages/exam/access/components/ExamEntryLobbyPanel'
 import ExamEntryStatusPanel from '@/pages/exam/access/components/ExamEntryStatusPanel'
 import ExamEntryVerificationPanel from '@/pages/exam/access/components/ExamEntryVerificationPanel'
+import ProctoringEntryModal from '@/pages/exam/access/components/ProctoringEntryModal'
+import { useExamProctoring } from '@/hooks/useExamProctoring'
 import { isLegacyExamId } from '@/pages/exam/legacy/legacy-exam-redirect'
 import { examService } from '@/services/api/exam.service'
 import { tokenManager } from '@/services/auth/token.service'
@@ -28,6 +30,7 @@ import type {
 import {
   computeEntryBlockReasons,
   resolveEntryPanelKind,
+  shouldShowResumeExamButton,
 } from './exam-entry-reasons'
 
 function isFullAccessState(
@@ -142,6 +145,16 @@ const ExamAccessPage: React.FC = () => {
     otp: '',
   })
   const [accessPassword, setAccessPassword] = useState('')
+  const [showProctoringModal, setShowProctoringModal] = useState(false)
+  const currentEntrySessionId =
+    accessState?.entrySessionId || inviteState?.entrySessionId || null
+  const currentParticipationId = accessState?.participationId ?? null
+  const proctoring = useExamProctoring({
+    examSlug,
+    entrySessionId: currentEntrySessionId,
+    participationId: currentParticipationId,
+    userId: user?.id,
+  })
 
   const refreshAccessState = useCallback(async () => {
     if (!examSlug) return
@@ -316,7 +329,80 @@ const ExamAccessPage: React.FC = () => {
     }
   }
 
-  const handleStartOrResume = async () => {
+  const startEntrySessionNow = useCallback(async () => {
+    const entrySessionId =
+      accessState?.entrySessionId || inviteState?.entrySessionId
+    if (!entrySessionId || !examSlug || !exam?.id) {
+      return
+    }
+
+    const requiresAccessPassword = Boolean(accessState?.requiresPassword)
+    const startingNewParticipation = !accessState?.participationId
+
+    try {
+      setActionLoading(true)
+      setError(null)
+      const result = await examService.startEntrySession(
+        entrySessionId,
+        requiresAccessPassword ? accessPassword : undefined,
+        startingNewParticipation && proctoring.proctoringRequired
+          ? proctoring.startPayload
+          : undefined
+      )
+      if (!result.firstChallengeId) {
+        throw new Error('Exam does not have any configured challenge.')
+      }
+      proctoring.markStartSucceeded()
+
+      // Store clientSessionId for workspace to reuse
+      if (result.participationId && proctoring.clientSessionId) {
+        try {
+          window.sessionStorage.setItem(
+            `proctoring:clientSessionId:${examSlug}:${result.participationId}`,
+            proctoring.clientSessionId
+          )
+        } catch {
+          // Ignore storage failures
+        }
+      }
+
+      dispatch(
+        setParticipation({
+          participationId: result.participationId,
+          examId: exam.id,
+          expiresAt: result.expiresAt,
+          currentChallengeId: result.firstChallengeId,
+        })
+      )
+
+      navigate(`/exam/${examSlug}/challenges/${result.firstChallengeId}`)
+    } catch (err: unknown) {
+      if (startingNewParticipation && proctoring.proctoringRequired) {
+        proctoring.stopAllMedia()
+      }
+      if (extractApiErrorCode(err) === 'INVALID_PASSWORD') {
+        setError('Incorrect exam password. Please check your email.')
+      } else {
+        setError(extractApiErrorMessage(err, 'Failed to start exam'))
+      }
+    } finally {
+      setAccessPassword('')
+      setActionLoading(false)
+    }
+  }, [
+    accessPassword,
+    accessState?.entrySessionId,
+    accessState?.participationId,
+    accessState?.requiresPassword,
+    dispatch,
+    exam?.id,
+    examSlug,
+    inviteState?.entrySessionId,
+    navigate,
+    proctoring,
+  ])
+
+  const handleStartOrResume = useCallback(async () => {
     const entrySessionId =
       accessState?.entrySessionId || inviteState?.entrySessionId
     if (!entrySessionId || !examSlug || !exam?.id) {
@@ -342,38 +428,88 @@ const ExamAccessPage: React.FC = () => {
       return
     }
 
-    try {
-      setActionLoading(true)
-      setError(null)
-      const result = await examService.startEntrySession(
-        entrySessionId,
-        requiresAccessPassword ? accessPassword : undefined
-      )
-      if (!result.firstChallengeId) {
-        throw new Error('Exam does not have any configured challenge.')
-      }
-
-      dispatch(
-        setParticipation({
-          participationId: result.participationId,
-          examId: exam.id,
-          expiresAt: result.expiresAt,
-          currentChallengeId: result.firstChallengeId,
-        })
-      )
-
-      navigate(`/exam/${examSlug}/challenges/${result.firstChallengeId}`)
-    } catch (err: unknown) {
-      if (extractApiErrorCode(err) === 'INVALID_PASSWORD') {
-        setError('Incorrect exam password. Please check your email.')
-      } else {
-        setError(extractApiErrorMessage(err, 'Failed to start exam'))
-      }
-    } finally {
-      setAccessPassword('')
-      setActionLoading(false)
+    if (proctoring.settingsLoading) {
+      return
     }
-  }
+
+    if (proctoring.settingsError) {
+      setError(proctoring.settingsError)
+      return
+    }
+
+    const startingNewParticipation = !accessState?.participationId
+    if (
+      startingNewParticipation &&
+      proctoring.proctoringRequired &&
+      !proctoring.startReady
+    ) {
+      setShowProctoringModal(true)
+      return
+    }
+
+    void startEntrySessionNow()
+  }, [
+    accessPassword,
+    accessState?.accessStatus,
+    accessState?.entrySessionId,
+    accessState?.participationId,
+    accessState?.requiresPassword,
+    exam?.endDate,
+    exam?.id,
+    exam?.status,
+    examSlug,
+    inviteState?.entrySessionId,
+    proctoring.proctoringRequired,
+    proctoring.startReady,
+    proctoring.settingsLoading,
+    proctoring.settingsError,
+    startEntrySessionNow,
+  ])
+
+  const handleProctoringSetup = useCallback(async () => {
+    const consent = proctoring.consentAccepted
+      ? proctoring.consentRecord
+      : await proctoring.acceptConsent()
+    if (!consent) {
+      proctoring.stopAllMedia()
+      return false
+    }
+
+    const deviceSnapshot = await proctoring.checkDevices()
+    if (!deviceSnapshot) {
+      proctoring.stopAllMedia()
+      return false
+    }
+
+    if (proctoring.settings?.requireCamera) {
+      const cameraOk = await proctoring.requestCamera()
+      if (!cameraOk) {
+        proctoring.setError(
+          'Camera access was denied. Please allow camera access and try again.'
+        )
+        proctoring.stopAllMedia()
+        return false
+      }
+    }
+
+    if (proctoring.settings?.requireFullscreen) {
+      const fullscreenOk = await proctoring.enterPrecheckFullscreen()
+      if (!fullscreenOk) {
+        proctoring.setError(
+          'Fullscreen mode could not be activated. Please allow fullscreen and try again.'
+        )
+        proctoring.stopAllMedia()
+        return false
+      }
+    }
+
+    const precheck = await proctoring.runPrecheck()
+    if (!precheck?.passed) {
+      proctoring.stopAllMedia()
+      return false
+    }
+    return true
+  }, [proctoring])
 
   const handleGoToEntry = () => {
     navigate(`/exam/${examSlug}/entry${location.search}`)
@@ -465,10 +601,20 @@ const ExamAccessPage: React.FC = () => {
     () => computeEntryBlockReasons(exam, accessState),
     [exam, accessState]
   )
+  const lobbyCanStart = Boolean(accessState?.canStart)
+  const startEnabled =
+    lobbyCanStart && !proctoring.settingsLoading && !proctoring.settingsError
+  const lobbyPrimaryReason = primaryReason
+  const lobbyReasons = allReasons
   const inviteResolutionFailed =
     !!inviteToken &&
     !!error &&
     /invite|token|expired|not found|invalid/i.test(error)
+  const showResumeExamButton = shouldShowResumeExamButton({
+    hasStartedParticipation,
+    examLifecycleBlocked,
+    canStart: Boolean(accessState?.canStart),
+  })
 
   if (loading) {
     return <LoadingSpinner />
@@ -781,13 +927,13 @@ const ExamAccessPage: React.FC = () => {
             }
             tone={examLifecycleBlocked ? 'warning' : 'success'}
           >
-            {examLifecycleBlocked ? (
-              <Button onClick={handleGoToResults} variant="secondary">
-                View results
-              </Button>
-            ) : (
+            {showResumeExamButton ? (
               <Button onClick={handleStartOrResume} loading={actionLoading}>
                 Resume exam
+              </Button>
+            ) : (
+              <Button onClick={handleGoToResults} variant="secondary">
+                View results
               </Button>
             )}
           </ExamEntryStatusPanel>
@@ -888,23 +1034,64 @@ const ExamAccessPage: React.FC = () => {
             ) : null}
 
             {entryPanelKind === 'lobby' && effectiveEntrySessionStatus ? (
-              <ExamEntryLobbyPanel
-                status={
-                  effectiveEntrySessionStatus === 'started'
-                    ? 'started'
-                    : 'eligible'
-                }
-                canStart={Boolean(accessState?.canStart)}
-                actionLoading={actionLoading}
-                primaryReason={primaryReason}
-                allReasons={allReasons}
-                requiresPassword={Boolean(accessState?.requiresPassword)}
-                passwordValue={accessPassword}
-                onPasswordChange={setAccessPassword}
-                onStartOrResume={() => {
-                  void handleStartOrResume()
-                }}
-              />
+              <>
+                {proctoring.error ? (
+                  <section
+                    className="mt-4 rounded-xl border px-4 py-3 text-sm"
+                    style={{
+                      borderColor: 'var(--exam-danger-subtle)',
+                      backgroundColor: 'var(--exam-danger-subtle)',
+                      color: 'var(--exam-danger)',
+                    }}
+                  >
+                    {proctoring.error}
+                  </section>
+                ) : null}
+
+                {proctoring.settingsLoading ? (
+                  <section
+                    className="mt-4 rounded-xl border px-4 py-3 text-sm"
+                    style={{
+                      borderColor: 'var(--exam-card-border)',
+                      backgroundColor: 'var(--exam-card-bg)',
+                      color: 'var(--exam-muted)',
+                    }}
+                  >
+                    Loading proctoring settings...
+                  </section>
+                ) : null}
+
+                {proctoring.settingsError ? (
+                  <section
+                    className="mt-4 rounded-xl border px-4 py-3 text-sm"
+                    style={{
+                      borderColor: 'var(--exam-danger-subtle)',
+                      backgroundColor: 'var(--exam-danger-subtle)',
+                      color: 'var(--exam-danger)',
+                    }}
+                  >
+                    {proctoring.settingsError}
+                  </section>
+                ) : null}
+
+                <ExamEntryLobbyPanel
+                  status={
+                    effectiveEntrySessionStatus === 'started'
+                      ? 'started'
+                      : 'eligible'
+                  }
+                  canStart={startEnabled}
+                  actionLoading={actionLoading}
+                  primaryReason={lobbyPrimaryReason}
+                  allReasons={lobbyReasons}
+                  requiresPassword={Boolean(accessState?.requiresPassword)}
+                  passwordValue={accessPassword}
+                  onPasswordChange={setAccessPassword}
+                  onStartOrResume={() => {
+                    void handleStartOrResume()
+                  }}
+                />
+              </>
             ) : null}
 
             {entryPanelKind === 'none' ? (
@@ -925,6 +1112,26 @@ const ExamAccessPage: React.FC = () => {
               </ExamEntryStatusPanel>
             ) : null}
           </section>
+        ) : null}
+
+        {proctoring.settings?.enabled ? (
+          <ProctoringEntryModal
+            open={showProctoringModal}
+            settings={proctoring.settings}
+            loading={proctoring.loading}
+            error={proctoring.error}
+            consentAccepted={proctoring.consentAccepted}
+            precheckPassed={proctoring.precheckPassed}
+            bypassActive={proctoring.bypassActive}
+            failureReasons={proctoring.precheckRecord?.failureReasonsJson ?? []}
+            onAcceptAndSetup={handleProctoringSetup}
+            onVerifyBypass={proctoring.verifyBypass}
+            onSetupComplete={() => {
+              setShowProctoringModal(false)
+              void startEntrySessionNow()
+            }}
+            onClose={() => setShowProctoringModal(false)}
+          />
         ) : null}
       </div>
     </div>

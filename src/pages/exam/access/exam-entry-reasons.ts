@@ -16,6 +16,12 @@ export type EntryReason = {
 
 export type EntryPanelKind = 'verification' | 'lobby' | 'expired' | 'none'
 
+export type ResumeExamButtonState = {
+  hasStartedParticipation: boolean
+  examLifecycleBlocked: boolean
+  canStart: boolean
+}
+
 export function resolveEntryPanelKind(
   entrySessionStatus: ExamAccessState['entrySessionStatus']
 ): EntryPanelKind {
@@ -29,6 +35,14 @@ export function resolveEntryPanelKind(
     return 'expired'
   }
   return 'none'
+}
+
+export function shouldShowResumeExamButton({
+  hasStartedParticipation,
+  examLifecycleBlocked,
+  canStart,
+}: ResumeExamButtonState): boolean {
+  return hasStartedParticipation && !examLifecycleBlocked && canStart
 }
 
 export function computeEntryBlockReasons(

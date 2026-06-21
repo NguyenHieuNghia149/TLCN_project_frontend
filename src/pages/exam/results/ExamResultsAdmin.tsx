@@ -13,8 +13,15 @@ import Button from '@/components/common/Button/Button'
 import Input from '@/components/common/Input/Input'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import { AdminThemeContext } from '@/contexts/AdminThemeContextDef'
+import ProctoringReviewPanel from '@/pages/admin/exam/components/ProctoringReviewPanel'
 import { examService } from '@/services/api/exam.service'
-import type { Exam } from '@/types/exam.types'
+import type {
+  AdminProctoringEvidenceConfidence,
+  AdminProctoringReview,
+  AdminProctoringReviewDecision,
+  AdminProctoringReviewLabelOutcome,
+  Exam,
+} from '@/types/exam.types'
 import { normalizeAdminResultStatus, type ResultStatus } from './result-status'
 import { normalizeSubmissionDetails } from './submission-detail-view-model'
 
@@ -192,7 +199,11 @@ const ExamResultsAdmin: React.FC = () => {
     string,
     unknown
   > | null>(null)
+  const [selectedProctoringReview, setSelectedProctoringReview] =
+    useState<AdminProctoringReview | null>(null)
   const [detailsLoading, setDetailsLoading] = useState(false)
+  const [proctoringLoading, setProctoringLoading] = useState(false)
+  const [proctoringActionLoading, setProctoringActionLoading] = useState(false)
 
   const fetchResults = useCallback(
     async (isBackground = false) => {
@@ -346,23 +357,132 @@ const ExamResultsAdmin: React.FC = () => {
   const openSubmissionDetails = useCallback(
     async (participationId: string) => {
       if (!examId) return
+      setSelectedParticipationId(participationId)
+      setSelectedDetails(null)
+      setSelectedProctoringReview(null)
+      setDetailsLoading(true)
+      setProctoringLoading(true)
+
       try {
-        setDetailsLoading(true)
-        const payload = await examService.getSubmissionDetails(
-          examId,
-          participationId
+        const [detailsResult, proctoringResult] = await Promise.allSettled([
+          examService.getSubmissionDetails(examId, participationId),
+          examService.getAdminProctoringReview(examId, participationId),
+        ])
+
+        if (detailsResult.status === 'rejected') {
+          setSelectedParticipationId(null)
+          setError(
+            extractApiErrorMessage(
+              detailsResult.reason,
+              'Failed to load submission details'
+            )
+          )
+          return
+        }
+
+        setSelectedDetails(detailsResult.value)
+        setSelectedProctoringReview(
+          proctoringResult.status === 'fulfilled'
+            ? proctoringResult.value
+            : null
         )
-        setSelectedParticipationId(participationId)
-        setSelectedDetails(payload)
       } catch (apiError: unknown) {
         setError(
           extractApiErrorMessage(apiError, 'Failed to load submission details')
         )
       } finally {
         setDetailsLoading(false)
+        setProctoringLoading(false)
       }
     },
     [examId]
+  )
+
+  const refreshSelectedProctoringReview = useCallback(async () => {
+    if (!examId || !selectedParticipationId) return
+    setProctoringLoading(true)
+    try {
+      const payload = await examService.getAdminProctoringReview(
+        examId,
+        selectedParticipationId
+      )
+      setSelectedProctoringReview(payload)
+    } catch {
+      setSelectedProctoringReview(null)
+    } finally {
+      setProctoringLoading(false)
+    }
+  }, [examId, selectedParticipationId])
+
+  const handleRecomputeProctoringReview = useCallback(async () => {
+    if (!examId || !selectedParticipationId) return
+    setProctoringActionLoading(true)
+    try {
+      await examService.recomputeAdminProctoringReview(
+        examId,
+        selectedParticipationId
+      )
+      const payload = await examService.getAdminProctoringReview(
+        examId,
+        selectedParticipationId
+      )
+      setSelectedProctoringReview(payload)
+    } finally {
+      setProctoringActionLoading(false)
+    }
+  }, [examId, selectedParticipationId])
+
+  const handleReviewProctoring = useCallback(
+    async (payload: {
+      decision: AdminProctoringReviewDecision
+      notes?: string
+    }) => {
+      if (!examId || !selectedParticipationId) return
+      setProctoringActionLoading(true)
+      try {
+        const summary = await examService.reviewAdminProctoring(
+          examId,
+          selectedParticipationId,
+          payload
+        )
+        setSelectedProctoringReview(current =>
+          current ? { ...current, summary } : current
+        )
+      } finally {
+        setProctoringActionLoading(false)
+      }
+    },
+    [examId, selectedParticipationId]
+  )
+
+  const handleLabelProctoringReview = useCallback(
+    async (payload: {
+      reviewOutcome: AdminProctoringReviewLabelOutcome
+      evidenceConfidence: AdminProctoringEvidenceConfidence
+      notes?: string
+    }) => {
+      if (!examId || !selectedParticipationId) return
+      setProctoringActionLoading(true)
+      try {
+        await examService.labelAdminProctoringReview(
+          examId,
+          selectedParticipationId,
+          payload
+        )
+        const updatedReview = await examService.getAdminProctoringReview(
+          examId,
+          selectedParticipationId
+        )
+        setSelectedProctoringReview(updatedReview)
+      } catch (apiError: unknown) {
+        setError(
+          extractApiErrorMessage(apiError, 'Failed to save review label')
+        )
+      } finally {
+        setProctoringActionLoading(false)
+      }
+    },
+    [examId, selectedParticipationId]
   )
 
   if (loading) {
@@ -604,6 +724,7 @@ const ExamResultsAdmin: React.FC = () => {
           onClose={() => {
             setSelectedParticipationId(null)
             setSelectedDetails(null)
+            setSelectedProctoringReview(null)
           }}
           destroyOnClose
         >
@@ -712,6 +833,20 @@ const ExamResultsAdmin: React.FC = () => {
                   </p>
                 </div>
               </section>
+
+              <ProctoringReviewPanel
+                review={selectedProctoringReview}
+                loading={proctoringLoading}
+                actionLoading={proctoringActionLoading}
+                onRefresh={() => {
+                  void refreshSelectedProctoringReview()
+                }}
+                onRecompute={() => {
+                  void handleRecomputeProctoringReview()
+                }}
+                onReview={handleReviewProctoring}
+                onLabel={handleLabelProctoringReview}
+              />
 
               <section>
                 <h3

@@ -17,7 +17,8 @@
         "prepare": "husky install",
         "test:e2e": "playwright test",
         "test:e2e:headed": "playwright test --headed",
-        "test:e2e:debug": "playwright test --debug"
+        "test:e2e:debug": "playwright test --debug",
+        "test:e2e:proctoring-live-stack": "playwright test tests/e2e/proctoring-live-stack-admin.spec.ts"
     },
     "lint-staged": {
         "src/**/*.{ts,tsx,js,jsx}": [

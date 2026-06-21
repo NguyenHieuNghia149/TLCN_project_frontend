@@ -27,6 +27,11 @@ import useAutosaveSession from '@/hooks/useAutosaveSession'
 import { useTheme } from '@/contexts/useTheme'
 import { canResumeExamWorkspace } from './exam-workspace-access'
 import { computeExamRemainingSeconds } from './exam-countdown'
+import { useExamProctoring } from '@/hooks/useExamProctoring'
+import { submitExamWithFinalProctoringFlush } from './proctoringSubmit'
+import ProctoringCameraOverlay from './components/ProctoringCameraOverlay'
+import ProctoringFullscreenOverlay from './components/ProctoringFullscreenOverlay'
+import ProctoringPreviewWidget from './components/ProctoringPreviewWidget'
 
 type MobileWorkspacePanel = 'problem' | 'editor' | 'output' | 'challenges'
 
@@ -103,6 +108,18 @@ const ExamChallengeDetail: React.FC = () => {
   )
   const reduxExpiresAt = useSelector(
     (s: RootState) => s.exam?.currentParticipationExpiresAt
+  )
+  const currentUserId = useSelector((s: RootState) => s.auth?.session?.user?.id)
+  const proctoring = useExamProctoring({
+    examSlug: examSlug ?? '',
+    participationId: reduxParticipationId,
+    userId: currentUserId,
+  })
+  const cameraBlocked = Boolean(
+    proctoring.settings?.enabled &&
+    proctoring.settings.requireCamera &&
+    reduxParticipationId &&
+    !proctoring.cameraActive
   )
   const mobileWorkspacePanelStorageKey =
     resolvedExamId && reduxParticipationId
@@ -725,6 +742,16 @@ const ExamChallengeDetail: React.FC = () => {
     resetOutput()
   }
 
+  const handleWorkspaceCameraRequest = useCallback(async () => {
+    const ok = await proctoring.requestCamera()
+    if (!ok) {
+      proctoring.setError(
+        'Camera access was denied. Please allow camera access and try again.'
+      )
+    }
+    return ok
+  }, [proctoring])
+
   const handleSubmitExam = useCallback(
     async (options?: { force?: boolean }) => {
       if (
@@ -740,7 +767,6 @@ const ExamChallengeDetail: React.FC = () => {
       try {
         const participationId = reduxParticipationId
         if (resolvedExamId && participationId) {
-          await examService.submitExam(resolvedExamId, participationId)
           // Flush any pending autosave before navigating
           try {
             await flushAutosave()
@@ -748,6 +774,21 @@ const ExamChallengeDetail: React.FC = () => {
             // ignore autosave flush errors on submit
             void 0
           }
+
+          if (examSlug && proctoring.proctoringRequired) {
+            await submitExamWithFinalProctoringFlush({
+              examSlug,
+              participationId,
+              finalFlush: proctoring.finalFlush,
+              submitExam: (slug, payload) =>
+                examService.submitExamBySlug(slug, payload),
+            })
+          } else {
+            await examService.submitExam(resolvedExamId, participationId)
+          }
+
+          // Stop all media streams after successful submission
+          proctoring.stopAllMedia()
 
           // Clear participation from Redux since exam is completed
           dispatch({ type: 'exam/clearParticipation' })
@@ -773,10 +814,35 @@ const ExamChallengeDetail: React.FC = () => {
       examSlug,
       flushAutosave,
       navigate,
+      proctoring.finalFlush,
+      proctoring.proctoringRequired,
+      proctoring.stopAllMedia,
       resolvedExamId,
       reduxParticipationId,
     ]
   )
+
+  const proctoringRequiredRef = useRef(proctoring.proctoringRequired)
+  const reduxParticipationIdRef = useRef(reduxParticipationId)
+  const stopAllMediaRef = useRef(proctoring.stopAllMedia)
+
+  useEffect(() => {
+    proctoringRequiredRef.current = proctoring.proctoringRequired
+    reduxParticipationIdRef.current = reduxParticipationId
+    stopAllMediaRef.current = proctoring.stopAllMedia
+  }, [
+    proctoring.proctoringRequired,
+    reduxParticipationId,
+    proctoring.stopAllMedia,
+  ])
+
+  useEffect(() => {
+    return () => {
+      if (proctoringRequiredRef.current && reduxParticipationIdRef.current) {
+        stopAllMediaRef.current()
+      }
+    }
+  }, [])
 
   // Initialize and manage countdown separately so hooks don't depend on `handleSubmitExam` definition order
   useEffect(() => {
@@ -1302,6 +1368,70 @@ const ExamChallengeDetail: React.FC = () => {
             )}
         </div>
       </header>
+
+      {cameraBlocked ? (
+        <ProctoringCameraOverlay
+          onRequestCamera={handleWorkspaceCameraRequest}
+        />
+      ) : null}
+
+      {!cameraBlocked && proctoring.fullscreenBlocked ? (
+        <ProctoringFullscreenOverlay
+          onRequestFullscreen={proctoring.onRequestFullscreen}
+        />
+      ) : null}
+
+      {!cameraBlocked &&
+      !proctoring.fullscreenBlocked &&
+      proctoring.screenShareBlocked ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.72)' }}
+          role="alertdialog"
+          aria-modal="true"
+          aria-label="Screen share required for proctored exam"
+        >
+          <div
+            className="w-full max-w-md rounded-xl border p-6 text-center"
+            style={{
+              backgroundColor: 'var(--background-color)',
+              borderColor: 'var(--exam-danger)',
+              color: 'var(--text-color)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+            }}
+          >
+            <h2 className="text-lg font-semibold">
+              Screen share is required for this proctored exam.
+            </h2>
+            <p className="mt-2 text-sm" style={{ color: 'var(--muted-text)' }}>
+              The exam requires screen sharing. Please reshare your screen to
+              continue working.
+            </p>
+            <Button
+              type="button"
+              className="mt-5"
+              onClick={() => {
+                void proctoring.requestScreenShare()
+              }}
+            >
+              Reshare screen
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      {proctoring.settings?.enabled && reduxParticipationId ? (
+        <ProctoringPreviewWidget
+          cameraActive={proctoring.cameraActive}
+          fullscreenActive={proctoring.fullscreenActive}
+          screenShareActive={proctoring.screenShareActive}
+          cameraRequired={proctoring.settings?.requireCamera ?? false}
+          fullscreenRequired={proctoring.settings?.requireFullscreen ?? false}
+          screenShareRequired={proctoring.settings?.requireScreenShare ?? false}
+          cameraStream={proctoring.cameraStream}
+          onRequestCamera={handleWorkspaceCameraRequest}
+        />
+      ) : null}
 
       {/* Main Content */}
       {isMobileWorkspace ? (

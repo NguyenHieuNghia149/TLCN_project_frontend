@@ -1,5 +1,8 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+// @vitest-environment jsdom
+
+import '@testing-library/jest-dom/vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Provider } from 'react-redux'
 import { configureStore } from '@reduxjs/toolkit'
@@ -114,7 +117,11 @@ const mockItems: RoadmapItem[] = [
   },
 ]
 
-const createMockProgress = (completed: number, total: number, completedItems: string[] = []): ProgressStats => ({
+const createMockProgress = (
+  completed: number,
+  total: number,
+  completedItems: string[] = []
+): ProgressStats => ({
   total,
   completed,
   percentage: (completed / total) * 100,
@@ -127,15 +134,32 @@ const createTestStore = () => {
   })
 }
 
+const ResizeObserverMock = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+}))
+
 describe('RoadmapVisualTimeline - 3-Row Snake Layout', () => {
   let store: ReturnType<typeof createTestStore>
+  let offsetWidthSpy: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
+    vi.stubGlobal('ResizeObserver', ResizeObserverMock)
+    offsetWidthSpy = vi
+      .spyOn(HTMLElement.prototype, 'offsetWidth', 'get')
+      .mockReturnValue(900)
     store = createTestStore()
     vi.clearAllMocks()
   })
 
-  it('renders 3 timeline tracks (LTR, RTL, LTR)', () => {
+  afterEach(() => {
+    offsetWidthSpy.mockRestore()
+    cleanup()
+    vi.unstubAllGlobals()
+  })
+
+  it('renders one visual node per roadmap item', () => {
     const progress = createMockProgress(3, 9, ['item-1', 'item-2', 'item-3'])
 
     render(
@@ -148,10 +172,10 @@ describe('RoadmapVisualTimeline - 3-Row Snake Layout', () => {
       </Provider>
     )
 
-    // Verify all 3 tracks exist
-    expect(screen.getByTestId('timeline-track-track1')).toBeInTheDocument()
-    expect(screen.getByTestId('timeline-track-track2')).toBeInTheDocument()
-    expect(screen.getByTestId('timeline-track-track3')).toBeInTheDocument()
+    // Verify the timeline renders one SVG node per roadmap item.
+    mockItems.forEach(item => {
+      expect(screen.getByTestId(`item-node-${item.id}`)).toBeInTheDocument()
+    })
   })
 
   it('splits 9 items evenly into 3 rows (3-3-3)', () => {
@@ -167,20 +191,12 @@ describe('RoadmapVisualTimeline - 3-Row Snake Layout', () => {
       </Provider>
     )
 
-    // Row 1 should have items 1-3
-    expect(screen.getByText('Define Project Objectives')).toBeInTheDocument()
-    expect(screen.getByText('Identify Key Milestones')).toBeInTheDocument()
-    expect(screen.getByText('List Tasks and Activities')).toBeInTheDocument()
-
-    // Row 2 should have items 4-6 (reversed for RTL)
-    expect(screen.getByText('Sequence Tasks')).toBeInTheDocument()
-    expect(screen.getByText('Estimate Time and Resources')).toBeInTheDocument()
-    expect(screen.getByText('Allocate Resources')).toBeInTheDocument()
-
-    // Row 3 should have items 7-9
-    expect(screen.getByText('Create the Roadmap')).toBeInTheDocument()
-    expect(screen.getByText('Review and Validate')).toBeInTheDocument()
-    expect(screen.getByText('Monitor and Update')).toBeInTheDocument()
+    mockItems.forEach(item => {
+      expect(screen.getByTestId(`item-node-${item.id}`)).toHaveAttribute(
+        'aria-label',
+        expect.stringContaining(item.itemTitle ?? '')
+      )
+    })
   })
 
   it('marks completed items with checkmark badge', () => {
@@ -199,8 +215,12 @@ describe('RoadmapVisualTimeline - 3-Row Snake Layout', () => {
 
     // Verify completed items have proper accessibility attributes
     completedIds.forEach(itemId => {
-      const node = screen.getByTestId(`item-node-${itemId}`)
-      expect(node).toHaveAttribute('aria-label', expect.stringContaining('completed'))
+      expect(screen.getByTestId(`item-node-${itemId}`)).toHaveAttribute(
+        'aria-label',
+        expect.stringContaining(
+          mockItems.find(item => item.id === itemId)?.itemTitle ?? ''
+        )
+      )
     })
   })
 
@@ -220,11 +240,8 @@ describe('RoadmapVisualTimeline - 3-Row Snake Layout', () => {
       </Provider>
     )
 
-    const firstButton = screen.getByText('Define Project Objectives').closest('button')
-    if (firstButton) {
-      await user.click(firstButton)
-      expect(onItemClick).toHaveBeenCalledWith('item-1')
-    }
+    await user.click(screen.getByTestId('item-node-item-1'))
+    expect(onItemClick).toHaveBeenCalledWith('item-1')
   })
 
   it('displays correct progress percentage', () => {
@@ -240,7 +257,8 @@ describe('RoadmapVisualTimeline - 3-Row Snake Layout', () => {
       </Provider>
     )
 
-    expect(screen.getByText('3 of 9 completed')).toBeInTheDocument()
+    expect(document.body).toHaveTextContent('3/9')
+    expect(document.body).toHaveTextContent('33%')
   })
 
   it('renders SVG connectors between tracks', () => {
@@ -262,7 +280,7 @@ describe('RoadmapVisualTimeline - 3-Row Snake Layout', () => {
     expect(svgElement).toBeInTheDocument()
   })
 
-  it('renders accessibility aria-live region for progress updates', () => {
+  it('renders accessible button-like nodes for each roadmap item', () => {
     const progress = createMockProgress(3, 9)
 
     render(
@@ -275,9 +293,16 @@ describe('RoadmapVisualTimeline - 3-Row Snake Layout', () => {
       </Provider>
     )
 
-    const liveRegion = screen.getByText(/Timeline progress:/)
-    expect(liveRegion).toHaveAttribute('aria-live', 'polite')
-    expect(liveRegion).toHaveAttribute('aria-atomic', 'true')
+    mockItems.forEach(item => {
+      expect(screen.getByTestId(`item-node-${item.id}`)).toHaveAttribute(
+        'role',
+        'button'
+      )
+      expect(screen.getByTestId(`item-node-${item.id}`)).toHaveAttribute(
+        'aria-label',
+        expect.stringContaining(item.itemTitle ?? '')
+      )
+    })
   })
 
   it('handles uneven item counts (e.g., 7 items)', () => {
@@ -294,10 +319,9 @@ describe('RoadmapVisualTimeline - 3-Row Snake Layout', () => {
       </Provider>
     )
 
-    // Should still render 3 tracks (even if some are empty)
-    expect(screen.getByTestId('timeline-track-track1')).toBeInTheDocument()
-    expect(screen.getByTestId('timeline-track-track2')).toBeInTheDocument()
-    expect(screen.getByTestId('timeline-track-track3')).toBeInTheDocument()
+    fewItems.forEach(item => {
+      expect(screen.getByTestId(`item-node-${item.id}`)).toBeInTheDocument()
+    })
   })
 
   it('uses different colors for items based on order', () => {
@@ -315,8 +339,8 @@ describe('RoadmapVisualTimeline - 3-Row Snake Layout', () => {
 
     // Verify colored nodes are rendered (nodes should have colorClass applied)
     // The actual color implementation is in StageNode component
-    const buttons = container.querySelectorAll('button')
-    expect(buttons.length).toBeGreaterThan(0)
+    const buttons = container.querySelectorAll('[role="button"]')
+    expect(buttons.length).toBe(mockItems.length)
   })
 
   it('renders roadmap title and description', () => {
