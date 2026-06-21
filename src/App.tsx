@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, Suspense } from 'react'
 import { RouterProvider } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { Toaster } from 'react-hot-toast'
@@ -86,7 +86,22 @@ function App() {
             },
           }}
         />
-        <RouterProvider router={router} />
+        <Suspense
+          fallback={
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                minHeight: '60vh',
+              }}
+            >
+              <Spin size="large" />
+            </div>
+          }
+        >
+          <RouterProvider router={router} />
+        </Suspense>
       </AntdApp>
     </ConfigProvider>
   )

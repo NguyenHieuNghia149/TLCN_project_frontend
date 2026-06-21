@@ -3,46 +3,99 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import MainLayout from '@/layouts/MainLayout/MainLayout'
 import AdminLayout from '@/layouts/AdminLayout/AdminLayout'
 import { AdminThemeProvider } from '@/contexts/AdminThemeContext'
-import Login from '@/pages/auth/Login/Login'
-import Register from '@/pages/auth/register/Register'
-import ForgotPassword from '@/pages/auth/forgotpassword/ForgotPassword'
-import Profile from '@/pages/profile/Profile'
-import Lessons from '@/pages/lessons/Lessons'
-import HomePage from '@/pages/home/Home'
-import LessonDetail from '@/pages/LessonDetail/LessonDetail'
-import TopicLessonsPage from '@/pages/lessons/TopicLessonsPage'
 import { PublicRoute } from './PublicRoute'
 import { ProtectedRoute } from './ProtectedRoute'
 import { TeacherRoute } from './TeacherRoute'
 import { OwnerRoute } from './OwnerRoute'
-import ChallengePage from '@/pages/challenge/ChallengePage'
-import ProblemDetailPage from '@/pages/challengeDetail/ProblemDetailPage'
-import Ranking from '@/pages/ranking/Ranking'
-import BookmarksPage from '@/pages/bookmarks/BookmarksPage'
-import ExamList from '@/pages/exam/list/ExamList'
-import ExamAccessPage from '@/pages/exam/access/ExamAccessPage'
-import ExamResults from '@/pages/exam/results/ExamResults'
-import ExamResultsAdmin from '@/pages/exam/results/ExamResultsAdmin'
-import ExamResultSubmissionDetail from '@/pages/exam/results/ExamResultSubmissionDetail'
-import ExamChallengeDetail from '@/pages/exam/challenge/ExamChallengeDetail'
-import LegacyExamRedirect from '@/pages/exam/legacy/LegacyExamRedirect'
-import NotFound from '@/pages/NotFound'
-import ManageTeacher from '@/pages/admin/manageteacher/ManageTeacher'
-import ManageUser from '@/pages/admin/manageuser/ManageUser'
-import ManageLesson from '@/pages/admin/managelesson/ManageLesson'
-import ManageTopic from '@/pages/admin/managetopic/ManageTopic'
-import AdminHome from '@/pages/admin/adminhome/AdminHome'
-import UserSubmissionsPage from '@/pages/user/submissions/UserSubmissionsPage'
-import AdminChallengeList from '@/pages/admin/challenge/AdminChallengeList'
-import AdminCreateChallenge from '@/pages/admin/challenge/AdminCreateChallenge'
-import AdminExamList from '@/pages/admin/exam/AdminExamList'
-import AdminCreateExam from '@/pages/admin/exam/AdminCreateExam'
-import ManageRoadmap from '@/pages/admin/manageroadmap/ManageRoadmap'
-import RoadmapListPage from '@/pages/Roadmap/RoadmapListPage'
-import RoadmapDetailPage from '@/pages/Roadmap/RoadmapDetailPage'
-import UserRoadmapsPage from '@/pages/Roadmap/UserRoadmapsPage'
-import RoadmapSelectionPage from '@/pages/Roadmap/RoadmapSelectionPage'
-import ManageLanguages from '@/pages/admin/language/ManageLanguages'
+
+const Login = React.lazy(() => import('@/pages/auth/Login/Login'))
+const Register = React.lazy(() => import('@/pages/auth/register/Register'))
+const ForgotPassword = React.lazy(
+  () => import('@/pages/auth/forgotpassword/ForgotPassword')
+)
+const Profile = React.lazy(() => import('@/pages/profile/Profile'))
+const Lessons = React.lazy(() => import('@/pages/lessons/Lessons'))
+const HomePage = React.lazy(() => import('@/pages/home/Home'))
+const LessonDetail = React.lazy(
+  () => import('@/pages/LessonDetail/LessonDetail')
+)
+const TopicLessonsPage = React.lazy(
+  () => import('@/pages/lessons/TopicLessonsPage')
+)
+const ChallengePage = React.lazy(
+  () => import('@/pages/challenge/ChallengePage')
+)
+const ProblemDetailPage = React.lazy(
+  () => import('@/pages/challengeDetail/ProblemDetailPage')
+)
+const Ranking = React.lazy(() => import('@/pages/ranking/Ranking'))
+const BookmarksPage = React.lazy(
+  () => import('@/pages/bookmarks/BookmarksPage')
+)
+const ExamList = React.lazy(() => import('@/pages/exam/list/ExamList'))
+const ExamAccessPage = React.lazy(
+  () => import('@/pages/exam/access/ExamAccessPage')
+)
+const ExamResults = React.lazy(() => import('@/pages/exam/results/ExamResults'))
+const ExamResultsAdmin = React.lazy(
+  () => import('@/pages/exam/results/ExamResultsAdmin')
+)
+const ExamResultSubmissionDetail = React.lazy(
+  () => import('@/pages/exam/results/ExamResultSubmissionDetail')
+)
+const ExamChallengeDetail = React.lazy(
+  () => import('@/pages/exam/challenge/ExamChallengeDetail')
+)
+const LegacyExamRedirect = React.lazy(
+  () => import('@/pages/exam/legacy/LegacyExamRedirect')
+)
+const NotFound = React.lazy(() => import('@/pages/NotFound'))
+const ManageTeacher = React.lazy(
+  () => import('@/pages/admin/manageteacher/ManageTeacher')
+)
+const ManageUser = React.lazy(
+  () => import('@/pages/admin/manageuser/ManageUser')
+)
+const ManageLesson = React.lazy(
+  () => import('@/pages/admin/managelesson/ManageLesson')
+)
+const ManageTopic = React.lazy(
+  () => import('@/pages/admin/managetopic/ManageTopic')
+)
+const AdminHome = React.lazy(() => import('@/pages/admin/adminhome/AdminHome'))
+const UserSubmissionsPage = React.lazy(
+  () => import('@/pages/user/submissions/UserSubmissionsPage')
+)
+const AdminChallengeList = React.lazy(
+  () => import('@/pages/admin/challenge/AdminChallengeList')
+)
+const AdminCreateChallenge = React.lazy(
+  () => import('@/pages/admin/challenge/AdminCreateChallenge')
+)
+const AdminExamList = React.lazy(
+  () => import('@/pages/admin/exam/AdminExamList')
+)
+const AdminCreateExam = React.lazy(
+  () => import('@/pages/admin/exam/AdminCreateExam')
+)
+const ManageRoadmap = React.lazy(
+  () => import('@/pages/admin/manageroadmap/ManageRoadmap')
+)
+const RoadmapListPage = React.lazy(
+  () => import('@/pages/Roadmap/RoadmapListPage')
+)
+const RoadmapDetailPage = React.lazy(
+  () => import('@/pages/Roadmap/RoadmapDetailPage')
+)
+const UserRoadmapsPage = React.lazy(
+  () => import('@/pages/Roadmap/UserRoadmapsPage')
+)
+const RoadmapSelectionPage = React.lazy(
+  () => import('@/pages/Roadmap/RoadmapSelectionPage')
+)
+const ManageLanguages = React.lazy(
+  () => import('@/pages/admin/language/ManageLanguages')
+)
 
 export const router = createBrowserRouter([
   {
