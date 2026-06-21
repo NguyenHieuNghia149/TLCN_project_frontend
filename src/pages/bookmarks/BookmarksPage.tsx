@@ -6,6 +6,8 @@ import LessonCard from '@/components/lesson/LessonCard'
 import ChallengeSearch from '@/components/challenge/ChallengeSearch'
 import LessonSearch from '@/components/lesson/LessonSearch'
 import { favoritesService } from '@/services/api/favorites.service'
+import { LearnedLessonService } from '@/services/api/learned-lesson.service'
+import { apiClient } from '@/config/axios.config'
 import { useAuth } from '@/hooks/api/useAuth'
 import { Trophy, Sparkles, Bookmark } from 'lucide-react'
 import type { Challenge } from '@/types/challenge.types'
@@ -18,6 +20,10 @@ const BookmarksPage: React.FC = () => {
   const [lessons, setLessons] = useState<Lesson[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
+  const [userRank, setUserRank] = useState<{
+    rank: number
+    rankingPoint: number
+  } | null>(null)
 
   // Challenge filters state
   const [challengeQuery, setChallengeQuery] = useState<string>('')
@@ -53,10 +59,12 @@ const BookmarksPage: React.FC = () => {
         setError(null)
 
         // Fetch both challenge and lesson favorites in parallel
-        const [challengesRes, lessonsRes] = await Promise.allSettled([
-          favoritesService.getFavorites(),
-          favoritesService.getLessonFavorites(),
-        ])
+        const [challengesRes, lessonsRes, completedLessonsRes] =
+          await Promise.allSettled([
+            favoritesService.getFavorites(),
+            favoritesService.getLessonFavorites(),
+            new LearnedLessonService().getCompletedLessons(),
+          ])
 
         // Handle challenges result
         let transformedChallenges: Challenge[] = []
@@ -87,10 +95,16 @@ const BookmarksPage: React.FC = () => {
           )
         }
 
-        // Handle lessons result
+        // Handle lessons result with learned status
         let transformedLessons: Lesson[] = []
-        if (lessonsRes.status === 'fulfilled') {
+        if (
+          lessonsRes.status === 'fulfilled' &&
+          completedLessonsRes.status === 'fulfilled'
+        ) {
           const favoriteLessons = lessonsRes.value?.data || []
+          const completedLessonIds = completedLessonsRes.value || []
+          const completedSet = new Set(completedLessonIds)
+
           transformedLessons = favoriteLessons
             .filter(data => {
               const passes = data && data.lesson && data.lesson.id
@@ -106,13 +120,22 @@ const BookmarksPage: React.FC = () => {
               createdAt: data.lesson.createdAt,
               updatedAt: data.lesson.updatedAt,
               isFavorite: true,
+              isLearned: completedSet.has(data.lesson.id),
             }))
             .filter(l => l.id)
         } else {
-          console.error(
-            '[BookmarksPage] Error fetching lessons:',
-            lessonsRes.reason
-          )
+          if (lessonsRes.status === 'rejected') {
+            console.error(
+              '[BookmarksPage] Error fetching lessons:',
+              lessonsRes.reason
+            )
+          }
+          if (completedLessonsRes.status === 'rejected') {
+            console.error(
+              '[BookmarksPage] Error fetching completed lessons:',
+              completedLessonsRes.reason
+            )
+          }
         }
 
         setChallenges(transformedChallenges)
@@ -126,6 +149,40 @@ const BookmarksPage: React.FC = () => {
 
     fetchFavorites()
   }, [isAuthenticated])
+
+  useEffect(() => {
+    let cancelled = false
+
+    if (!isAuthenticated || !user?.id) {
+      setUserRank(null)
+      return
+    }
+
+    setUserRank(null)
+    apiClient
+      .get(`/leaderboard/user/${user.id}`)
+      .then(response => {
+        const rank = Number(response.data?.data?.rank)
+        const rankingPoint = Number(response.data?.data?.rankingPoint)
+
+        if (
+          !cancelled &&
+          Number.isFinite(rank) &&
+          Number.isFinite(rankingPoint)
+        ) {
+          setUserRank({ rank, rankingPoint })
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setUserRank(null)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isAuthenticated, user?.id])
 
   const filtered = useMemo(() => {
     return challenges.filter(c => {
@@ -177,22 +234,18 @@ const BookmarksPage: React.FC = () => {
   }
 
   const rankDisplay = useMemo(() => {
-    if (!user || user.rank === undefined || user.rank === null) {
+    if (!userRank) {
       return '—'
     }
-    return new Intl.NumberFormat().format(user.rank)
-  }, [user])
+    return new Intl.NumberFormat().format(userRank.rank)
+  }, [userRank])
 
   const rankingPointDisplay = useMemo(() => {
-    if (
-      !user ||
-      user.rankingPoint === undefined ||
-      user.rankingPoint === null
-    ) {
+    if (!userRank) {
       return '—'
     }
-    return new Intl.NumberFormat().format(user.rankingPoint)
-  }, [user])
+    return new Intl.NumberFormat().format(userRank.rankingPoint)
+  }, [userRank])
 
   if (!isAuthenticated) {
     return (

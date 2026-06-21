@@ -15,7 +15,9 @@ export class LearnedLessonService {
   async checkLessonCompletion(lessonId: string): Promise<boolean> {
     try {
       const response = await apiClient.get(`/learned-lessons/check/${lessonId}`)
-      return response.data?.data?.isCompleted ?? false
+      return (
+        response.data?.data?.isCompleted ?? response.data?.isCompleted ?? false
+      )
     } catch (error) {
       console.error(`Error checking lesson completion for ${lessonId}:`, error)
       return false
@@ -28,7 +30,11 @@ export class LearnedLessonService {
   async getCompletedLessons(): Promise<string[]> {
     try {
       const response = await apiClient.get('/learned-lessons/user/completed')
-      return response.data?.data?.completedLessonIds ?? []
+      return (
+        response.data?.data?.completedLessonIds ??
+        response.data?.completedLessonIds ??
+        []
+      )
     } catch (error) {
       console.error('Error fetching completed lessons:', error)
       return []
@@ -36,14 +42,23 @@ export class LearnedLessonService {
   }
 
   /**
-   * Mark a lesson as completed
+   * Mark a lesson as completed.
+   * Pass roadmapId when coming from a specific roadmap so progress
+   * is only recorded for that roadmap (not all roadmaps containing the lesson).
    */
-  async markLessonAsCompleted(lessonId: string): Promise<boolean> {
+  async markLessonAsCompleted(
+    lessonId: string,
+    roadmapId?: string
+  ): Promise<boolean> {
     try {
-      const response = await apiClient.post('/learned-lessons/mark-completed', {
-        lessonId,
-      })
-      return response.data?.success ?? false
+      const body: Record<string, string> = { lessonId }
+      if (roadmapId) body.roadmapId = roadmapId
+
+      const response = await apiClient.post(
+        '/learned-lessons/mark-completed',
+        body
+      )
+      return response.data?.success ?? response.data?.data?.success ?? false
     } catch (error) {
       console.error(`Error marking lesson ${lessonId} as completed:`, error)
       return false

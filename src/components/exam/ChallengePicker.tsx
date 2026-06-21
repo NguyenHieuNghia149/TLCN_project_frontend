@@ -7,6 +7,7 @@ interface ChallengePickerProps {
   currentIndex: number
   onSelectChallenge: (index: number) => void
   onClose: () => void
+  mobile?: boolean
   totalPoints?: number // Total points for the exam
   onSubmitExam?: () => void // Callback for submitting exam
   yourScore?: number | null
@@ -17,6 +18,7 @@ const ChallengePicker: React.FC<ChallengePickerProps> = ({
   currentIndex,
   onSelectChallenge,
   onClose,
+  mobile = false,
   onSubmitExam,
   yourScore,
 }) => {
@@ -47,7 +49,11 @@ const ChallengePicker: React.FC<ChallengePickerProps> = ({
         onClick={onClose}
       />
       <div
-        className="fixed inset-y-0 right-0 z-50 w-full max-w-4xl border-l shadow-lg"
+        className={`fixed z-50 w-full shadow-lg ${
+          mobile
+            ? 'inset-x-0 bottom-0 h-[78vh] max-w-none rounded-t-2xl border-t'
+            : 'inset-y-0 right-0 max-w-4xl border-l'
+        }`}
         style={{
           backgroundColor: 'var(--exam-panel-bg)',
           borderColor: 'var(--surface-border)',

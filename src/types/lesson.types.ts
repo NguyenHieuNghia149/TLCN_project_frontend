@@ -8,6 +8,7 @@ export interface Lesson {
   createdAt: string
   updatedAt: string
   isFavorite?: boolean
+  isLearned?: boolean
 }
 
 export interface LessonResponse {

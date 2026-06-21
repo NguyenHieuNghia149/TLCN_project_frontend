@@ -41,7 +41,7 @@ const ChallengeCard: React.FC<Props> = ({ challenge, onFavoriteToggle }) => {
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 transition-colors hover:border-border/80 hover:bg-accent/10 hover:shadow-md">
+    <div className="group rounded-2xl border border-border/80 bg-card p-5 transition-all duration-200 hover:border-[#e2e8f0] hover:bg-[#f1f5f9] dark:hover:border-[#4c4f63] dark:hover:bg-[#353746]">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <h3 className="mb-1 text-lg font-semibold text-foreground">
@@ -66,7 +66,7 @@ const ChallengeCard: React.FC<Props> = ({ challenge, onFavoriteToggle }) => {
             disabled={isToggling}
             aria-label={isFavorite ? 'Unfavorite' : 'Favorite'}
             title={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
-            className="rounded p-1.5 transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded p-1.5 transition-all duration-200 hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
           >
             <span
               className={
@@ -80,7 +80,7 @@ const ChallengeCard: React.FC<Props> = ({ challenge, onFavoriteToggle }) => {
           {challenge.isSolved && (
             <button
               onClick={goToDetail}
-              className="inline-flex h-[36px] w-[150px] items-center justify-center rounded border border-border bg-secondary text-[14px] font-medium text-secondary-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-default disabled:opacity-90"
+              className="inline-flex h-[36px] w-[150px] items-center justify-center rounded border border-border bg-secondary text-[14px] font-medium text-secondary-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-default disabled:opacity-90 dark:border-transparent dark:bg-secondary dark:text-secondary-foreground"
             >
               <Check className="mr-2 h-4 w-4" />
               Solved
@@ -90,7 +90,7 @@ const ChallengeCard: React.FC<Props> = ({ challenge, onFavoriteToggle }) => {
           {!challenge.isSolved && (
             <button
               onClick={goToDetail}
-              className="inline-flex h-[36px] w-[150px] items-center justify-center rounded border border-transparent bg-primary text-[14px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-default disabled:opacity-90"
+              className="inline-flex h-[36px] w-[150px] items-center justify-center rounded border border-slate-300 bg-transparent text-[14px] font-medium text-foreground transition-colors hover:bg-slate-100 disabled:cursor-default disabled:opacity-90 dark:border-transparent dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90"
             >
               Solve Challenge
             </button>

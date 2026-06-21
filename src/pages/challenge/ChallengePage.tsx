@@ -98,25 +98,18 @@ const ChallengePage: React.FC = () => {
   }, [challenges, query, difficulties, showSolved, showFavorites])
 
   const rankDisplay = useMemo(() => {
-    // Prefer user.rank from auth session; fall back to topic-level rank returned by challenges endpoint
-    const value =
-      (user && typeof user.rank === 'number' ? user.rank : undefined) ??
-      (typeof rank === 'number' ? rank : undefined)
+    const value = typeof rank === 'number' ? rank : undefined
 
     if (value === undefined || value === null) return '—'
     return new Intl.NumberFormat().format(value)
-  }, [user, rank])
+  }, [rank])
 
   const rankingPointDisplay = useMemo(() => {
-    const value =
-      (user && typeof user.rankingPoint === 'number'
-        ? user.rankingPoint
-        : undefined) ??
-      (typeof rankingPoint === 'number' ? rankingPoint : undefined)
+    const value = typeof rankingPoint === 'number' ? rankingPoint : undefined
 
     if (value === undefined || value === null) return '—'
     return new Intl.NumberFormat().format(value)
-  }, [user, rankingPoint])
+  }, [rankingPoint])
 
   return (
     <div className="min-h-screen bg-background text-foreground">

@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import type { RootState } from '@/store/stores'
 import { setParticipation } from '@/store/slices/examSlice'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Clock, List, Sun, Moon } from 'lucide-react'
+import { Clock, List, Sun, Moon, AlertTriangle } from 'lucide-react'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import Button from '@/components/common/Button/Button'
 import { Exam } from '@/types/exam.types'
@@ -11,61 +11,94 @@ import ExamProblemSection from '@/components/problem/ExamProblemSection'
 import CodeEditorSection from '@/components/editor/CodeEditorSection'
 import ChallengePicker from '@/components/exam/ChallengePicker'
 import { ProblemDetailResponse } from '@/types/challenge.types'
-import { submissionsService } from '@/services/api/submissions.service'
-import type {
-  SupportedLanguage,
-  SandboxTestcaseResult,
-} from '@/types/submission.types'
-import type { TestCase, OutputState } from '@/types/editor.types'
-import { io, Socket } from 'socket.io-client'
+import { useLanguageDrafts } from '@/hooks/useLanguageDrafts'
+import { useLanguages } from '@/hooks/api/useLanguages'
+import { useSubmissionExecution } from '@/hooks/useSubmissionExecution'
+import type { SupportedLanguage } from '@/types/submission.types'
+import type { TestCase } from '@/types/editor.types'
 import './ExamChallengeDetail.scss'
+import {
+  buildSubmissionLanguageOptions,
+  DEFAULT_SUBMISSION_LANGUAGE,
+} from '@/constants/submissionLanguages'
 // mocks removed: use real API only
 import { examService } from '@/services/api/exam.service'
 import useAutosaveSession from '@/hooks/useAutosaveSession'
 import { useTheme } from '@/contexts/useTheme'
-import { normalizeSubmissionStatus } from '@/utils/submissionStatus'
+import { canResumeExamWorkspace } from './exam-workspace-access'
+import { computeExamRemainingSeconds } from './exam-countdown'
+import { useExamProctoring } from '@/hooks/useExamProctoring'
+import { submitExamWithFinalProctoringFlush } from './proctoringSubmit'
+import ProctoringCameraOverlay from './components/ProctoringCameraOverlay'
+import ProctoringFullscreenOverlay from './components/ProctoringFullscreenOverlay'
+import ProctoringPreviewWidget from './components/ProctoringPreviewWidget'
 
-const DEFAULT_CODE = `
-#include <iostream>
-using namespace std;
-
-int main() {
- 
-    return 0;
-}
-`
+type MobileWorkspacePanel = 'problem' | 'editor' | 'output' | 'challenges'
 
 const ExamChallengeDetail: React.FC = () => {
-  const { examId, challengeId } = useParams<{
-    examId: string
+  const {
+    examId: routeExamId,
+    examSlug,
+    challengeId,
+  } = useParams<{
+    examId?: string
+    examSlug?: string
     challengeId: string
   }>()
   const navigate = useNavigate()
+  const [resolvedExamId, setResolvedExamId] = useState<string | null>(
+    routeExamId || null
+  )
   const [exam, setExam] = useState<Exam | null>(null)
   const [problemData, setProblemData] = useState<
     ProblemDetailResponse['data'] | null
   >(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [joinBlockedReason, setJoinBlockedReason] = useState<string | null>(
+    null
+  )
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
   const [showTimeWarning, setShowTimeWarning] = useState(false)
+  const [showOneMinuteWarning, setShowOneMinuteWarning] = useState(false)
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false)
+  const [answeredChallengeIds, setAnsweredChallengeIds] = useState<Set<string>>(
+    new Set()
+  )
+  const submitConfirmDialogRef = useRef<HTMLDivElement | null>(null)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
   const [isJoined, setIsJoined] = useState(false)
   const [autosaveEnabled, setAutosaveEnabled] = useState(false)
   const [activeTab, setActiveTab] = useState<'question' | 'submissions'>(
     'question'
   )
-  const [selectedLanguage, setSelectedLanguage] = useState('C++')
-  const [code, setCode] = useState(DEFAULT_CODE)
-  const [output, setOutput] = useState<OutputState>({
-    status: 'idle',
-    message: 'Ready to run tests',
-  })
   const [selectedTestCase, setSelectedTestCase] = useState<string>('1')
   const [showChallengeList, setShowChallengeList] = useState(false)
   const [yourScore, setYourScore] = useState<number | null>(null)
   // const [yourPoints, setYourPoints] = useState<number | null>(null)
+  const [isMobileWorkspace, setIsMobileWorkspace] = useState(() =>
+    typeof window !== 'undefined'
+      ? window.matchMedia('(max-width: 1023px)').matches
+      : false
+  )
+  const [mobileWorkspacePanel, setMobileWorkspacePanel] =
+    useState<MobileWorkspacePanel>('problem')
 
   const [problemPanelWidth, setProblemPanelWidth] = useState(60)
+  const examWorkspaceBasePath = examSlug
+    ? `/exam/${examSlug}`
+    : resolvedExamId
+      ? `/exam/${resolvedExamId}`
+      : '/exam'
+  const { data: languages } = useLanguages()
+  const languageOptions = React.useMemo(
+    () => buildSubmissionLanguageOptions(languages),
+    [languages]
+  )
+  const activeLanguages = React.useMemo(
+    () => languageOptions.map(option => option.value),
+    [languageOptions]
+  )
   const dispatch = useDispatch()
   const reduxParticipationId = useSelector(
     (s: RootState) => s.exam?.currentParticipationId
@@ -73,12 +106,98 @@ const ExamChallengeDetail: React.FC = () => {
   const reduxStartAt = useSelector(
     (s: RootState) => s.exam?.currentParticipationStartAt
   )
+  const reduxExpiresAt = useSelector(
+    (s: RootState) => s.exam?.currentParticipationExpiresAt
+  )
+  const currentUserId = useSelector((s: RootState) => s.auth?.session?.user?.id)
+  const proctoring = useExamProctoring({
+    examSlug: examSlug ?? '',
+    participationId: reduxParticipationId,
+    userId: currentUserId,
+  })
+  const cameraBlocked = Boolean(
+    proctoring.settings?.enabled &&
+    proctoring.settings.requireCamera &&
+    reduxParticipationId &&
+    !proctoring.cameraActive
+  )
+  const mobileWorkspacePanelStorageKey =
+    resolvedExamId && reduxParticipationId
+      ? `exam_workspace_mobile_panel_${resolvedExamId}_${reduxParticipationId}`
+      : null
+
+  useEffect(() => {
+    if (!showSubmitConfirm) return
+
+    previousFocusRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null
+
+    const dialog = submitConfirmDialogRef.current
+    const focusableSelector =
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+
+    const getFocusableElements = () =>
+      dialog
+        ? Array.from(
+            dialog.querySelectorAll<HTMLElement>(focusableSelector)
+          ).filter(element => !element.hasAttribute('disabled'))
+        : []
+
+    const focusFirstControl = () => {
+      const firstFocusable = getFocusableElements()[0]
+      ;(firstFocusable ?? dialog)?.focus()
+    }
+
+    window.setTimeout(focusFirstControl, 0)
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setShowSubmitConfirm(false)
+        return
+      }
+
+      if (event.key !== 'Tab' || !dialog) return
+
+      const focusableElements = getFocusableElements()
+      if (focusableElements.length === 0) {
+        event.preventDefault()
+        dialog.focus()
+        return
+      }
+
+      const firstElement = focusableElements[0]
+      const lastElement = focusableElements[focusableElements.length - 1]
+
+      if (!dialog.contains(document.activeElement)) {
+        event.preventDefault()
+        firstElement.focus()
+        return
+      }
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault()
+        lastElement.focus()
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault()
+        firstElement.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      previousFocusRef.current?.focus()
+    }
+  }, [showSubmitConfirm])
 
   const refreshSubmissionData = useCallback(async () => {
-    if (!examId || !reduxParticipationId) return
+    if (!resolvedExamId || !reduxParticipationId) return
     try {
       const details = await examService.getSubmissionDetails(
-        examId,
+        resolvedExamId,
         reduxParticipationId
       )
       if (!details) return
@@ -112,7 +231,55 @@ const ExamChallengeDetail: React.FC = () => {
     } catch {
       // ignore refresh errors; UI will simply not update scores
     }
-  }, [examId, reduxParticipationId])
+  }, [resolvedExamId, reduxParticipationId])
+
+  const resolveSupportedLanguage = (
+    value?: string | null
+  ): SupportedLanguage => {
+    if (value && activeLanguages.includes(value)) {
+      return value
+    }
+    return activeLanguages[0] ?? DEFAULT_SUBMISSION_LANGUAGE
+  }
+
+  const editorStorageKey =
+    resolvedExamId && challengeId
+      ? `exam_${resolvedExamId}_challenge_${challengeId}_editor_state`
+      : undefined
+  const legacyCodeStorageKey =
+    resolvedExamId && challengeId
+      ? `exam_${resolvedExamId}_challenge_${challengeId}_code`
+      : undefined
+
+  const {
+    code,
+    selectedLanguage,
+    setSelectedLanguage,
+    onCodeChange,
+    onResetCurrentLanguage,
+    restoreDraft,
+  } = useLanguageDrafts({
+    storageKey: editorStorageKey,
+    legacyCodeStorageKey,
+    languages: activeLanguages,
+    starterCodeByLanguage: problemData?.problem.starterCodeByLanguage,
+  })
+
+  const testCases: TestCase[] =
+    problemData?.testcases.map((testCase, index) => ({
+      id: testCase.id,
+      name: `Case ${index + 1}`,
+      input: testCase.displayInput,
+      expectedOutput: testCase.displayOutput,
+      isPublic: testCase.isPublic,
+    })) || []
+
+  const { output, run, submit, resetOutput } = useSubmissionExecution({
+    testCases,
+    onSubmitCompleted: async () => {
+      await refreshSubmissionData()
+    },
+  })
   const splitPaneRef = useRef<HTMLDivElement | null>(null)
   const isDraggingSplitRef = useRef(false)
   const { theme, toggleTheme } = useTheme()
@@ -167,6 +334,53 @@ const ExamChallengeDetail: React.FC = () => {
     }
   }, [updateSplitFromClientX])
 
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 1023px)')
+    const onViewportChange = (event: MediaQueryListEvent) => {
+      setIsMobileWorkspace(event.matches)
+      if (!event.matches && showChallengeList) {
+        setShowChallengeList(false)
+      }
+    }
+
+    setIsMobileWorkspace(mediaQuery.matches)
+    mediaQuery.addEventListener('change', onViewportChange)
+    return () => mediaQuery.removeEventListener('change', onViewportChange)
+  }, [showChallengeList])
+
+  useEffect(() => {
+    if (!isMobileWorkspace || !mobileWorkspacePanelStorageKey) {
+      return
+    }
+
+    const storedPanel = window.localStorage.getItem(
+      mobileWorkspacePanelStorageKey
+    ) as MobileWorkspacePanel | null
+    if (
+      storedPanel === 'problem' ||
+      storedPanel === 'editor' ||
+      storedPanel === 'output'
+    ) {
+      setMobileWorkspacePanel(storedPanel)
+      return
+    }
+
+    setMobileWorkspacePanel('problem')
+  }, [isMobileWorkspace, mobileWorkspacePanelStorageKey])
+
+  useEffect(() => {
+    if (!isMobileWorkspace || !mobileWorkspacePanelStorageKey) {
+      return
+    }
+    if (mobileWorkspacePanel === 'challenges') {
+      return
+    }
+    window.localStorage.setItem(
+      mobileWorkspacePanelStorageKey,
+      mobileWorkspacePanel
+    )
+  }, [isMobileWorkspace, mobileWorkspacePanel, mobileWorkspacePanelStorageKey])
+
   const startDraggingSplit = (
     event: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>
   ) => {
@@ -182,13 +396,9 @@ const ExamChallengeDetail: React.FC = () => {
 
   const resetSplit = () => setProblemPanelWidth(60)
 
-  const pollTimerRef = useRef<number | null>(null)
   const countdownRef = useRef<number | null>(null)
   const prevChallengeIdRef = useRef<string | null>(null)
   const codeRef = useRef<string>(code)
-  const socketRef = useRef<Socket | null>(null)
-  const socketTimeoutRef = useRef<number | null>(null)
-  const isCompletedRef = useRef<boolean>(false)
 
   // Prepare autosave payload getter and hook
   const getPayload = useCallback(() => {
@@ -208,6 +418,15 @@ const ExamChallengeDetail: React.FC = () => {
   // Trigger autosave on code change (integrated in useAutosaveSession effect)
   useEffect(() => {
     if (!autosaveEnabled) return
+    // Track current challenge as "answered" when code is non-empty
+    if (challengeId && code.trim().length > 0) {
+      setAnsweredChallengeIds(prev => {
+        if (prev.has(challengeId)) return prev
+        const next = new Set(prev)
+        next.add(challengeId)
+        return next
+      })
+    }
   }, [code, autosaveEnabled, challengeId])
 
   // Flush pending autosave on unmount
@@ -252,8 +471,42 @@ const ExamChallengeDetail: React.FC = () => {
   }
 
   useEffect(() => {
+    if (routeExamId) {
+      setResolvedExamId(routeExamId)
+      return
+    }
+
+    if (!examSlug) {
+      setResolvedExamId(null)
+      return
+    }
+
+    let cancelled = false
+
+    const resolveExamIdFromSlug = async () => {
+      try {
+        const publicExam = await examService.getPublicExam(examSlug)
+        if (!cancelled) {
+          setResolvedExamId(publicExam.id)
+        }
+      } catch (err) {
+        console.error('Failed to resolve exam from slug', err)
+        if (!cancelled) {
+          setResolvedExamId(null)
+          setError('Failed to resolve exam')
+        }
+      }
+    }
+
+    void resolveExamIdFromSlug()
+    return () => {
+      cancelled = true
+    }
+  }, [examSlug, routeExamId])
+
+  useEffect(() => {
     const fetchData = async () => {
-      if (!challengeId || !examId) return
+      if (!challengeId || !resolvedExamId) return
       // If we already have loaded the same challenge, skip to prevent redundant fetches
       if (problemData && problemData.problem?.id === challengeId) {
         return
@@ -265,7 +518,7 @@ const ExamChallengeDetail: React.FC = () => {
 
         // Fetch exam basic info (to populate challenge list)
         try {
-          const apiExam = await examService.getExamById(examId)
+          const apiExam = await examService.getExamById(resolvedExamId)
           setExam(apiExam)
         } catch (apiErr) {
           console.error('Failed to fetch exam from API', apiErr)
@@ -276,71 +529,39 @@ const ExamChallengeDetail: React.FC = () => {
         // Fetch challenge details from exam endpoint (lazy load per challenge)
         try {
           const response = await examService.getExamChallenge(
-            examId,
+            resolvedExamId,
             challengeId
           )
-          if (response && response.data) {
-            const rawData = response.data as Record<string, unknown>
-            const formattedData = {
+          if (response && response.success) {
+            const challengeData = response.data
+            setProblemData({
               problem: {
-                id: rawData.id as string,
-                title: rawData.title as string,
+                id: challengeData.id,
+                title: challengeData.title,
                 description:
-                  (rawData.description as string) ||
-                  (rawData.content as string) ||
-                  '',
-                difficulty: rawData.difficulty as string as
-                  | 'easy'
-                  | 'medium'
-                  | 'hard',
-                topic: rawData.topic as string,
-                totalPoints: rawData.totalPoints as number,
-                constraint: rawData.constraint as string,
-                tags: (rawData.tags as string[]) || [],
-                orderIndex: rawData.orderIndex as number,
+                  challengeData.description || challengeData.content || '',
+                difficulty: challengeData.difficulty,
+                topic: challengeData.topic,
+                totalPoints: challengeData.totalPoints,
+                constraint: challengeData.constraint,
+                tags: challengeData.tags || [],
+                orderIndex: challengeData.orderIndex,
+                functionSignature: challengeData.functionSignature,
+                starterCodeByLanguage: challengeData.starterCodeByLanguage,
               },
-              testcases:
-                (rawData.testcases as Array<{
-                  id: string
-                  input: string
-                  output: string
-                  isPublic: boolean
-                  point: number
-                }>) || [],
-              solution: rawData.solution as
-                | {
-                    id: string
-                    title: string
-                    description: string
-                    videoUrl?: string
-                    imageUrl?: string
-                  }
-                | undefined,
-            }
-            setProblemData(
-              formattedData as unknown as ProblemDetailResponse['data']
-            )
-
-            // Always start with initial code first
-            const initialCode = (rawData.initialCode as string) || DEFAULT_CODE
-
-            // Check localStorage for saved code (F5 recovery)
-            try {
-              const storageKey = `exam_${examId}_challenge_${challengeId}_code`
-              const savedCode = localStorage.getItem(storageKey)
-              if (savedCode && savedCode !== DEFAULT_CODE) {
-                setCode(savedCode)
-              } else {
-                setCode(initialCode)
-              }
-            } catch (err) {
-              console.warn('Failed to restore code from localStorage:', err)
-              setCode(initialCode)
-            }
-
-            // Do NOT recover saved code here — saved code is restored via a separate effect that depends on reduxParticipationId.
-            // Do NOT persist current challenge id to localStorage for privacy/security.
-            // Keep current challenge in Redux only to avoid leaking session identifiers.
+              testcases: challengeData.testcases,
+              solution: challengeData.solution ?? {
+                id: 'no-solution',
+                title: 'No Solution',
+                description: '',
+                videoUrl: '',
+                imageUrl: '',
+                isVisible: false,
+                solutionApproaches: [],
+                createdAt: '',
+                updatedAt: '',
+              },
+            })
           } else {
             setError('Failed to load challenge')
             return
@@ -360,12 +581,12 @@ const ExamChallengeDetail: React.FC = () => {
     }
 
     fetchData()
-  }, [examId, challengeId, problemData])
+  }, [challengeId, problemData, resolvedExamId])
 
   // When participation becomes available, attempt to refresh per-problem data and recover saved code for the current challenge
   useEffect(() => {
     const runOnParticipantReady = async () => {
-      if (!reduxParticipationId || !examId || !challengeId) return
+      if (!reduxParticipationId || !resolvedExamId || !challengeId) return
       try {
         await refreshSubmissionData()
       } catch (err) {
@@ -377,13 +598,16 @@ const ExamChallengeDetail: React.FC = () => {
 
       try {
         const partData = await examService.getParticipation(
-          examId,
+          resolvedExamId,
           reduxParticipationId
         )
         const answers = partData?.currentAnswers || partData?.answers || {}
         const saved = answers?.[challengeId || '']
         if (saved && saved.sourceCode) {
-          setCode(saved.sourceCode)
+          restoreDraft(
+            resolveSupportedLanguage(saved.language),
+            saved.sourceCode
+          )
         }
       } catch (err) {
         console.warn(
@@ -394,23 +618,12 @@ const ExamChallengeDetail: React.FC = () => {
     }
 
     void runOnParticipantReady()
-  }, [reduxParticipationId, examId, challengeId, refreshSubmissionData])
+  }, [reduxParticipationId, resolvedExamId, challengeId, refreshSubmissionData])
 
   // keep latest code in ref for use in unload/save handlers
   useEffect(() => {
     codeRef.current = code
   }, [code])
-
-  // Save code to localStorage whenever it changes (for F5 persistence)
-  useEffect(() => {
-    if (!examId || !challengeId || !code) return
-    try {
-      const storageKey = `exam_${examId}_challenge_${challengeId}_code`
-      localStorage.setItem(storageKey, code)
-    } catch (err) {
-      console.warn('Failed to save code to localStorage:', err)
-    }
-  }, [code, examId, challengeId])
 
   // Save previous challenge's code when switching challenges
   useEffect(() => {
@@ -452,7 +665,7 @@ const ExamChallengeDetail: React.FC = () => {
       if (!participationId || !current) return
       try {
         const payload = JSON.stringify({
-          sessionId: participationId,
+          participationId,
           answers: {
             [current]: {
               sourceCode: codeRef.current,
@@ -460,7 +673,6 @@ const ExamChallengeDetail: React.FC = () => {
               updatedAt: new Date().toISOString(),
             },
           },
-          clientTimestamp: new Date().toISOString(),
         })
         if (typeof navigator !== 'undefined') {
           type BeaconNav = {
@@ -500,515 +712,137 @@ const ExamChallengeDetail: React.FC = () => {
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [challengeId, reduxParticipationId, selectedLanguage])
 
-  const clearPoll = () => {
-    if (pollTimerRef.current) {
-      window.clearInterval(pollTimerRef.current)
-      pollTimerRef.current = null
-    }
-  }
-
   useEffect(() => {
-    return () => clearPoll()
-  }, [])
-
-  const clearSocketTimeout = () => {
-    if (socketTimeoutRef.current) {
-      window.clearTimeout(socketTimeoutRef.current)
-      socketTimeoutRef.current = null
-    }
-  }
-
-  const ensureSocket = () => {
-    if (!socketRef.current) {
-      const socketUrl =
-        import.meta.env.REACT_APP_API_URL || 'https://api.algoforge.site'
-      socketRef.current = io(socketUrl, {
-        transports: ['websocket'],
-        withCredentials: true,
-      })
-    }
-    return socketRef.current
-  }
-
-  const leaveSubmissionRoom = (submissionId: string) => {
-    const s = socketRef.current
-    if (s) {
-      s.emit('leave_submission', { submissionId })
-    }
-  }
-
-  const normalizeStatus = (status?: string) => {
-    if (!status) return ''
-    const s = status.toUpperCase()
-    const map: Record<string, string> = {
-      PENDING: 'pending',
-      RUNNING: 'running',
-      ACCEPTED: 'accepted',
-      WRONG_ANSWER: 'wrong_answer',
-      TIME_LIMIT_EXCEEDED: 'time_limit_exceeded',
-      MEMORY_LIMIT_EXCEEDED: 'memory_limit_exceeded',
-      RUNTIME_ERROR: 'runtime_error',
-      COMPILATION_ERROR: 'compilation_error',
-      FAILED: 'failed',
-    }
-    return map[s] || status.toLowerCase()
-  }
-
-  const coerceResults = (
-    results?: unknown[],
-    testCasesArray: TestCase[] = []
-  ): SandboxTestcaseResult[] | undefined => {
-    if (!Array.isArray(results)) return undefined
-    type RawResult = Record<string, unknown>
-    const arr = results as RawResult[]
-    return arr.map((r: RawResult, idx: number) => {
-      // Determine index: prefer explicit index, then testcaseId lookup, fallback to array index
-      let index =
-        typeof r['index'] === 'number' ? (r['index'] as number) : undefined
-      if (
-        index === undefined &&
-        typeof r['testcaseId'] === 'string' &&
-        Array.isArray(testCasesArray)
-      ) {
-        const found = testCasesArray.findIndex(
-          tc => tc.id === (r['testcaseId'] as string)
-        )
-        if (found >= 0) index = found
-      }
-      if (index === undefined) index = idx
-
-      const input = (r['input'] as string) ?? (r['stdin'] as string) ?? ''
-      const expectedOutput =
-        (r['expectedOutput'] as string) ??
-        (r['expected'] as string) ??
-        (r['output'] as string) ??
-        ''
-      const actualOutput =
-        (r['actualOutput'] as string) ??
-        (r['actual'] as string) ??
-        (r['stdout'] as string) ??
-        ''
-      const ok =
-        typeof r['ok'] === 'boolean'
-          ? (r['ok'] as boolean)
-          : typeof r['isPassed'] === 'boolean'
-            ? (r['isPassed'] as boolean)
-            : !!(r['passed'] as boolean)
-      const stderr = (r['stderr'] as string) || (r['error'] as string) || ''
-      const executionTime =
-        (r['executionTime'] as number) ?? (r['time'] as number) ?? 0
-      const isPublic = (r as { isPublic?: boolean }).isPublic ?? true
-
-      return {
-        index,
-        input,
-        expectedOutput,
-        actualOutput,
-        ok,
-        stderr,
-        executionTime,
-        isPublic,
-      }
-    })
-  }
-
-  const languageToApi = (lang: string): SupportedLanguage => {
-    const l = lang.toLowerCase()
-    if (l === 'c++' || l === 'cpp') return 'cpp'
-    if (l === 'python') return 'python'
-    if (l === 'java') return 'java'
-    return 'javascript'
-  }
+    setSelectedTestCase('1')
+    resetOutput()
+  }, [challengeId, resetOutput])
 
   const handleRun = async () => {
     if (!problemData?.problem.id) return
-    setOutput({ status: 'running', message: 'Running tests...' })
-    try {
-      const participationIdToUse = reduxParticipationId || undefined
-      const payload = {
-        sourceCode: code,
-        language: languageToApi(selectedLanguage),
-        problemId: problemData.problem.id,
-        ...(participationIdToUse
-          ? { participationId: participationIdToUse }
-          : {}),
-      }
-      const data = await submissionsService.runCode(payload)
-      const submissionId = data.submissionId
-
-      // Reuse socket logic similar to handleSubmit but without DB polling
-      // Join socket room
-      const s = ensureSocket()
-      s.emit('join_submission', { submissionId })
-
-      const onUpdate = (update: {
-        submissionId?: string
-        status?: string
-        result?: {
-          passed?: number
-          total?: number
-          results?: Array<{
-            index: number
-            input: string
-            expected?: string
-            expectedOutput?: string
-            actual?: string
-            actualOutput?: string
-            ok: boolean
-            stderr?: string
-            executionTime?: number
-          }>
-        }
-      }) => {
-        if (!update || update.submissionId !== submissionId) return
-        clearSocketTimeout()
-
-        const normalized = normalizeStatus(update.status)
-        const isTerminal = [
-          'accepted',
-          'wrong_answer',
-          'time_limit_exceeded',
-          'memory_limit_exceeded',
-          'runtime_error',
-          'compilation_error',
-          'failed',
-        ].includes(normalized)
-
-        const allResults =
-          coerceResults(update.result?.results, testCases) || []
-        // Note: Exam challenge test cases usually hidden, but if public field exists use it
-        const publicResults = allResults.filter(
-          r => r.isPublic !== false && testCases[r.index]?.isPublic !== false
-        )
-        // Prefer sandbox summary when available
-        const passedCount = publicResults.filter(r => r.ok).length
-        const totalCount = publicResults.length
-
-        setOutput(prev => ({
-          status: isTerminal
-            ? normalized === 'accepted'
-              ? 'accepted'
-              : 'rejected'
-            : 'running',
-          message: isTerminal
-            ? normalized === 'accepted'
-              ? 'All test cases passed!'
-              : `Status: ${normalized}${
-                  typeof passedCount === 'number' &&
-                  typeof totalCount === 'number'
-                    ? ` • ${passedCount}/${totalCount}`
-                    : ''
-                }`
-            : typeof passedCount === 'number' && typeof totalCount === 'number'
-              ? `Running... ${passedCount}/${totalCount} passed`
-              : 'Running...',
-          passedTests: passedCount,
-          totalTests: totalCount,
-          results: publicResults.length ? publicResults : prev.results,
-          isSubmit: false,
-        }))
-
-        if (isTerminal) {
-          s.off('submission_update', onUpdate)
-          leaveSubmissionRoom(submissionId)
-        }
-      }
-
-      s.on('submission_update', onUpdate)
-
-      // Fallback timeout since we have no DB polling to rely on for ephemeral runs
-      clearSocketTimeout()
-      socketTimeoutRef.current = window.setTimeout(() => {
-        s.off('submission_update', onUpdate)
-        leaveSubmissionRoom(submissionId)
-        if (output.status === 'running') {
-          setOutput({
-            status: 'rejected',
-            message: 'Execution timed out (no response from server).',
-            error: 'Socket timeout',
-          })
-        }
-      }, 30000) // 30s timeout
-    } catch (err) {
-      setOutput({
-        status: 'rejected',
-        message:
-          (err as { message?: string }).message ||
-          'Run code failed. Please try again.',
-        error: (err as { message?: string }).message,
-      })
-    }
+    await run({
+      sourceCode: code,
+      language: selectedLanguage,
+      problemId: problemData.problem.id,
+      participationId: reduxParticipationId || undefined,
+    })
   }
 
   const handleSubmit = async () => {
     if (!problemData?.problem.id) return
-    setOutput({ status: 'running', message: 'Submitting...' })
-    try {
-      const participationIdToUse = reduxParticipationId || undefined
-      const payload = {
-        sourceCode: code,
-        language: languageToApi(selectedLanguage),
-        problemId: problemData.problem.id,
-        ...(participationIdToUse
-          ? { participationId: participationIdToUse }
-          : {}),
-      }
-      const create = await submissionsService.submitCode(payload)
-      const submissionId = create.submissionId
-
-      // Socket realtime updates
-      try {
-        const s = ensureSocket()
-        s.emit('join_submission', { submissionId })
-
-        const onUpdate = (update: {
-          submissionId?: string
-          status?: string
-          result?: {
-            passed?: number
-            total?: number
-            results?: Array<{
-              index: number
-              input: string
-              expected?: string
-              expectedOutput?: string
-              actual?: string
-              actualOutput?: string
-              ok: boolean
-              stderr?: string
-              executionTime?: number
-            }>
-          }
-        }) => {
-          if (!update || update.submissionId !== submissionId) return
-          clearSocketTimeout()
-          const normalized = normalizeStatus(update.status)
-          const isTerminal = [
-            'accepted',
-            'wrong_answer',
-            'time_limit_exceeded',
-            'memory_limit_exceeded',
-            'runtime_error',
-            'compilation_error',
-            'failed',
-          ].includes(normalized)
-          const allResults =
-            coerceResults(update.result?.results, testCases) || []
-          const publicResults = allResults.filter(
-            r => r.isPublic !== false && testCases[r.index]?.isPublic !== false
-          )
-
-          // Use ALL testcases count from backend for status consistency
-          // If backend doesn't provide summary, calculate from results
-          const allPassed =
-            update.result?.passed ?? allResults.filter(r => r.ok).length
-          const allTotal = update.result?.total ?? allResults.length
-          const uiStatus = normalizeSubmissionStatus(normalized)
-
-          setOutput(prev => ({
-            status: isTerminal
-              ? normalized === 'accepted'
-                ? 'accepted'
-                : 'rejected'
-              : 'running',
-            message: isTerminal
-              ? normalized === 'accepted'
-                ? 'You have successfully completed this problem!'
-                : `Status: ${normalized}${typeof allPassed === 'number' && typeof allTotal === 'number' ? ` • ${allPassed}/${allTotal}` : ''}`
-              : typeof allPassed === 'number' && typeof allTotal === 'number'
-                ? `Running... ${allPassed}/${allTotal} passed`
-                : 'Running...',
-            passedTests: allPassed,
-            totalTests: allTotal,
-            results: publicResults.length ? publicResults : prev.results,
-            isSubmit: true,
-            normalizedStatus: uiStatus,
-          }))
-          if (isTerminal) {
-            isCompletedRef.current = true
-            s.off('submission_update', onUpdate)
-            leaveSubmissionRoom(submissionId)
-            clearPoll()
-            // Refresh user's current session scores to update ChallengePicker
-            ;(async () => {
-              try {
-                await refreshSubmissionData()
-              } catch (err) {
-                console.warn(
-                  'Failed to refresh submission details after socket update',
-                  err
-                )
-              }
-            })()
-          }
-        }
-
-        s.on('submission_update', onUpdate)
-
-        // Fallback to polling if socket silent for 6s
-        clearSocketTimeout()
-        socketTimeoutRef.current = window.setTimeout(() => {
-          s.off('submission_update', onUpdate)
-          leaveSubmissionRoom(submissionId)
-        }, 6000)
-      } catch {
-        // ignore socket errors and rely on polling
-      }
-
-      const checkOnce = async () => {
-        try {
-          const detail = await submissionsService.getSubmission(submissionId)
-          const normalized = normalizeStatus(detail.status)
-          const terminal = [
-            'accepted',
-            'wrong_answer',
-            'time_limit_exceeded',
-            'memory_limit_exceeded',
-            'runtime_error',
-            'compilation_error',
-            'failed',
-          ]
-          if (terminal.includes(normalized)) {
-            const allResults =
-              coerceResults(detail.result?.results, testCases) || []
-            const publicResults = allResults.filter(
-              r =>
-                r.isPublic !== false && testCases[r.index]?.isPublic !== false
-            )
-
-            // Use ALL testcases count from backend for status consistency
-            // If backend doesn't provide summary, calculate from results
-            const allPassed =
-              detail.result?.passed ?? allResults.filter(r => r.ok).length
-            const allTotal = detail.result?.total ?? allResults.length
-            const uiStatus = normalizeSubmissionStatus(normalized)
-
-            setOutput({
-              status: normalized === 'accepted' ? 'accepted' : 'rejected',
-              message:
-                normalized === 'accepted'
-                  ? 'You have successfully completed this problem!'
-                  : `Status: ${normalized}. Passed ${allPassed}/${allTotal}`,
-              passedTests: allPassed,
-              totalTests: allTotal,
-              results: publicResults,
-              isSubmit: true,
-              normalizedStatus: uiStatus,
-            })
-            clearPoll()
-            try {
-              await refreshSubmissionData()
-            } catch (err) {
-              console.warn(
-                'Failed to refresh submission details after polling',
-                err
-              )
-            }
-            return true
-          } else {
-            const allResults =
-              coerceResults(detail.result?.results, testCases) || []
-            const publicResults = allResults.filter(
-              r =>
-                r.isPublic !== false && testCases[r.index]?.isPublic !== false
-            )
-
-            // Use ALL testcases count from backend
-            // If backend doesn't provide summary, calculate from results
-            const allPassed =
-              detail.result?.passed ?? allResults.filter(r => r.ok).length
-            const allTotal = detail.result?.total ?? allResults.length
-            const uiStatus = normalizeSubmissionStatus(normalized)
-
-            setOutput({
-              status: 'running',
-              message:
-                allPassed !== undefined && allTotal !== undefined
-                  ? `Running... ${allPassed}/${allTotal} passed`
-                  : 'Running...',
-              passedTests: allPassed,
-              totalTests: allTotal,
-              results: publicResults,
-              isSubmit: true,
-              normalizedStatus: uiStatus,
-            })
-            return false
-          }
-        } catch (e) {
-          const uiStatus = normalizeSubmissionStatus('failed')
-          setOutput({
-            status: 'rejected',
-            message:
-              (e as { message?: string }).message ||
-              'Failed to get submission status',
-            error: (e as { message?: string }).message,
-            isSubmit: true,
-            normalizedStatus: uiStatus,
-          })
-          clearPoll()
-          return true
-        }
-      }
-
-      // Poll every 2s until terminal status
-      clearPoll()
-      // Immediate fetch once so UI updates without initial delay
-      const finished = await checkOnce()
-      if (!finished && !isCompletedRef.current) {
-        pollTimerRef.current = window.setInterval(async () => {
-          const done = await checkOnce()
-          if (done) {
-            clearPoll()
-            isCompletedRef.current = true
-          }
-        }, 2000)
-      }
-    } catch (err) {
-      setOutput({
-        status: 'rejected',
-        message:
-          (err as { message?: string }).message ||
-          'Submit failed. Please try again.',
-        error: (err as { message?: string }).message,
-      })
-    }
+    await submit({
+      sourceCode: code,
+      language: selectedLanguage,
+      problemId: problemData.problem.id,
+      participationId: reduxParticipationId || undefined,
+    })
   }
 
   const handleReset = () => {
-    setCode(DEFAULT_CODE)
+    onResetCurrentLanguage()
+    resetOutput()
   }
 
-  const handleSubmitExam = useCallback(async () => {
-    if (
-      !window.confirm(
-        'Are you sure you want to submit the exam? This action cannot be undone.'
+  const handleWorkspaceCameraRequest = useCallback(async () => {
+    const ok = await proctoring.requestCamera()
+    if (!ok) {
+      proctoring.setError(
+        'Camera access was denied. Please allow camera access and try again.'
       )
-    ) {
-      return
     }
+    return ok
+  }, [proctoring])
 
-    try {
-      const participationId = reduxParticipationId
-      if (examId && participationId) {
-        await examService.submitExam(examId, participationId)
-        // Flush any pending autosave before navigating
-        try {
-          await flushAutosave()
-        } catch {
-          // ignore autosave flush errors on submit
-          void 0
-        }
-
-        // Clear participation from Redux since exam is completed
-        dispatch({ type: 'exam/clearParticipation' })
+  const handleSubmitExam = useCallback(
+    async (options?: { force?: boolean }) => {
+      if (
+        !options?.force &&
+        !window.confirm(
+          'Are you sure you want to submit the exam? This action cannot be undone.'
+        )
+      ) {
+        return
       }
-    } catch {
-      alert('Failed to submit exam. Please try again.')
-      return
-    } finally {
-      navigate(`/exam/${examId}/results`)
+
+      let submitted = false
+      try {
+        const participationId = reduxParticipationId
+        if (resolvedExamId && participationId) {
+          // Flush any pending autosave before navigating
+          try {
+            await flushAutosave()
+          } catch {
+            // ignore autosave flush errors on submit
+            void 0
+          }
+
+          if (examSlug && proctoring.proctoringRequired) {
+            await submitExamWithFinalProctoringFlush({
+              examSlug,
+              participationId,
+              finalFlush: proctoring.finalFlush,
+              submitExam: (slug, payload) =>
+                examService.submitExamBySlug(slug, payload),
+            })
+          } else {
+            await examService.submitExam(resolvedExamId, participationId)
+          }
+
+          // Stop all media streams after successful submission
+          proctoring.stopAllMedia()
+
+          // Clear participation from Redux since exam is completed
+          dispatch({ type: 'exam/clearParticipation' })
+          submitted = true
+        }
+      } catch {
+        if (!options?.force) {
+          alert('Failed to submit exam. Please try again.')
+        }
+        return
+      } finally {
+        if (submitted) {
+          navigate(
+            examSlug
+              ? `/exam/${examSlug}/results`
+              : `/exam/${resolvedExamId}/results`
+          )
+        }
+      }
+    },
+    [
+      dispatch,
+      examSlug,
+      flushAutosave,
+      navigate,
+      proctoring.finalFlush,
+      proctoring.proctoringRequired,
+      proctoring.stopAllMedia,
+      resolvedExamId,
+      reduxParticipationId,
+    ]
+  )
+
+  const proctoringRequiredRef = useRef(proctoring.proctoringRequired)
+  const reduxParticipationIdRef = useRef(reduxParticipationId)
+  const stopAllMediaRef = useRef(proctoring.stopAllMedia)
+
+  useEffect(() => {
+    proctoringRequiredRef.current = proctoring.proctoringRequired
+    reduxParticipationIdRef.current = reduxParticipationId
+    stopAllMediaRef.current = proctoring.stopAllMedia
+  }, [
+    proctoring.proctoringRequired,
+    reduxParticipationId,
+    proctoring.stopAllMedia,
+  ])
+
+  useEffect(() => {
+    return () => {
+      if (proctoringRequiredRef.current && reduxParticipationIdRef.current) {
+        stopAllMediaRef.current()
+      }
     }
-  }, [navigate, examId, reduxParticipationId, dispatch, flushAutosave])
+  }, [])
 
   // Initialize and manage countdown separately so hooks don't depend on `handleSubmitExam` definition order
   useEffect(() => {
@@ -1017,30 +851,59 @@ const ExamChallengeDetail: React.FC = () => {
     let cancelled = false
 
     const init = async () => {
-      const participationId = reduxParticipationId
+      let activeParticipationId = reduxParticipationId ?? null
       const startAtRaw = reduxStartAt
-      const totalSeconds = (exam.duration || 0) * 60
+      const expiresAtRaw = reduxExpiresAt
+      const resultPath = examSlug
+        ? `/exam/${examSlug}/results`
+        : `/exam/${resolvedExamId}/results`
+
+      const checkResumePermission = (input: {
+        status?: string | null
+        expiresAt?: string | number | null
+      }) =>
+        canResumeExamWorkspace({
+          participationStatus: input.status,
+          examEndDate: exam.endDate,
+          participationExpiresAt: input.expiresAt,
+        })
 
       // Check if user joined. If Redux lacks participation, try server-backed resume.
-      if (!participationId) {
+      if (!activeParticipationId) {
         try {
-          if (examId) {
-            const part = await examService.getMyParticipation(examId)
+          if (resolvedExamId) {
+            const part = await examService.getMyParticipation(resolvedExamId)
             const partId = part?.id || part?.participationId
+            const canResume = checkResumePermission({
+              status: part?.status,
+              expiresAt: part?.expiresAt || part?.expires_at,
+            })
+
+            if (partId && !canResume) {
+              dispatch({ type: 'exam/clearParticipation' })
+              navigate(resultPath, { replace: true })
+              return
+            }
             const serverStart =
               part?.startedAt ||
               part?.startAt ||
               part?.startTimestamp ||
               part?.startedAtMs
+            const serverExpires =
+              part?.expiresAt || part?.expires_at || part?.expires
             if (partId) {
+              activeParticipationId = partId
               const startAtValue = serverStart ?? Date.now()
               try {
                 dispatch(
                   setParticipation({
                     participationId: partId,
+                    examId: resolvedExamId,
                     startAt: startAtValue,
+                    expiresAt: serverExpires ?? null,
                   })
                 )
+                setJoinBlockedReason(null)
               } catch (e) {
                 console.warn(
                   'Failed to dispatch recovered participation to redux',
@@ -1049,10 +912,14 @@ const ExamChallengeDetail: React.FC = () => {
               }
               // proceed as joined
             } else {
+              setJoinBlockedReason(
+                'You must start the exam from the entry page.'
+              )
               setIsJoined(false)
               return
             }
           } else {
+            setJoinBlockedReason('Exam identifier is missing.')
             setIsJoined(false)
             return
           }
@@ -1063,95 +930,123 @@ const ExamChallengeDetail: React.FC = () => {
           return
         }
       } else {
-        // participation already present in Redux; continue with existing session
-        void 0
+        try {
+          if (resolvedExamId) {
+            const existing = await examService.getParticipation(
+              resolvedExamId,
+              activeParticipationId
+            )
+            const canResume = checkResumePermission({
+              status: existing?.status,
+              expiresAt: existing?.expiresAt || existing?.expires_at,
+            })
+            if (!canResume) {
+              dispatch({ type: 'exam/clearParticipation' })
+              navigate(resultPath, { replace: true })
+              return
+            }
+
+            const existingExpires =
+              existing?.expiresAt || existing?.expires_at || existing?.expires
+            if (existingExpires) {
+              dispatch(
+                setParticipation({
+                  participationId: activeParticipationId,
+                  expiresAt: existingExpires,
+                })
+              )
+            }
+          }
+        } catch (verificationError) {
+          console.warn(
+            'Failed to verify current participation status',
+            verificationError
+          )
+          setJoinBlockedReason('Unable to verify current exam session state.')
+          setIsJoined(false)
+          return
+        }
       }
 
       setIsJoined(true)
+      setJoinBlockedReason(null)
 
-      let startAtMs: number | null = null
-      if (startAtRaw) {
-        const asNumber = Number(startAtRaw)
-        if (!Number.isNaN(asNumber) && isFinite(asNumber)) {
-          startAtMs = asNumber
-        } else {
-          const parsed =
-            typeof startAtRaw === 'string'
-              ? Date.parse(startAtRaw)
-              : Number(startAtRaw)
-          if (!Number.isNaN(parsed)) startAtMs = parsed
-        }
-      } else {
-        // Try to recover session info from server if startAt missing
+      let effectiveStartAt: number | string | null = startAtRaw ?? null
+      let effectiveExpiresAt: number | string | null = expiresAtRaw ?? null
+
+      // Recover missing timing metadata from server so resume keeps the canonical countdown.
+      if (
+        (!effectiveStartAt || !effectiveExpiresAt) &&
+        resolvedExamId &&
+        activeParticipationId
+      ) {
         try {
-          if (examId && participationId) {
-            const partData = await examService.getParticipation(
-              examId,
-              participationId
-            )
-            const serverStart =
-              partData?.startedAt ||
-              partData?.startAt ||
-              partData?.startTimestamp ||
-              partData?.startedAtMs
+          const partData = await examService.getParticipation(
+            resolvedExamId,
+            activeParticipationId
+          )
+          const serverStart =
+            partData?.startedAt ||
+            partData?.startAt ||
+            partData?.startTimestamp ||
+            partData?.startedAtMs
+          const serverExpires =
+            partData?.expiresAt || partData?.expires_at || partData?.expires
+          const serverCurrentChallenge =
+            partData?.currentChallengeId || partData?.currentChallenge
+
+          if (serverStart) {
+            effectiveStartAt = serverStart
+          }
+          if (serverExpires) {
+            effectiveExpiresAt = serverExpires
+          }
+
+          if (serverStart || serverExpires || serverCurrentChallenge) {
+            const participationUpdate: {
+              participationId: string
+              startAt?: number | string | null
+              expiresAt?: number | string | null
+              currentChallengeId?: string | null
+            } = {
+              participationId: activeParticipationId,
+            }
+
             if (serverStart) {
-              // Persist recovered start into Redux only (in-memory, NOT localStorage)
-              try {
-                // ensure we pass null when undefined to match slice typing
-                dispatch(
-                  setParticipation({
-                    participationId: participationId ?? null,
-                    startAt:
-                      typeof serverStart === 'number'
-                        ? serverStart
-                        : Date.parse(String(serverStart)),
-                  })
-                )
-              } catch (err) {
-                console.warn(
-                  'Failed to dispatch recovered startAt to redux',
-                  err
-                )
-              }
-              // Do NOT persist recovered startAt to localStorage for privacy/security.
-              const asNumber = Number(serverStart)
-              if (!Number.isNaN(asNumber) && isFinite(asNumber)) {
-                startAtMs = asNumber
-              } else if (typeof serverStart === 'string') {
-                const parsed = Date.parse(serverStart)
-                if (!Number.isNaN(parsed)) startAtMs = parsed
-              }
+              participationUpdate.startAt = serverStart
             }
-            // recover current challenge id if server provides
-            const serverCurrentChallenge =
-              partData?.currentChallengeId || partData?.currentChallenge
+            if (serverExpires) {
+              participationUpdate.expiresAt = serverExpires
+            }
             if (serverCurrentChallenge) {
-              // Do NOT persist recovered currentChallengeId to localStorage for privacy/security.
-              try {
-                dispatch(
-                  setParticipation({
-                    participationId: participationId ?? null,
-                    startAt: serverStart ?? null,
-                    currentChallengeId: serverCurrentChallenge,
-                  })
-                )
-              } catch (e) {
-                console.warn(
-                  'Failed to dispatch recovered currentChallenge to redux',
-                  e
-                )
+              participationUpdate.currentChallengeId = serverCurrentChallenge
+            }
+
+            dispatch(setParticipation(participationUpdate))
+          }
+
+          // Track answered challenges for mini-nav indicators
+          const currentAns = partData?.currentAnswers || partData?.answers || {}
+          if (currentAns && typeof currentAns === 'object') {
+            const ids = new Set<string>()
+            for (const [cid, val] of Object.entries(currentAns)) {
+              const entry = val as { sourceCode?: string } | undefined
+              if (entry?.sourceCode && entry.sourceCode.trim().length > 0) {
+                ids.add(cid)
               }
             }
+            setAnsweredChallengeIds(ids)
           }
         } catch (e) {
           console.warn('Failed to recover participation from server', e)
         }
       }
 
-      const elapsed = startAtMs
-        ? Math.floor((Date.now() - startAtMs) / 1000)
-        : 0
-      let remaining = Math.max(0, totalSeconds - elapsed)
+      let remaining = computeExamRemainingSeconds({
+        startAt: effectiveStartAt,
+        expiresAt: effectiveExpiresAt,
+        durationMinutes: exam.duration || 0,
+      })
       if (cancelled) return
       setTimeRemaining(remaining)
 
@@ -1160,10 +1055,15 @@ const ExamChallengeDetail: React.FC = () => {
         setShowTimeWarning(true)
         setTimeout(() => setShowTimeWarning(false), 5000)
       }
+      // Check for 1 minute warning
+      if (remaining === 60) {
+        setShowOneMinuteWarning(true)
+        setTimeout(() => setShowOneMinuteWarning(false), 5000)
+      }
 
       // If time already up -> auto submit
       if (remaining <= 0) {
-        handleSubmitExam()
+        void handleSubmitExam({ force: true })
         return
       }
 
@@ -1177,12 +1077,17 @@ const ExamChallengeDetail: React.FC = () => {
           setShowTimeWarning(true)
           setTimeout(() => setShowTimeWarning(false), 5000)
         }
+        // Check for 1 minute warning
+        if (remaining === 60) {
+          setShowOneMinuteWarning(true)
+          setTimeout(() => setShowOneMinuteWarning(false), 5000)
+        }
         if (remaining <= 0) {
           if (countdownRef.current) {
             window.clearInterval(countdownRef.current)
             countdownRef.current = null
           }
-          handleSubmitExam()
+          void handleSubmitExam({ force: true })
         }
       }, 1000)
     }
@@ -1199,22 +1104,16 @@ const ExamChallengeDetail: React.FC = () => {
   }, [
     exam?.id,
     exam?.duration,
-    examId,
+    exam?.endDate,
+    examSlug,
+    resolvedExamId,
     handleSubmitExam,
     dispatch,
+    navigate,
     reduxParticipationId,
     reduxStartAt,
+    reduxExpiresAt,
   ])
-
-  // Convert API test cases to the format expected by CodeEditorSection
-  const testCases: TestCase[] =
-    problemData?.testcases.map((tc, index) => ({
-      id: tc.id,
-      name: `Case ${index + 1}`,
-      input: tc.input,
-      expectedOutput: tc.output,
-      isPublic: tc.isPublic,
-    })) || []
 
   if (loading) {
     return (
@@ -1245,10 +1144,11 @@ const ExamChallengeDetail: React.FC = () => {
       >
         <div className="text-center">
           <p className="mb-4" style={{ color: '#f59e0b' }}>
-            You must join the exam first before accessing challenges.
+            {joinBlockedReason ||
+              'You must join the exam first before accessing challenges.'}
           </p>
           <Button
-            onClick={() => navigate(`/exam/${examId}`)}
+            onClick={() => navigate(examWorkspaceBasePath)}
             variant="secondary"
             size="md"
           >
@@ -1273,7 +1173,7 @@ const ExamChallengeDetail: React.FC = () => {
             {error || 'Challenge not found'}
           </p>
           <Button
-            onClick={() => navigate(`/exam/${examId}`)}
+            onClick={() => navigate(examWorkspaceBasePath)}
             variant="secondary"
             size="md"
           >
@@ -1334,11 +1234,19 @@ const ExamChallengeDetail: React.FC = () => {
           </div>
           <div className="flex items-center gap-3">
             <div
-              className="flex items-center gap-2 rounded-lg px-3 py-2"
+              className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-all ${
+                timeRemaining !== null && timeRemaining <= 300
+                  ? 'exam-timer--critical'
+                  : timeRemaining !== null && timeRemaining <= 600
+                    ? 'exam-timer--warning'
+                    : 'exam-timer--normal'
+              }`}
               style={{
-                backgroundColor: 'var(--exam-toolbar-bg)',
                 border: '1px solid var(--surface-border)',
               }}
+              role="timer"
+              aria-live="polite"
+              aria-label={`Time remaining: ${timeRemaining !== null ? formatSeconds(timeRemaining) : 'calculating'}`}
             >
               <Clock size={16} style={{ color: 'var(--accent)' }} />
               <span className="text-sm" style={{ color: 'var(--muted-text)' }}>
@@ -1349,6 +1257,14 @@ const ExamChallengeDetail: React.FC = () => {
                     ? formatSeconds((exam.duration || 0) * 60)
                     : '00:00'}
               </span>
+              {timeRemaining !== null && timeRemaining <= 300 && (
+                <span
+                  className="text-xs font-semibold"
+                  style={{ color: 'var(--exam-danger)' }}
+                >
+                  Time running low
+                </span>
+              )}
               {/* {lastSavedAt && (
                 <div className="text-xs" style={{ color: 'var(--muted-text)', marginLeft: 8 }}>
                   Last saved: {formatTimeShort(lastSavedAt)}
@@ -1374,7 +1290,12 @@ const ExamChallengeDetail: React.FC = () => {
               )}
             </button>
             <Button
-              onClick={() => setShowChallengeList(true)}
+              onClick={() => {
+                if (isMobileWorkspace) {
+                  setMobileWorkspacePanel('challenges')
+                }
+                setShowChallengeList(true)
+              }}
               variant="secondary"
               size="sm"
               icon={<List size={16} />}
@@ -1382,83 +1303,322 @@ const ExamChallengeDetail: React.FC = () => {
             >
               View All Challenges
             </Button>
+            <Button
+              onClick={() => setShowSubmitConfirm(true)}
+              variant="secondary"
+              size="sm"
+              icon={<AlertTriangle size={16} />}
+              aria-label="Submit exam"
+              style={{
+                borderColor: 'var(--exam-danger)',
+                color: 'var(--exam-danger)',
+              }}
+            >
+              Submit Exam
+            </Button>
           </div>
+
+          {/* Mini challenge nav — desktop only */}
+          {!isMobileWorkspace &&
+            exam?.challenges &&
+            exam.challenges.length > 0 && (
+              <div
+                className="flex items-center gap-1 overflow-x-auto px-3 py-1.5"
+                style={{ scrollbarWidth: 'none' }}
+                role="tablist"
+                aria-label="Challenge navigation"
+              >
+                {exam.challenges.map((ch, index) => {
+                  const isCurrent = ch.id === challengeId
+                  const isAnswered = answeredChallengeIds.has(ch.id)
+                  return (
+                    <button
+                      key={ch.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={isCurrent}
+                      aria-label={`Challenge ${index + 1}${isAnswered ? ' (answered)' : ''}`}
+                      onClick={() => {
+                        navigate(
+                          `${examWorkspaceBasePath}${examSlug ? '/challenges' : '/challenge'}/${ch.id}`
+                        )
+                      }}
+                      className="relative flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-xs font-semibold transition-all"
+                      style={{
+                        backgroundColor: isCurrent
+                          ? 'var(--exam-accent)'
+                          : 'transparent',
+                        color: isCurrent ? '#fff' : 'var(--muted-text)',
+                        border: isCurrent
+                          ? 'none'
+                          : '1px solid var(--surface-border)',
+                      }}
+                    >
+                      {index + 1}
+                      {isAnswered && !isCurrent && (
+                        <span
+                          className="absolute -bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full"
+                          style={{ backgroundColor: 'var(--exam-success)' }}
+                        />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
         </div>
       </header>
 
-      {/* Main Content */}
-      <div
-        ref={splitPaneRef}
-        className="flex min-h-0 flex-1 flex-col lg:flex-row"
-        style={{ borderTop: '1px solid var(--surface-border)' }}
-      >
-        <div
-          className="flex h-full min-h-0 min-w-[280px] flex-col overflow-hidden lg:border-r"
-          style={{
-            borderColor: 'var(--surface-border)',
-            flexBasis: `${problemPanelWidth}%`,
-            maxWidth: `${problemPanelWidth}%`,
-          }}
-        >
-          <ExamProblemSection
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            problemData={problemData}
-          />
-        </div>
-
-        <div
-          className="hidden w-1 cursor-col-resize select-none lg:block"
-          style={{ backgroundColor: 'var(--surface-border)' }}
-          onMouseDown={startDraggingSplit}
-          onTouchStart={startDraggingSplit}
-          onDoubleClick={resetSplit}
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize panels"
-          tabIndex={-1}
+      {cameraBlocked ? (
+        <ProctoringCameraOverlay
+          onRequestCamera={handleWorkspaceCameraRequest}
         />
+      ) : null}
 
+      {!cameraBlocked && proctoring.fullscreenBlocked ? (
+        <ProctoringFullscreenOverlay
+          onRequestFullscreen={proctoring.onRequestFullscreen}
+        />
+      ) : null}
+
+      {!cameraBlocked &&
+      !proctoring.fullscreenBlocked &&
+      proctoring.screenShareBlocked ? (
         <div
-          className="flex h-full min-h-0 min-w-[320px] flex-1 overflow-hidden"
-          style={{
-            flexBasis: `${100 - problemPanelWidth}%`,
-            maxWidth: `${100 - problemPanelWidth}%`,
-          }}
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.72)' }}
+          role="alertdialog"
+          aria-modal="true"
+          aria-label="Screen share required for proctored exam"
         >
-          <CodeEditorSection
-            code={code}
-            onCodeChange={setCode}
-            selectedLanguage={selectedLanguage}
-            onLanguageChange={setSelectedLanguage}
-            testCases={testCases}
-            selectedTestCase={selectedTestCase}
-            onTestCaseSelect={setSelectedTestCase}
-            output={output}
-            onRun={handleRun}
-            onSubmit={handleSubmit}
-            onReset={handleReset}
-          />
+          <div
+            className="w-full max-w-md rounded-xl border p-6 text-center"
+            style={{
+              backgroundColor: 'var(--background-color)',
+              borderColor: 'var(--exam-danger)',
+              color: 'var(--text-color)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+            }}
+          >
+            <h2 className="text-lg font-semibold">
+              Screen share is required for this proctored exam.
+            </h2>
+            <p className="mt-2 text-sm" style={{ color: 'var(--muted-text)' }}>
+              The exam requires screen sharing. Please reshare your screen to
+              continue working.
+            </p>
+            <Button
+              type="button"
+              className="mt-5"
+              onClick={() => {
+                void proctoring.requestScreenShare()
+              }}
+            >
+              Reshare screen
+            </Button>
+          </div>
         </div>
-      </div>
+      ) : null}
+
+      {proctoring.settings?.enabled && reduxParticipationId ? (
+        <ProctoringPreviewWidget
+          cameraActive={proctoring.cameraActive}
+          fullscreenActive={proctoring.fullscreenActive}
+          screenShareActive={proctoring.screenShareActive}
+          cameraRequired={proctoring.settings?.requireCamera ?? false}
+          fullscreenRequired={proctoring.settings?.requireFullscreen ?? false}
+          screenShareRequired={proctoring.settings?.requireScreenShare ?? false}
+          cameraStream={proctoring.cameraStream}
+          onRequestCamera={handleWorkspaceCameraRequest}
+        />
+      ) : null}
+
+      {/* Main Content */}
+      {isMobileWorkspace ? (
+        <div
+          className="flex min-h-0 flex-1 flex-col"
+          style={{ borderTop: '1px solid var(--surface-border)' }}
+        >
+          <div
+            className="sticky top-[73px] z-20 flex gap-2 overflow-x-auto border-b px-3 py-2"
+            style={{
+              backgroundColor: 'var(--exam-panel-bg)',
+              borderColor: 'var(--surface-border)',
+            }}
+          >
+            {(
+              [
+                { key: 'problem', label: 'Problem' },
+                { key: 'editor', label: 'Editor' },
+                { key: 'output', label: 'Output' },
+                { key: 'challenges', label: 'Challenges' },
+              ] as Array<{ key: MobileWorkspacePanel; label: string }>
+            ).map(tab => (
+              <button
+                key={tab.key}
+                type="button"
+                className="rounded-xl border px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-all"
+                style={{
+                  borderColor:
+                    mobileWorkspacePanel === tab.key
+                      ? 'var(--exam-accent)'
+                      : 'var(--surface-border)',
+                  backgroundColor:
+                    mobileWorkspacePanel === tab.key
+                      ? 'var(--exam-accent-subtle)'
+                      : 'transparent',
+                  color:
+                    mobileWorkspacePanel === tab.key
+                      ? 'var(--exam-accent)'
+                      : 'var(--muted-text)',
+                }}
+                onClick={() => {
+                  setMobileWorkspacePanel(tab.key)
+                  if (tab.key === 'challenges') {
+                    setShowChallengeList(true)
+                  }
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-hidden">
+            {mobileWorkspacePanel === 'problem' ? (
+              <ExamProblemSection
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                problemData={problemData}
+              />
+            ) : null}
+
+            {mobileWorkspacePanel === 'editor' ||
+            mobileWorkspacePanel === 'output' ? (
+              <div className="flex h-full min-h-0 flex-col">
+                {mobileWorkspacePanel === 'output' ? (
+                  <div
+                    className="border-b px-3 py-2 text-xs"
+                    style={{
+                      borderColor: 'var(--surface-border)',
+                      color: 'var(--muted-text)',
+                    }}
+                  >
+                    Output is shown in the console area below the editor.
+                  </div>
+                ) : null}
+                <div className="min-h-0 flex-1">
+                  <CodeEditorSection
+                    code={code}
+                    onCodeChange={onCodeChange}
+                    selectedLanguage={selectedLanguage}
+                    onLanguageChange={setSelectedLanguage}
+                    languageOptions={languageOptions}
+                    testCases={testCases}
+                    selectedTestCase={selectedTestCase}
+                    onTestCaseSelect={setSelectedTestCase}
+                    output={output}
+                    onRun={handleRun}
+                    onSubmit={handleSubmit}
+                    onReset={handleReset}
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            {mobileWorkspacePanel === 'challenges' ? (
+              <div className="flex h-full items-center justify-center px-6 text-center text-sm text-slate-300">
+                Challenge list is opened as a bottom sheet.
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : (
+        <div
+          ref={splitPaneRef}
+          className="flex min-h-0 flex-1 flex-col lg:flex-row"
+          style={{ borderTop: '1px solid var(--surface-border)' }}
+        >
+          <div
+            className="flex h-full min-h-0 min-w-[280px] flex-col overflow-hidden lg:border-r"
+            style={{
+              borderColor: 'var(--surface-border)',
+              flexBasis: `${problemPanelWidth}%`,
+              maxWidth: `${problemPanelWidth}%`,
+            }}
+          >
+            <ExamProblemSection
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              problemData={problemData}
+            />
+          </div>
+
+          <div
+            className="hidden w-1 cursor-col-resize select-none lg:block"
+            style={{ backgroundColor: 'var(--surface-border)' }}
+            onMouseDown={startDraggingSplit}
+            onTouchStart={startDraggingSplit}
+            onDoubleClick={resetSplit}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize panels"
+            tabIndex={-1}
+          />
+
+          <div
+            className="flex h-full min-h-0 min-w-[320px] flex-1 overflow-hidden"
+            style={{
+              flexBasis: `${100 - problemPanelWidth}%`,
+              maxWidth: `${100 - problemPanelWidth}%`,
+            }}
+          >
+            <CodeEditorSection
+              code={code}
+              onCodeChange={onCodeChange}
+              selectedLanguage={selectedLanguage}
+              onLanguageChange={setSelectedLanguage}
+              languageOptions={languageOptions}
+              testCases={testCases}
+              selectedTestCase={selectedTestCase}
+              onTestCaseSelect={setSelectedTestCase}
+              output={output}
+              onRun={handleRun}
+              onSubmit={handleSubmit}
+              onReset={handleReset}
+            />
+          </div>
+        </div>
+      )}
 
       {showChallengeList &&
         exam &&
         exam.challenges &&
         exam.challenges.length > 0 && (
           <ChallengePicker
+            mobile={isMobileWorkspace}
             challenges={exam.challenges}
             currentIndex={
               exam.challenges.findIndex(c => c.id === challengeId) >= 0
                 ? exam.challenges.findIndex(c => c.id === challengeId)
                 : 0
             }
-            onClose={() => setShowChallengeList(false)}
+            onClose={() => {
+              setShowChallengeList(false)
+              if (isMobileWorkspace) {
+                setMobileWorkspacePanel('problem')
+              }
+            }}
             onSelectChallenge={index => {
               const selectedChallenge = exam.challenges[index]
               if (selectedChallenge) {
-                navigate(`/exam/${examId}/challenge/${selectedChallenge.id}`)
+                navigate(
+                  `${examWorkspaceBasePath}${examSlug ? '/challenges' : '/challenge'}/${selectedChallenge.id}`
+                )
                 setShowChallengeList(false)
+                if (isMobileWorkspace) {
+                  setMobileWorkspacePanel('problem')
+                }
               }
             }}
             // totalPoints={exam.challenges.reduce(
@@ -1470,6 +1630,127 @@ const ExamChallengeDetail: React.FC = () => {
             onSubmitExam={handleSubmitExam}
           />
         )}
+
+      {/* 1-minute warning modal */}
+      {showOneMinuteWarning && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+        >
+          <div
+            className="mx-4 w-full max-w-sm rounded-xl border p-6 text-center"
+            style={{
+              backgroundColor: 'var(--background-color)',
+              borderColor: 'var(--exam-danger)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+            }}
+            role="alertdialog"
+            aria-label="One minute warning"
+          >
+            <AlertTriangle
+              size={36}
+              style={{ color: 'var(--exam-danger)', margin: '0 auto' }}
+            />
+            <h2
+              className="mt-3 text-lg font-semibold"
+              style={{ color: 'var(--text-color)' }}
+            >
+              1 Minute Remaining
+            </h2>
+            <p className="mt-2 text-sm" style={{ color: 'var(--muted-text)' }}>
+              Your exam will be automatically submitted when time runs out.
+            </p>
+            <Button
+              onClick={() => setShowOneMinuteWarning(false)}
+              variant="secondary"
+              size="sm"
+              className="mt-4"
+            >
+              Dismiss
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Submit confirm modal */}
+      {showSubmitConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+        >
+          <div
+            ref={submitConfirmDialogRef}
+            className="mx-4 w-full max-w-sm rounded-xl border p-6 shadow-2xl"
+            style={{
+              backgroundColor: 'var(--background-color)',
+              borderColor: 'var(--exam-card-border)',
+            }}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="submit-confirm-title"
+            aria-describedby="submit-confirm-description"
+            tabIndex={-1}
+          >
+            <div className="text-center">
+              <AlertTriangle
+                size={36}
+                style={{ color: 'var(--exam-warning)', margin: '0 auto' }}
+              />
+              <h2
+                id="submit-confirm-title"
+                className="mt-3 text-lg font-semibold"
+                style={{ color: 'var(--text-color)' }}
+              >
+                Submit Exam?
+              </h2>
+              <p
+                id="submit-confirm-description"
+                className="mt-2 text-sm"
+                style={{ color: 'var(--muted-text)' }}
+              >
+                You have attempted {answeredChallengeIds.size}/
+                {exam?.challenges?.length || 0} challenges.
+                {timeRemaining !== null && exam?.duration && (
+                  <>
+                    {' '}
+                    Time spent:{' '}
+                    {Math.round((exam.duration * 60 - timeRemaining) / 60)}{' '}
+                    minutes.
+                  </>
+                )}
+              </p>
+              <p
+                className="mt-2 text-xs font-medium"
+                style={{ color: 'var(--exam-danger)' }}
+              >
+                This action cannot be undone.
+              </p>
+            </div>
+            <div className="mt-5 flex items-center justify-center gap-3">
+              <Button
+                type="button"
+                onClick={() => setShowSubmitConfirm(false)}
+                variant="secondary"
+                size="sm"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  setShowSubmitConfirm(false)
+                  void handleSubmitExam({ force: true })
+                }}
+                variant="primary"
+                size="sm"
+                style={{ backgroundColor: 'var(--exam-danger)' }}
+              >
+                Submit Now
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

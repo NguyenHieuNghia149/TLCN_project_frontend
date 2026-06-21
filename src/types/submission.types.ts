@@ -1,4 +1,19 @@
-export type SupportedLanguage = 'cpp' | 'python' | 'java' | 'javascript'
+export type SupportedLanguage = string
+
+export interface SubmissionStreamConnection {
+  onmessage: ((event: MessageEvent<string>) => void) | null
+  onerror: ((event: Event) => void) | null
+  close(): void
+}
+
+export interface SubmissionStreamPayload {
+  submissionId: string
+  status?: string
+  result?: SubmissionResultSummary
+  score?: number
+  isRunOnly?: boolean
+  message?: string
+}
 
 export interface SandboxTestcaseResult {
   index: number

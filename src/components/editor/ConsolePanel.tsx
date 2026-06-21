@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, memo, forwardRef } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import TestCasePanel from '../problem/TestCasePanel'
 import type { TestCase, OutputState } from '@/types/editor.types'
@@ -23,19 +23,22 @@ interface ConsolePanelProps {
   onSubmit: () => void
 }
 
-const ConsolePanel: React.FC<ConsolePanelProps> = ({
-  consoleExpanded,
-  onToggleConsole,
-  consoleHeight,
-  activeConsoleTab,
-  onConsoleTabChange,
-  testCases,
-  selectedTestCase,
-  onTestCaseSelect,
-  output,
-  onRun,
-  onSubmit,
-}) => {
+const ConsolePanelComponent = (
+  {
+    consoleExpanded,
+    onToggleConsole,
+    consoleHeight,
+    activeConsoleTab,
+    onConsoleTabChange,
+    testCases,
+    selectedTestCase,
+    onTestCaseSelect,
+    output,
+    onRun,
+    onSubmit,
+  }: ConsolePanelProps,
+  wrapperRef: React.Ref<HTMLDivElement>
+) => {
   const [selectedResultIndex, setSelectedResultIndex] = useState<number>(0)
   // Using stacked layout (no tabs)
 
@@ -52,16 +55,17 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
 
   return (
     <div
-      className="flex flex-col border-t transition-all duration-300"
+      ref={wrapperRef}
+      className="flex flex-col overflow-hidden border-t"
       style={{
         height: consoleExpanded ? consoleHeight || 320 : 110,
         backgroundColor: 'var(--exam-panel-bg)',
         borderColor: 'var(--surface-border)',
       }}
     >
-      {/* Header */}
+      {/* Header - fixed size, does not move */}
       <div
-        className="flex cursor-pointer items-center justify-between border-b px-4 py-3 transition-colors"
+        className="flex flex-shrink-0 cursor-pointer items-center justify-between border-b px-4 py-3 transition-colors"
         style={{ borderColor: 'var(--surface-border)' }}
         onClick={onToggleConsole}
         onMouseEnter={e => {
@@ -569,5 +573,9 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({
     </div>
   )
 }
+
+const ConsolePanel = memo(forwardRef(ConsolePanelComponent))
+
+ConsolePanel.displayName = 'ConsolePanel'
 
 export default ConsolePanel

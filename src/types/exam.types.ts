@@ -1,10 +1,18 @@
-import { ChallengeItem } from './challenge.types'
-import { User } from './auth.types'
+import type { User } from './auth.types'
+import type {
+  ChallengeItem,
+  Solution as ProblemSolution,
+  TestCase as ChallengeTestCase,
+} from './challenge.types'
+import type {
+  FunctionSignature,
+  StarterCodeByLanguage,
+} from './functionSignature.types'
 
 export interface Exam {
   id: string
   title: string
-  password?: string
+  slug?: string
   duration: number // in minutes
   challenges: ChallengeItem[]
   startDate: string // ISO datetime
@@ -12,18 +20,41 @@ export interface Exam {
   createdBy?: string // userId
   isVisible: boolean
   maxAttempts: number
+  status?: 'draft' | 'published' | 'archived' | 'cancelled'
+  accessMode?: 'open_registration' | 'invite_only' | 'hybrid'
+  attemptsUsed?: number
+  latestParticipationStatus?:
+    | 'IN_PROGRESS'
+    | 'SUBMITTED'
+    | 'EXPIRED'
+    | 'ABANDONED'
+    | null
+  hasInProgressParticipation?: boolean
+  hasCompletedParticipation?: boolean
+  selfRegistrationApprovalMode?: 'auto' | 'manual' | null
+  selfRegistrationPasswordRequired?: boolean
+  allowExternalCandidates?: boolean
+  registrationOpenAt?: string | null
+  registrationCloseAt?: string | null
   createdAt: string
   updatedAt?: string
 }
 
 export interface CreateExamPayload {
   title: string
-  password?: string
+  slug?: string
+  examPassword?: string
   duration: number
   startDate: string
   endDate: string
   isVisible: boolean
   maxAttempts: number
+  accessMode?: 'open_registration' | 'invite_only' | 'hybrid'
+  selfRegistrationApprovalMode?: 'auto' | 'manual' | null
+  selfRegistrationPasswordRequired?: boolean
+  allowExternalCandidates?: boolean
+  registrationOpenAt?: string | null
+  registrationCloseAt?: string | null
   challenges: Array<{
     type: 'existing' | 'new'
     challengeId: string
@@ -33,17 +64,346 @@ export interface CreateExamPayload {
 
 export interface UpdateExamPayload {
   title?: string
-  password?: string
+  slug?: string
+  examPassword?: string
   duration?: number
   startDate?: string
   endDate?: string
   isVisible?: boolean
   maxAttempts?: number
+  accessMode?: 'open_registration' | 'invite_only' | 'hybrid'
+  selfRegistrationApprovalMode?: 'auto' | 'manual' | null
+  selfRegistrationPasswordRequired?: boolean
+  allowExternalCandidates?: boolean
+  registrationOpenAt?: string | null
+  registrationCloseAt?: string | null
   challenges?: Array<{
     type: 'existing' | 'new'
     challengeId: string
     orderIndex?: number
   }>
+}
+
+export interface PublicExamLanding {
+  id: string
+  slug: string
+  title: string
+  status: 'draft' | 'published' | 'archived' | 'cancelled'
+  accessMode: 'open_registration' | 'invite_only' | 'hybrid'
+  startDate: string
+  endDate: string
+  registrationOpenAt: string | null
+  registrationCloseAt: string | null
+  duration: number
+  maxAttempts: number
+  challengeCount: number
+  allowExternalCandidates: boolean
+  selfRegistrationApprovalMode: 'auto' | 'manual' | null
+  selfRegistrationPasswordRequired: boolean
+  isRegistrationOpen: boolean
+  canUseInviteLink: boolean
+}
+
+export interface AdminExamParticipant {
+  id: string
+  examId: string
+  userId: string | null
+  mergedIntoParticipantId?: string | null
+  normalizedEmail: string
+  fullName: string
+  source: 'invite' | 'self_registration' | 'manual_add'
+  approvalStatus: 'pending' | 'approved' | 'rejected'
+  accessStatus:
+    | 'invited'
+    | 'eligible'
+    | 'active'
+    | 'revoked'
+    | 'completed'
+    | null
+  approvedBy: string | null
+  inviteSentAt: string | null
+  joinedAt: string | null
+  latestInviteId: string | null
+  latestInviteExpiresAt: string | null
+  latestEntrySessionId: string | null
+  latestEntrySessionStatus: 'opened' | 'eligible' | 'started' | 'expired' | null
+  latestParticipationId: string | null
+  latestParticipationStatus: string | null
+  attemptsUsed: number
+  canUseInviteLink: boolean
+  isMerged: boolean
+}
+
+export interface AdminExamParticipantDraft {
+  localId: string
+  userId?: string
+  email: string
+  fullName: string
+  source: 'manual_add' | 'invite'
+}
+
+export interface AdminUserLookupItem {
+  id: string
+  email: string
+  fullName: string
+  role: string
+}
+
+export interface ExamAccessState {
+  examId: string
+  participantId: string | null
+  entrySessionId: string | null
+  participationId: string | null
+  approvalStatus: 'pending' | 'approved' | 'rejected' | null
+  accessStatus:
+    | 'invited'
+    | 'eligible'
+    | 'active'
+    | 'revoked'
+    | 'completed'
+    | null
+  entrySessionStatus: 'opened' | 'eligible' | 'started' | 'expired' | null
+  canStart: boolean
+  examStartsAt: string
+  participationExpiresAt: string | null
+  requiresLogin: boolean
+  requiresOtp: boolean
+  requiresPassword: boolean
+}
+
+export type ProctoringDisplaySurface =
+  | 'monitor'
+  | 'window'
+  | 'browser'
+  | 'surface_unknown'
+
+export interface ProctoringSettings {
+  examId: string
+  enabled: boolean
+  requireCamera: boolean
+  requireScreenShare: boolean
+  requireFullscreen: boolean
+  requireMonitorDisplaySurface: boolean
+  precheckValiditySeconds: number
+  heartbeatIntervalSeconds: number
+  missedHeartbeatGraceMultiplier: number
+  screenShareResumeTimeoutSeconds: number
+  fullscreenResumeTimeoutSeconds: number
+  allowedEventTypesJson: string[]
+  riskWeightsJson: Record<string, number>
+  riskThresholdsJson: Record<string, number>
+  clipboardPolicy: 'log_only' | 'block' | 'ignore' | string
+  aiAnomalyEnabled: boolean
+  aiShadowMode: boolean
+  aiJobWindowSeconds: number
+  consentNoticeVersion: string
+  legalLinksJson: Record<string, string>
+  dataRetentionDays: number
+  dataDeletionSlaDays: number
+  sensitiveDataDeletionTargetHours: number
+}
+
+export interface ProctoringConsentRecord {
+  id: string
+  status: 'accepted' | 'withdrawn' | 'superseded'
+  acceptedAt?: string
+  withdrawnAt?: string | null
+}
+
+export interface ProctoringPrecheckRecord {
+  id: string
+  passed: boolean
+  expiresAt: string
+  failureReasonsJson?: string[]
+}
+
+export interface ProctoringBypassGrant {
+  bypassCodeId: string
+  status: 'issued' | 'used' | 'revoked' | 'expired'
+  expiresAt?: string
+}
+
+export interface ProctoringStartPayload {
+  clientSessionId: string
+  consentRecordId?: string
+  precheckId?: string
+  bypassCodeId?: string
+}
+
+export interface ProctoringSubmitPayload {
+  submitAttemptId: string
+  finalFlushReceiptId?: string
+}
+
+export interface ProctoringFinalFlushResponse {
+  receiptId?: string
+  finalFlushReceiptId?: string
+  status?: string
+}
+
+export interface ProctoringSocketTokenResponse {
+  token: string
+  expiresAt: string
+}
+
+export interface AdminUpdateProctoringSettingsPayload {
+  enabled?: boolean
+  requireCamera?: boolean
+  requireScreenShare?: boolean
+  requireFullscreen?: boolean
+  requireMonitorDisplaySurface?: boolean
+  clipboardPolicy?: 'log_only' | 'block' | 'ignore'
+  aiAnomalyEnabled?: boolean
+  aiShadowMode?: boolean
+  aiAdvisoryVisible?: boolean
+  llmSummaryEnabled?: boolean
+}
+
+export type AdminProctoringReviewDecision =
+  | 'pending'
+  | 'no_action'
+  | 'needs_re_review'
+  | 'refer_for_policy_review'
+
+export type AdminProctoringReviewLabelOutcome =
+  | 'no_action_needed'
+  | 'follow_up_required'
+  | 'policy_review_required'
+  | 'inconclusive'
+
+export type AdminProctoringEvidenceConfidence = 'low' | 'medium' | 'high'
+
+export interface AdminProctoringReviewLabelPayload {
+  reviewOutcome: AdminProctoringReviewLabelOutcome
+  evidenceConfidence: AdminProctoringEvidenceConfidence
+  notes?: string
+}
+
+export interface AiFeatureContribution {
+  featureName: string
+  numericValue: number
+  contribution: number
+  direction: 'increased_risk' | 'decreased_risk'
+  displayLabel: string
+}
+
+export interface AdminProctoringAiAdvisory {
+  visible: boolean
+  status: 'hidden_shadow_mode' | 'hidden_no_gate' | 'visible' | 'unavailable'
+  modelVersion?: string
+  featureSchemaVersion?: string
+  scoringSchemaVersion?: string
+  latestRiskLevel?: string
+  maxAnomalyScore?: number
+  windows: Array<{
+    windowId: string
+    windowStart: string | null
+    windowEnd: string | null
+    anomalyScore: number
+    riskLevel: string
+    explanationStatus: string
+    topContributors: AiFeatureContribution[]
+  }>
+}
+
+export interface AdminProctoringLlmSummary {
+  visible: boolean
+  status:
+    | 'hidden_disabled'
+    | 'pending'
+    | 'accepted'
+    | 'validation_failed'
+    | 'provider_failed'
+    | 'dead_letter'
+    | 'unavailable'
+  summaryId?: string
+  provider?: string
+  modelVersion?: string
+  judgeModelVersion?: string | null
+  promptVersion?: string
+  validationStatus?: string
+  validationScore?: number | null
+  summaryText?: string
+  riskFacts: Array<{
+    type: string
+    count: number
+    totalDurationMs: number
+    evidenceEventIds: string[]
+  }>
+  citations: Array<{ eventId: string; reason: string }>
+  missingDataNotes: string[]
+  modelNotes: string[]
+  completedAt?: string | null
+}
+
+export interface AdminProctoringReview {
+  summary: {
+    id: string
+    examId: string
+    participationId: string
+    riskScore: number
+    riskLevel: string
+    eventCountsJson: Record<string, number>
+    velocityJson: Record<string, unknown>
+    finalFlushStatus: string | null
+    deterministicSchemaVersion: string
+    computedAt: string | null
+    reviewerDecision: AdminProctoringReviewDecision | string
+    reviewerId: string | null
+    reviewerNotes: string | null
+    reviewedAt: string | null
+  } | null
+  timeline: {
+    items: Array<{
+      id: string
+      type: string
+      eventName: string
+      severity: string
+      clientSeq: number
+      capturedAt: string | null
+      receivedAt: string | null
+      finalFlushReceiptId: string | null
+      payloadJson: Record<string, unknown>
+    }>
+    total: number
+    limit: number
+    offset: number
+  }
+  evidence: {
+    consent: Array<Record<string, unknown>>
+    precheck: Array<Record<string, unknown>>
+    bypass: Array<Record<string, unknown>>
+    finalFlush: Array<Record<string, unknown>>
+    dataRequests: Array<Record<string, unknown>>
+  }
+  aiAdvisory?: AdminProctoringAiAdvisory
+  llmSummary?: AdminProctoringLlmSummary
+  reviewLabel?: {
+    id: string
+    reviewOutcome: AdminProctoringReviewLabelOutcome
+    evidenceConfidence: AdminProctoringEvidenceConfidence
+    notes: string | null
+    reviewerId: string
+    createdAt: string | null
+  } | null
+}
+
+export type ExamSyncStatus = 'active' | 'submitted' | 'expired'
+
+export interface ExamSessionSyncResponse {
+  synced: boolean
+  lastSyncedAt: string
+  participationExpiresAt: string
+  status: ExamSyncStatus
+}
+
+export interface ExamInviteResolution {
+  participantId: string
+  entrySessionId: string
+  requiresLogin: boolean
+  requiresOtp: boolean
+  maskedEmail: string
+  accessStatus: string
 }
 export interface ExamParticipation {
   id: string
@@ -61,6 +421,8 @@ export interface ExamParticipation {
   currentChallenge?: string // Alias
   currentAnswers?: Record<string, { sourceCode?: string; language?: string }> // Session answers
   answers?: Record<string, { sourceCode?: string; language?: string }> // Alias
+  scoreStatus?: 'pending' | 'scored' | 'failed'
+  scoredAt?: string | null
   totalScore: number
   submittedAt?: string
   status?: string // Add status property
@@ -84,20 +446,10 @@ export interface ExamChallengeData {
   constraint: string
   tags: string[]
   orderIndex: number
-  testcases: Array<{
-    id: string
-    input: string
-    output: string
-    isPublic: boolean
-    point: number
-  }>
-  solution?: {
-    id: string
-    title: string
-    description: string
-    videoUrl?: string
-    imageUrl?: string
-  }
+  functionSignature?: FunctionSignature | null
+  starterCodeByLanguage?: StarterCodeByLanguage | null
+  testcases: ChallengeTestCase[]
+  solution?: ProblemSolution
   initialCode?: string
 }
 
@@ -113,10 +465,16 @@ export interface ExamSubmission {
   user?: User // User details for display
   solutions?: ChallengeSolution[]
   totalScore: number
+  totalMaxScore?: number
   startedAt?: string
   submittedAt: string
   duration?: number // actual time spent in minutes
-  perProblem?: Array<{ problemId: string; obtained: number; maxPoints: number }>
+  perProblem?: Array<{
+    problemId: string
+    obtained: number
+    maxPoints: number
+    challengeTitle?: string
+  }>
   rank?: number
 }
 
@@ -126,6 +484,7 @@ export interface ChallengeSolution {
   code: string
   language: string
   score: number
+  maxPoints?: number
   results?: TestCaseResult[]
   submittedAt: string
 }
@@ -158,8 +517,10 @@ export interface ExamSubmissionDetailsResponse {
   success: boolean
   data: {
     totalScore: number
+    totalMaxScore?: number
     perProblem?: Array<{
       problemId: string
+      challengeTitle?: string
       obtained: number
       maxPoints: number
     }>

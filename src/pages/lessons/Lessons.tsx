@@ -148,6 +148,7 @@ const Index = () => {
         favoritesMap[lesson.id] !== undefined
           ? favoritesMap[lesson.id]
           : (lesson.isFavorite ?? false),
+      isLearned: lesson.isLearned ?? false,
       onToggleFavorite: () => handleToggleFavorite(lesson.id),
     }))
   }

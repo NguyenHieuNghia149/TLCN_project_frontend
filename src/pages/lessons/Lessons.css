@@ -391,6 +391,19 @@
   opacity: 0.9;
 }
 
+.course-button-learned {
+  background: rgba(34, 197, 94, 0.1);
+  color: rgb(34, 197, 94);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.course-button-learned:hover {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: rgba(34, 197, 94, 0.5);
+  box-shadow: 0 8px 20px rgba(34, 197, 94, 0.15);
+  opacity: 1;
+}
+
 /* Lessons Placeholder */
 .lessons-placeholder {
   text-align: center;
