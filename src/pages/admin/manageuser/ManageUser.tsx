@@ -12,16 +12,20 @@ import {
   Tooltip,
   Tag,
   DatePicker,
+  Popconfirm,
 } from 'antd'
 import type { TablePaginationConfig } from 'antd/es/table'
 import {
   PlusOutlined,
   EditOutlined,
-  DeleteOutlined,
   UserOutlined,
+  StopOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons'
 import { apiClient } from '@/config/axios.config'
 import dayjs from 'dayjs'
+import { BanUserModal } from '@/components/admin/BanUserModal'
+import { adminService } from '@/services/api/adminUser.service'
 
 interface ApiResponse {
   data?:
@@ -72,9 +76,13 @@ const ManageUser: React.FC = () => {
   })
   const [showForm, setShowForm] = useState<boolean>(false)
   const [editing, setEditing] = useState<UserItem | null>(null)
+  const [banModalVisible, setBanModalVisible] = useState<boolean>(false)
+  const [selectedUserForBan, setSelectedUserForBan] = useState<UserItem | null>(
+    null
+  )
   const [form] = Form.useForm()
 
-  const { modal, notification } = App.useApp()
+  const { notification } = App.useApp()
 
   const fetchUsers = React.useCallback(
     async (page: number = 1, pageSize: number = 10, search?: string) => {
@@ -170,41 +178,37 @@ const ManageUser: React.FC = () => {
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
-      status: user.status,
       gender: user.gender || undefined,
       dateOfBirth: user.dateOfBirth ? dayjs(user.dateOfBirth) : undefined,
     })
     setShowForm(true)
   }
 
-  const onDelete = (user: UserItem) => {
-    modal.confirm({
-      title: `Delete user ${user.name}?`,
-      content: 'This action cannot be undone.',
-      okText: 'Yes',
-      okType: 'danger',
-      cancelText: 'No',
-      onOk: async () => {
-        try {
-          await apiClient.delete(`/admin/users/${user.id}`)
-
-          notification.success({
-            message: 'Success',
-            description: 'User deleted successfully',
-            placement: 'topRight',
-          })
-          fetchUsers(pagination.current, pagination.pageSize, searchText)
-        } catch (error: unknown) {
-          const err = error as { response?: { data?: { message?: string } } }
-
-          notification.error({
-            message: 'Error',
-            description: err.response?.data?.message || 'Failed to delete user',
-            placement: 'topRight',
-          })
+  const handleToggleStatus = async (user: UserItem) => {
+    if (user.status === 'active') {
+      setSelectedUserForBan(user)
+      setBanModalVisible(true)
+    } else {
+      try {
+        await adminService.unbanUser(user.id)
+        notification.success({
+          message: 'Success',
+          description: 'User unbanned successfully',
+          placement: 'topRight',
+        })
+        fetchUsers(pagination.current, pagination.pageSize, searchText)
+      } catch (error: unknown) {
+        const err = error as {
+          response?: { data?: { error?: { message?: string } } }
         }
-      },
-    })
+        notification.error({
+          message: 'Error',
+          description:
+            err.response?.data?.error?.message || 'Failed to unban user',
+          placement: 'topRight',
+        })
+      }
+    }
   }
 
   const handleFormSubmit = async (values: {
@@ -222,7 +226,7 @@ const ManageUser: React.FC = () => {
         lastName: values.lastName,
         email: values.email,
         role: 'user',
-        status: values.status,
+        status: editing ? editing.status : 'active',
         gender: values.gender || undefined,
         dateOfBirth: values.dateOfBirth
           ? values.dateOfBirth.toISOString()
@@ -320,15 +324,30 @@ const ManageUser: React.FC = () => {
               onClick={() => onEdit(record)}
             />
           </Tooltip>
-          <Tooltip title="Delete">
-            <Button
-              type="primary"
-              danger
-              ghost
-              shape="circle"
-              icon={<DeleteOutlined />}
-              onClick={() => onDelete(record)}
-            />
+          <Tooltip title={record.status === 'active' ? 'Ban' : 'Unban'}>
+            {record.status === 'active' ? (
+              <Button
+                danger
+                type="primary"
+                ghost
+                shape="circle"
+                icon={<StopOutlined />}
+                onClick={() => handleToggleStatus(record)}
+              />
+            ) : (
+              <Popconfirm
+                title="Are you sure you want to unban this user?"
+                onConfirm={() => handleToggleStatus(record)}
+                okText="Yes"
+                cancelText="No"
+              >
+                <Button
+                  shape="circle"
+                  icon={<CheckCircleOutlined />}
+                  style={{ color: '#52c41a', borderColor: '#52c41a' }}
+                />
+              </Popconfirm>
+            )}
           </Tooltip>
         </Space>
       ),
@@ -400,14 +419,7 @@ const ManageUser: React.FC = () => {
         footer={null}
         width={600}
       >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleFormSubmit}
-          initialValues={{
-            status: 'active',
-          }}
-        >
+        <Form form={form} layout="vertical" onFinish={handleFormSubmit}>
           <Form.Item
             name="firstName"
             label="First Name"
@@ -447,17 +459,6 @@ const ManageUser: React.FC = () => {
             <DatePicker className="w-full" />
           </Form.Item>
 
-          <Form.Item
-            name="status"
-            label="Status"
-            rules={[{ required: true, message: 'Please select status' }]}
-          >
-            <Select>
-              <Select.Option value="active">Active</Select.Option>
-              <Select.Option value="banned">Banned</Select.Option>
-            </Select>
-          </Form.Item>
-
           {!editing && (
             <Form.Item
               name="password"
@@ -487,6 +488,24 @@ const ManageUser: React.FC = () => {
           </div>
         </Form>
       </Modal>
+
+      <BanUserModal
+        isOpen={banModalVisible}
+        userId={selectedUserForBan?.id}
+        userName={selectedUserForBan?.name}
+        onClose={() => {
+          setBanModalVisible(false)
+          setSelectedUserForBan(null)
+        }}
+        onSuccess={() => {
+          notification.success({
+            message: 'Success',
+            description: 'User banned successfully',
+            placement: 'topRight',
+          })
+          fetchUsers(pagination.current, pagination.pageSize, searchText)
+        }}
+      />
     </div>
   )
 }

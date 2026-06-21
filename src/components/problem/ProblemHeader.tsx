@@ -2,12 +2,15 @@ import React, { useEffect, useMemo, useState } from 'react'
 import {
   ChevronLeft,
   ChevronRight,
+  Moon,
   Pause,
   Play,
   RotateCcw,
+  Sun,
   User,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/api/useAuth'
+import { useTheme } from '@/contexts/useTheme'
 import { Link } from 'react-router-dom'
 
 interface ProblemHeaderProps {
@@ -30,6 +33,7 @@ const ProblemHeader: React.FC<ProblemHeaderProps> = ({
   navigationLoading = false,
 }) => {
   const { user, isAuthenticated } = useAuth()
+  const { theme, toggleTheme } = useTheme()
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0)
   const [paused, setPaused] = useState<boolean>(false)
 
@@ -66,12 +70,12 @@ const ProblemHeader: React.FC<ProblemHeaderProps> = ({
   }
 
   return (
-    <div className="flex items-center justify-between border-b border-gray-800 bg-black px-6 py-2">
+    <div className="flex items-center justify-between border-b border-border bg-card px-6 py-2">
       {/* Left: Logo + arrows */}
       <div className="flex items-center gap-3">
         <Link to="/dashboard" className="flex items-center space-x-2">
           <span className="text-2xl font-bold">
-            <span className="text-white">Algo</span>
+            <span className="text-foreground">Algo</span>
             <span className="text-[#20d761]">Forge</span>
           </span>
         </Link>
@@ -84,8 +88,8 @@ const ProblemHeader: React.FC<ProblemHeaderProps> = ({
           }
           className={`group relative inline-flex h-8 w-8 items-center justify-center rounded border text-sm transition-all duration-200 ${
             hasPrev && !navigationLoading
-              ? 'border-gray-700 bg-transparent text-gray-200 hover:scale-105 hover:bg-gray-800'
-              : 'cursor-not-allowed border-gray-800 bg-gray-900 text-gray-600'
+              ? 'border-border bg-transparent text-muted-foreground hover:scale-105 hover:bg-accent'
+              : 'cursor-not-allowed border-border bg-muted/50 text-muted-foreground'
           }`}
         >
           <ChevronLeft className="h-4 w-4" />
@@ -102,8 +106,8 @@ const ProblemHeader: React.FC<ProblemHeaderProps> = ({
           title={hasNext ? 'Go to next problem (Alt + →)' : 'No next problem'}
           className={`group relative inline-flex h-8 w-8 items-center justify-center rounded border text-sm transition-all duration-200 ${
             hasNext && !navigationLoading
-              ? 'border-gray-700 bg-green-500 text-black hover:scale-105 hover:bg-green-400'
-              : 'cursor-not-allowed border-gray-800 bg-gray-900 text-gray-600'
+              ? 'border-border bg-green-500 text-black hover:scale-105 hover:bg-green-400'
+              : 'cursor-not-allowed border-border bg-muted/50 text-muted-foreground'
           }`}
         >
           <ChevronRight className="h-4 w-4" />
@@ -120,7 +124,7 @@ const ProblemHeader: React.FC<ProblemHeaderProps> = ({
         <button
           onClick={togglePause}
           aria-label={paused ? 'Resume timer' : 'Pause timer'}
-          className="inline-flex h-9 w-9 items-center justify-center rounded border border-gray-700 bg-transparent text-gray-200 transition-colors hover:bg-gray-800"
+          className="inline-flex h-9 w-9 items-center justify-center rounded border border-border bg-transparent text-muted-foreground transition-colors hover:bg-accent"
         >
           {paused ? (
             <Play className="h-4 w-4" />
@@ -128,13 +132,13 @@ const ProblemHeader: React.FC<ProblemHeaderProps> = ({
             <Pause className="h-4 w-4" />
           )}
         </button>
-        <div className="select-none text-lg font-semibold text-white">
+        <div className="select-none text-lg font-semibold text-foreground">
           {formattedTime}
         </div>
         <button
           onClick={handleReset}
           aria-label="Reset problem"
-          className="inline-flex h-9 w-9 items-center justify-center rounded border border-gray-700 bg-transparent text-gray-200 transition-colors hover:bg-gray-800"
+          className="inline-flex h-9 w-9 items-center justify-center rounded border border-border bg-transparent text-muted-foreground transition-colors hover:bg-accent"
         >
           <RotateCcw className="h-4 w-4" />
         </button>
@@ -142,6 +146,19 @@ const ProblemHeader: React.FC<ProblemHeaderProps> = ({
 
       {/* Right: User info */}
       <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={toggleTheme}
+          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          className="inline-flex h-9 w-9 items-center justify-center rounded border border-border bg-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          {theme === 'dark' ? (
+            <Sun className="h-4 w-4" />
+          ) : (
+            <Moon className="h-4 w-4" />
+          )}
+        </button>
         {isAuthenticated && user ? (
           <>
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-r from-green-500 to-blue-500">
@@ -152,22 +169,22 @@ const ProblemHeader: React.FC<ProblemHeaderProps> = ({
                   className="h-8 w-8 rounded-full object-cover"
                 />
               ) : (
-                <User className="h-4 w-4 text-white" />
+                <User className="h-4 w-4 text-foreground" />
               )}
             </div>
             <div className="hidden sm:block">
-              <span className="text-sm font-medium text-gray-200">
+              <span className="text-sm font-medium text-muted-foreground">
                 {user.firstname} {user.lastname}
               </span>
-              <div className="text-xs text-gray-400">{user.email}</div>
+              <div className="text-xs text-muted-foreground">{user.email}</div>
             </div>
           </>
         ) : (
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-700">
-              <User className="h-4 w-4 text-gray-400" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+              <User className="h-4 w-4 text-muted-foreground" />
             </div>
-            <span className="hidden text-sm text-gray-400 sm:inline">
+            <span className="hidden text-sm text-muted-foreground sm:inline">
               Guest User
             </span>
           </div>

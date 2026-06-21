@@ -5,8 +5,8 @@
 /* Ranking Page Styles */
 .ranking-page {
   min-height: 100vh;
-  background: #0a0a0a;
-  color: #ffffff;
+  background: rgb(var(--background));
+  color: rgb(var(--foreground));
 }
 
 .ranking-container {
@@ -23,7 +23,7 @@
 .ranking-title {
   font-size: 3rem;
   font-weight: 800;
-  color: #ffffff;
+  color: rgb(var(--foreground));
   margin-bottom: 1rem;
   background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
   -webkit-background-clip: text;
@@ -33,7 +33,7 @@
 
 .ranking-subtitle {
   font-size: 1.25rem;
-  color: #9ca3af;
+  color: rgb(var(--muted-foreground));
   max-width: 600px;
   margin: 0 auto;
   line-height: 1.6;
@@ -55,22 +55,22 @@
 .search-input {
   width: 100%;
   padding: 0.875rem 1rem;
-  background: rgba(31, 41, 55, 0.6);
-  border: 1px solid rgba(55, 65, 81, 0.3);
+  background: rgb(var(--input));
+  border: 1px solid rgb(var(--border));
   border-radius: 8px;
-  color: #ffffff;
+  color: rgb(var(--foreground));
   font-size: 1rem;
   transition: all 0.2s ease;
 }
 
 .search-input::placeholder {
-  color: #9ca3af;
+  color: rgb(var(--muted-foreground));
 }
 
 .search-input:focus {
   outline: none;
   border-color: #fbbf24;
-  background: rgba(31, 41, 55, 0.8);
+  background: rgb(var(--input));
   box-shadow: 0 0 12px rgba(251, 191, 36, 0.2);
 }
 
@@ -86,8 +86,8 @@
 
 .pagination-btn {
   padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #ffffff;
+  background: rgb(var(--primary));
+  color: rgb(var(--primary-foreground));
   border: none;
   border-radius: 6px;
   font-weight: 600;
@@ -108,12 +108,12 @@
 .pagination-info {
   font-size: 1rem;
   font-weight: 600;
-  color: #9ca3af;
+  color: rgb(var(--muted-foreground));
 }
 
 .stat-card {
-  background: rgba(17, 24, 39, 0.6);
-  border: 1px solid rgba(55, 65, 81, 0.3);
+  background: rgb(var(--card));
+  border: 1px solid rgb(var(--border));
   border-radius: 16px;
   padding: 1.5rem;
   display: flex;
@@ -140,19 +140,19 @@
 .stat-value {
   font-size: 2rem;
   font-weight: 700;
-  color: #ffffff;
+  color: rgb(var(--foreground));
   margin-bottom: 0.25rem;
 }
 
 .stat-label {
   font-size: 0.875rem;
-  color: #9ca3af;
+  color: rgb(var(--muted-foreground));
 }
 
 /* Ranking Table */
 .ranking-table-container {
-  background: rgba(17, 24, 39, 0.6);
-  border: 1px solid rgba(55, 65, 81, 0.3);
+  background: rgb(var(--card));
+  border: 1px solid rgb(var(--border));
   border-radius: 16px;
   overflow: hidden;
   backdrop-filter: blur(10px);
@@ -163,14 +163,14 @@
   grid-template-columns: 80px 2fr 120px 120px 80px;
   gap: 1rem;
   padding: 1.5rem;
-  background: rgba(31, 41, 55, 0.5);
-  border-bottom: 1px solid rgba(55, 65, 81, 0.3);
+  background: rgb(var(--muted) / 0.5);
+  border-bottom: 1px solid rgb(var(--border));
   align-items: center;
 }
 
 .header-cell {
   font-weight: 600;
-  color: #9ca3af;
+  color: rgb(var(--muted-foreground));
   font-size: 0.875rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -205,7 +205,7 @@
 }
 
 .sortable-cell:hover {
-  color: #ffffff;
+  color: rgb(var(--foreground));
 }
 
 .sortable-cell.active {
@@ -227,13 +227,13 @@
   grid-template-columns: 80px 2fr 120px 120px 80px;
   gap: 1rem;
   padding: 1.5rem;
-  border-bottom: 1px solid rgba(55, 65, 81, 0.2);
+  border-bottom: 1px solid rgb(var(--border));
   transition: all 0.3s ease;
   cursor: pointer;
 }
 
 .ranking-row:hover {
-  background: rgba(31, 41, 55, 0.3);
+  background: rgb(var(--accent) / 0.5);
 }
 
 .ranking-row.current-user {
@@ -292,7 +292,7 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: rgba(55, 65, 81, 0.3);
+  background: rgb(var(--muted));
 }
 
 .rank-badge.gold {
@@ -322,13 +322,13 @@
 
 .rank-icon {
   font-size: 1.5rem;
-  color: #ffffff;
+  color: rgb(var(--foreground));
 }
 
 .rank-number {
   font-size: 1.25rem;
   font-weight: 900;
-  color: #ffffff;
+  color: rgb(var(--foreground));
   letter-spacing: -0.02em;
 }
 
@@ -377,7 +377,7 @@
 .user-name {
   font-size: 1rem;
   font-weight: 600;
-  color: #ffffff;
+  color: rgb(var(--foreground));
   margin-bottom: 0.25rem;
   white-space: nowrap;
   overflow: hidden;
@@ -386,7 +386,7 @@
 
 .user-email {
   font-size: 0.875rem;
-  color: #9ca3af;
+  color: rgb(var(--muted-foreground));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -396,7 +396,7 @@
   justify-content: center;
   font-size: 1rem;
   font-weight: 600;
-  color: #ffffff;
+  color: rgb(var(--foreground));
 }
 
 .success-rate {
@@ -409,7 +409,7 @@
 .rate-value {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #ffffff;
+  color: rgb(var(--foreground));
 }
 
 .rate-bar {
@@ -492,7 +492,7 @@
 .empty-state {
   text-align: center;
   padding: 4rem 2rem;
-  color: #9ca3af;
+  color: rgb(var(--muted-foreground));
 }
 
 /* Responsive Design */

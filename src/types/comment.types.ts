@@ -16,6 +16,12 @@ export interface Comment {
   parentCommentId?: string | null
   createdAt: string
   updatedAt: string
+  // Pin feature fields
+  isPinned?: boolean
+  pinnedByAdminId?: string | null
+  pinnedAt?: string | null
+  // Like feature field
+  likeCount?: number
 }
 
 export interface CommentWithUser {

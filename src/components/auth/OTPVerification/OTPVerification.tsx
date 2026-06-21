@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
+import { App as AntdApp } from 'antd'
 import { AppDispatch, RootState } from '../../../store/stores'
 import {
   sendOTP,
@@ -16,6 +17,7 @@ import './OTPVerification.css'
 const OTPVerification: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>()
   const navigate = useNavigate()
+  const { message } = AntdApp.useApp()
   const {
     isLoading,
     error,
@@ -98,6 +100,9 @@ const OTPVerification: React.FC = () => {
 
     if (registerUser.fulfilled.match(result)) {
       // Success - navigate to login
+      message.success(
+        'Registration successful! Please login with your credentials.'
+      )
       navigate('/login', {
         state: {
           message:

@@ -8,11 +8,26 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
-  darkMode: "class",
+  darkMode: ["class", '[data-theme="dark"]'],
   theme: {
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
     extend: {
       colors: {
+        border: "rgb(var(--border) / <alpha-value>)",
+        input: "rgb(var(--input) / <alpha-value>)",
+        ring: "rgb(var(--ring) / <alpha-value>)",
+        background: "rgb(var(--background) / <alpha-value>)",
+        foreground: "rgb(var(--foreground) / <alpha-value>)",
         primary: {
+          DEFAULT: "rgb(var(--primary) / <alpha-value>)",
+          foreground: "rgb(var(--primary-foreground) / <alpha-value>)",
+          // Legacy mapping
           50: '#eff6ff',
           100: '#dbeafe',
           200: '#bfdbfe',
@@ -24,31 +39,42 @@ export default {
           800: '#1e40af',
           900: '#1e3a8a',
           950: '#172554',
-          darkBg: "#0d0d16",
-          darkCard: "#1a1a27",
-          darkBorder: "#3f3f46",
-        }
-      }
+        },
+        secondary: {
+          DEFAULT: "rgb(var(--secondary) / <alpha-value>)",
+          foreground: "rgb(var(--secondary-foreground) / <alpha-value>)",
+        },
+        destructive: {
+          DEFAULT: "rgb(var(--destructive) / <alpha-value>)",
+          foreground: "rgb(var(--destructive-foreground) / <alpha-value>)",
+        },
+        muted: {
+          DEFAULT: "rgb(var(--muted) / <alpha-value>)",
+          foreground: "rgb(var(--muted-foreground) / <alpha-value>)",
+        },
+        accent: {
+          DEFAULT: "rgb(var(--accent) / <alpha-value>)",
+          foreground: "rgb(var(--accent-foreground) / <alpha-value>)",
+        },
+        popover: {
+          DEFAULT: "rgb(var(--popover) / <alpha-value>)",
+          foreground: "rgb(var(--popover-foreground) / <alpha-value>)",
+        },
+        card: {
+          DEFAULT: "rgb(var(--card) / <alpha-value>)",
+          foreground: "rgb(var(--card-foreground) / <alpha-value>)",
+          // Legacy mapping
+          dark: "#1a1a27" 
+        },
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
     },
   },
   plugins: [
-    {
-      handler: ({ addBase }) => {
-        addBase({
-          // Reset form input validation styles from @tailwindcss/forms
-          'input:valid, textarea:valid, select:valid': {
-            borderColor: 'inherit',
-            backgroundColor: 'inherit',
-            boxShadow: 'none',
-          },
-          'input:invalid, textarea:invalid, select:invalid': {
-            borderColor: 'inherit',
-            backgroundColor: 'inherit',
-            boxShadow: 'none',
-          },
-        })
-      },
-    },
     forms,
     typography,
     aspectRatio,

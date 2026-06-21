@@ -1,5 +1,12 @@
 import React, { useRef, useState, useEffect } from 'react'
-import { Clock, Star, Play, ChevronLeft, ChevronRight } from 'lucide-react'
+import {
+  Clock,
+  Star,
+  Play,
+  ChevronLeft,
+  ChevronRight,
+  Check,
+} from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 interface Course {
@@ -12,6 +19,7 @@ interface Course {
   gradient: string
   topicId?: string
   isFavorite?: boolean
+  isLearned?: boolean
   onToggleFavorite?: () => void
 }
 
@@ -161,16 +169,33 @@ const CategorySection: React.FC<CategorySectionProps> = ({
               </div>
 
               <div className="course-content">
-                <h3 className="course-title">{course.title}</h3>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <h3 className="course-title flex-1">{course.title}</h3>
+                  {course.isLearned && (
+                    <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-green-500/20 px-2 py-1 text-xs font-medium text-green-600">
+                      <Check className="h-3 w-3" />
+                      Learned
+                    </span>
+                  )}
+                </div>
                 <p className="course-description">{course.description}</p>
 
                 <div className="course-footer">
                   <button
-                    className="course-button"
+                    className={`course-button ${course.isLearned ? 'course-button-learned' : ''}`}
                     onClick={() => handleStartLesson(course.id)}
                   >
-                    <Play className="h-4 w-4" />
-                    <span>Start Lesson</span>
+                    {course.isLearned ? (
+                      <>
+                        <Check className="h-4 w-4" />
+                        <span>Learned</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-4 w-4" />
+                        <span>Start Lesson</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

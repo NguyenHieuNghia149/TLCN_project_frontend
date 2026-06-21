@@ -17,7 +17,7 @@ body {
   html,
   body {
     @apply m-0 h-full overflow-x-hidden p-0;
-    background: #121418;
+    background: rgb(var(--background));
     font-family:
       'Inter',
       -apple-system,
@@ -25,13 +25,13 @@ body {
       'Segoe UI',
       Roboto,
       sans-serif;
-    color: #e2e8f0;
+    color: rgb(var(--foreground));
   }
 }
 
 /* Base Layout */
 .lesson-detail-page {
-  background: #121418;
+  background: rgb(var(--background));
   padding: 2rem;
   display: flex;
   flex-direction: column;
@@ -48,13 +48,13 @@ body {
 .lesson-header {
   margin-bottom: 2rem;
   padding-bottom: 1.5rem;
-  border-bottom: 1px solid #334155;
+  border-bottom: 1px solid rgb(var(--border));
 }
 
 .lesson-title {
   font-size: 1.875rem;
   font-weight: 700;
-  color: #fff;
+  color: rgb(var(--foreground));
   margin-bottom: 0.5rem;
 }
 
@@ -62,7 +62,7 @@ body {
   display: flex;
   align-items: center;
   gap: 1rem;
-  color: #94a3b8;
+  color: rgb(var(--muted-foreground));
   font-size: 0.875rem;
 }
 
@@ -98,52 +98,52 @@ body {
 .lesson-content {
   font-size: 1rem;
   line-height: 1.8;
-  color: #e2e8f0;
+  color: rgb(var(--foreground));
 }
 
 .lesson-content h2 {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #fff;
+  color: rgb(var(--foreground));
   margin: 2rem 0 1rem;
 }
 
 .lesson-content p {
   margin-bottom: 1.25rem;
-  color: #cbd5e1;
+  color: rgb(var(--muted-foreground));
 }
 
 .lesson-content ul {
   margin-left: 1.5rem;
   list-style: disc;
-  color: #cbd5e1;
+  color: rgb(var(--muted-foreground));
 }
 
 .lesson-content code {
-  background: #1e293b;
+  background: rgb(var(--muted));
   padding: 0.2em 0.4em;
   border-radius: 0.25rem;
   font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
   font-size: 0.875em;
-  color: #93c5fd;
+  color: rgb(var(--primary));
 }
 
 /* Code Block */
 .code-block {
-  background: #1e293b;
-  border: 1px solid #334155;
+  background: rgb(var(--card));
+  border: 1px solid rgb(var(--border));
   border-radius: 0.5rem;
   margin: 1.5rem 0;
   overflow: hidden;
 }
 
 .code-header {
-  background: #334155;
-  border-bottom: 1px solid #475569;
+  background: rgb(var(--muted));
+  border-bottom: 1px solid rgb(var(--border));
   padding: 0.75rem 1rem;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #e2e8f0;
+  color: rgb(var(--foreground));
 }
 
 .code-content {
@@ -156,7 +156,7 @@ body {
   font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
   font-size: 0.875rem;
   line-height: 1.7;
-  color: #e2e8f0;
+  color: rgb(var(--foreground));
 }
 
 /* Challenge Section */
@@ -174,8 +174,8 @@ body {
   justify-content: center;
   gap: 0.75rem;
   padding: 1rem 2rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #ffffff;
+  background: rgb(var(--primary));
+  color: rgb(var(--primary-foreground));
   border: none;
   border-radius: 0.5rem;
   font-size: 1rem;

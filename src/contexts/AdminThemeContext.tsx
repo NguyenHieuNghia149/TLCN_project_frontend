@@ -62,11 +62,10 @@ export const AdminThemeProvider: React.FC<{ children: React.ReactNode }> = ({
               ? theme.darkAlgorithm
               : theme.defaultAlgorithm,
           token: {
-            colorBgContainer: adminTheme === 'dark' ? '#1f1f1f' : '#ffffff',
-            colorBgElevated: adminTheme === 'dark' ? '#141414' : '#ffffff',
-            colorBorder:
-              adminTheme === 'dark' ? 'rgba(255,255,255,0.1)' : '#e2e8f0',
-            colorText: adminTheme === 'dark' ? '#ffffff' : '#1a1a1a',
+            colorBgContainer: adminTheme === 'dark' ? '#1f202a' : '#ffffff',
+            colorBgElevated: adminTheme === 'dark' ? '#1f202a' : '#ffffff',
+            colorBorder: adminTheme === 'dark' ? '#27272a' : '#e2e8f0',
+            colorText: adminTheme === 'dark' ? '#f8fafc' : '#0f172a',
             colorTextSecondary: adminTheme === 'dark' ? '#94a3b8' : '#64748b',
           },
         }}

@@ -1,7 +1,16 @@
 @import './styles/base/globals.css';
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
 
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
@@ -29,6 +38,25 @@ html.dark {
   --accent: #20d761;
   --code-bg: rgba(255, 255, 255, 0.1);
 
+  /* Exam Design Tokens */
+  --exam-accent: #3b82f6;
+  --exam-accent-hover: #60a5fa;
+  --exam-accent-subtle: rgba(59, 130, 246, 0.1);
+  --exam-success: #4ade80;
+  --exam-success-subtle: rgba(74, 222, 128, 0.1);
+  --exam-warning: #fbbf24;
+  --exam-warning-subtle: rgba(251, 191, 36, 0.1);
+  --exam-danger: #f87171;
+  --exam-danger-subtle: rgba(248, 113, 113, 0.08);
+  --exam-muted: #9ca3af;
+  --exam-card-bg: rgba(255, 255, 255, 0.04);
+  --exam-card-border: rgba(255, 255, 255, 0.08);
+  --exam-card-hover-border: rgba(59, 130, 246, 0.25);
+  --exam-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --exam-timer-bg: rgba(59, 130, 246, 0.08);
+  --exam-timer-critical-bg: rgba(239, 68, 68, 0.12);
+  --exam-toolbar-bg: rgba(255, 255, 255, 0.06);
+
   color: #ffffff;
   background-color: #121418;
 }
@@ -49,8 +77,88 @@ html.light {
   --accent: #20d761;
   --code-bg: #e2e8f0;
 
+  /* Exam Design Tokens */
+  --exam-accent: #2563eb;
+  --exam-accent-hover: #1d4ed8;
+  --exam-accent-subtle: rgba(37, 99, 235, 0.08);
+  --exam-success: #16a34a;
+  --exam-success-subtle: rgba(22, 163, 74, 0.08);
+  --exam-warning: #d97706;
+  --exam-warning-subtle: rgba(217, 119, 6, 0.08);
+  --exam-danger: #dc2626;
+  --exam-danger-subtle: rgba(220, 38, 38, 0.06);
+  --exam-muted: #6b7280;
+  --exam-card-bg: #ffffff;
+  --exam-card-border: #e5e7eb;
+  --exam-card-hover-border: #bfdbfe;
+  --exam-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --exam-timer-bg: #f0f9ff;
+  --exam-timer-critical-bg: #fef2f2;
+  --exam-toolbar-bg: #f1f5f9;
+
   color: #213547;
   background-color: #f0f2f5;
+}
+
+/* ─── Exam Animations ─── */
+@keyframes exam-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes exam-pulse-danger {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes exam-score-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Timer states */
+.exam-timer--normal {
+  color: var(--exam-accent);
+  background: var(--exam-timer-bg);
+}
+
+.exam-timer--warning {
+  color: var(--exam-warning);
+  background: var(--exam-warning-subtle);
+}
+
+.exam-timer--critical {
+  animation: exam-pulse-danger 1.5s ease-in-out infinite;
+  color: var(--exam-danger);
+  background: var(--exam-timer-critical-bg);
+}
+
+/* Respect user motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .exam-timer--critical {
+    animation: none;
+  }
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 a {
@@ -76,15 +184,14 @@ h1 {
 }
 
 button {
-  border-radius: 8px;
+  border-radius: 12px;
   border: 1px solid transparent;
   padding: 0.6em 1.2em;
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: all 0.2s ease;
 }
 /* button:hover {
   border-color: #646cff;

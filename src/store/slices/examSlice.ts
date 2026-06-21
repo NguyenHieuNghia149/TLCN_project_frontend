@@ -14,6 +14,7 @@ const initialState: ExamState = {
   currentSubmission: null,
   // participation/session info for current exam
   currentParticipationId: null,
+  currentParticipationExamId: null,
   currentParticipationStartAt: null,
   currentParticipationExpiresAt: null,
   isLoading: false,
@@ -75,22 +76,38 @@ const examSlice = createSlice({
       state,
       action: PayloadAction<{
         participationId: string | null
+        examId?: string | null // NEW: Scope to exam
         startAt?: number | string | null
         expiresAt?: number | string | null
         // optional: the current challenge id for resume
         currentChallengeId?: string | null
       }>
     ) => {
-      state.currentParticipationId = action.payload.participationId
-      state.currentParticipationStartAt = action.payload.startAt ?? null
-      state.currentParticipationExpiresAt = action.payload.expiresAt ?? null
-      state.currentParticipationChallengeId =
-        action.payload.currentChallengeId ?? null
+      const payload = action.payload
+      state.currentParticipationId = payload.participationId
+
+      if ('examId' in payload) {
+        state.currentParticipationExamId = payload.examId ?? null
+      }
+
+      if ('startAt' in payload) {
+        state.currentParticipationStartAt = payload.startAt ?? null
+      }
+
+      if ('expiresAt' in payload) {
+        state.currentParticipationExpiresAt = payload.expiresAt ?? null
+      }
+
+      if ('currentChallengeId' in payload) {
+        state.currentParticipationChallengeId =
+          payload.currentChallengeId ?? null
+      }
       state.isLoading = false
     },
 
     clearParticipation: state => {
       state.currentParticipationId = null
+      state.currentParticipationExamId = null
       state.currentParticipationStartAt = null
       state.currentParticipationExpiresAt = null
       state.currentParticipationChallengeId = null
@@ -141,6 +158,7 @@ const examSlice = createSlice({
       state.statistics = null
       state.error = null
       state.currentParticipationId = null
+      state.currentParticipationExamId = null
       state.currentParticipationStartAt = null
       state.currentParticipationExpiresAt = null
       state.currentParticipationChallengeId = null
@@ -157,6 +175,7 @@ const examSlice = createSlice({
         state.statistics = null
         state.error = null
         state.currentParticipationId = null
+        state.currentParticipationExamId = null
         state.currentParticipationStartAt = null
         state.currentParticipationExpiresAt = null
         state.currentParticipationChallengeId = null

@@ -35,9 +35,13 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
 
     googleAuthService.initGoogleAuth()
 
-    const timer = setTimeout(() => {
+    const intervalRef = { current: null as NodeJS.Timeout | null }
+    let attempts = 0
+    const maxAttempts = 50 // 5 seconds total
+
+    const checkAndInit = () => {
       if (buttonRef.current && window.google?.accounts?.id) {
-        setIsGoogleLoaded(true)
+        if (intervalRef.current) clearInterval(intervalRef.current)
 
         try {
           const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
@@ -65,14 +69,35 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
             width: width || buttonRef.current.offsetWidth || 300,
             logo_alignment,
           })
+
+          // Mark as loaded ONLY after successful init and render
+          setIsGoogleLoaded(true)
         } catch (err) {
           setIsGoogleLoaded(false)
           onError?.(err as Error)
         }
+      } else {
+        attempts++
+        if (attempts >= maxAttempts) {
+          if (intervalRef.current) clearInterval(intervalRef.current)
+          console.warn('Google Sign-In script failed to load within timeout.')
+        }
       }
-    }, 500) // Increased delay to ensure Google API is loaded
+    }
 
-    return () => clearTimeout(timer)
+    // Check immediately first
+    checkAndInit()
+
+    // Then poll
+    intervalRef.current = setInterval(checkAndInit, 100)
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+      // Clean up Google One Tap/Button state on unmount
+      if (window.google?.accounts?.id) {
+        window.google.accounts.id.cancel()
+      }
+    }
   }, [onSuccess, onError, text, theme, size, width, logo_alignment, disabled])
 
   const getButtonText = () => {
@@ -133,7 +158,10 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
       <div
         ref={buttonRef}
         className={`google-button-native ${variant !== 'default' ? 'google-button-native--hidden' : ''}`}
-        style={{ opacity: isGoogleLoaded && variant === 'default' ? 1 : 0 }}
+        // If variant is default, we show it fully. If hidden (overlay), we let CSS handle opacity (0.01)
+        style={{
+          display: variant === 'default' && !isGoogleLoaded ? 'none' : 'flex',
+        }}
       />
 
       {/* Custom Modern Button */}
@@ -141,70 +169,10 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
         <button
           ref={customButtonRef}
           className={`google-button google-button--${variant} google-button--${theme}`}
-          onClick={async () => {
-            try {
-              // Wait for Google API and native button to be ready
-              await new Promise<void>((resolve, reject) => {
-                if (window.google?.accounts?.id && isGoogleLoaded) {
-                  resolve()
-                  return
-                }
-
-                const maxWait = 5000
-                const startTime = Date.now()
-                const checkInterval = setInterval(() => {
-                  if (window.google?.accounts?.id && isGoogleLoaded) {
-                    clearInterval(checkInterval)
-                    resolve()
-                  } else if (Date.now() - startTime > maxWait) {
-                    clearInterval(checkInterval)
-                    const currentOrigin = window.location.origin
-                    reject(
-                      new Error(
-                        `Google API failed to load. ` +
-                          `Please ensure "${currentOrigin}" is added to Authorized JavaScript origins in Google Cloud Console. ` +
-                          `Also check that VITE_GOOGLE_CLIENT_ID is set correctly in .env file.`
-                      )
-                    )
-                  }
-                }, 100)
-              })
-
-              // Trigger click on the native Google button
-              if (buttonRef.current) {
-                const nativeButton = buttonRef.current.querySelector(
-                  'div[role="button"]'
-                ) as HTMLElement
-                if (nativeButton) {
-                  nativeButton.click()
-                } else {
-                  // Fallback: try to find any clickable element in the native button container
-                  const clickableElement = buttonRef.current.querySelector(
-                    '*'
-                  ) as HTMLElement
-                  if (clickableElement) {
-                    clickableElement.click()
-                  } else {
-                    throw new Error(
-                      'Native Google button not found. Please refresh the page.'
-                    )
-                  }
-                }
-              } else {
-                throw new Error('Button container not found')
-              }
-            } catch (err) {
-              const error =
-                err instanceof Error
-                  ? err
-                  : new Error(
-                      'Google sign-in failed. Please check your configuration and Google Cloud Console settings.'
-                    )
-              onError?.(error)
-            }
-          }}
           disabled={disabled || !isGoogleLoaded}
           type="button"
+          // No onClick needed - The native button overlay captures the click!
+          tabIndex={-1} // Remove from tab order since native button handles it
         >
           <div className="google-button__icon">
             <GoogleIcon />

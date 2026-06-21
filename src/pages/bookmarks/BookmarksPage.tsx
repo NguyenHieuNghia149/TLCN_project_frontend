@@ -6,6 +6,8 @@ import LessonCard from '@/components/lesson/LessonCard'
 import ChallengeSearch from '@/components/challenge/ChallengeSearch'
 import LessonSearch from '@/components/lesson/LessonSearch'
 import { favoritesService } from '@/services/api/favorites.service'
+import { LearnedLessonService } from '@/services/api/learned-lesson.service'
+import { apiClient } from '@/config/axios.config'
 import { useAuth } from '@/hooks/api/useAuth'
 import { Trophy, Sparkles, Bookmark } from 'lucide-react'
 import type { Challenge } from '@/types/challenge.types'
@@ -18,6 +20,10 @@ const BookmarksPage: React.FC = () => {
   const [lessons, setLessons] = useState<Lesson[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
+  const [userRank, setUserRank] = useState<{
+    rank: number
+    rankingPoint: number
+  } | null>(null)
 
   // Challenge filters state
   const [challengeQuery, setChallengeQuery] = useState<string>('')
@@ -53,10 +59,12 @@ const BookmarksPage: React.FC = () => {
         setError(null)
 
         // Fetch both challenge and lesson favorites in parallel
-        const [challengesRes, lessonsRes] = await Promise.allSettled([
-          favoritesService.getFavorites(),
-          favoritesService.getLessonFavorites(),
-        ])
+        const [challengesRes, lessonsRes, completedLessonsRes] =
+          await Promise.allSettled([
+            favoritesService.getFavorites(),
+            favoritesService.getLessonFavorites(),
+            new LearnedLessonService().getCompletedLessons(),
+          ])
 
         // Handle challenges result
         let transformedChallenges: Challenge[] = []
@@ -87,10 +95,16 @@ const BookmarksPage: React.FC = () => {
           )
         }
 
-        // Handle lessons result
+        // Handle lessons result with learned status
         let transformedLessons: Lesson[] = []
-        if (lessonsRes.status === 'fulfilled') {
+        if (
+          lessonsRes.status === 'fulfilled' &&
+          completedLessonsRes.status === 'fulfilled'
+        ) {
           const favoriteLessons = lessonsRes.value?.data || []
+          const completedLessonIds = completedLessonsRes.value || []
+          const completedSet = new Set(completedLessonIds)
+
           transformedLessons = favoriteLessons
             .filter(data => {
               const passes = data && data.lesson && data.lesson.id
@@ -106,13 +120,22 @@ const BookmarksPage: React.FC = () => {
               createdAt: data.lesson.createdAt,
               updatedAt: data.lesson.updatedAt,
               isFavorite: true,
+              isLearned: completedSet.has(data.lesson.id),
             }))
             .filter(l => l.id)
         } else {
-          console.error(
-            '[BookmarksPage] Error fetching lessons:',
-            lessonsRes.reason
-          )
+          if (lessonsRes.status === 'rejected') {
+            console.error(
+              '[BookmarksPage] Error fetching lessons:',
+              lessonsRes.reason
+            )
+          }
+          if (completedLessonsRes.status === 'rejected') {
+            console.error(
+              '[BookmarksPage] Error fetching completed lessons:',
+              completedLessonsRes.reason
+            )
+          }
         }
 
         setChallenges(transformedChallenges)
@@ -126,6 +149,40 @@ const BookmarksPage: React.FC = () => {
 
     fetchFavorites()
   }, [isAuthenticated])
+
+  useEffect(() => {
+    let cancelled = false
+
+    if (!isAuthenticated || !user?.id) {
+      setUserRank(null)
+      return
+    }
+
+    setUserRank(null)
+    apiClient
+      .get(`/leaderboard/user/${user.id}`)
+      .then(response => {
+        const rank = Number(response.data?.data?.rank)
+        const rankingPoint = Number(response.data?.data?.rankingPoint)
+
+        if (
+          !cancelled &&
+          Number.isFinite(rank) &&
+          Number.isFinite(rankingPoint)
+        ) {
+          setUserRank({ rank, rankingPoint })
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setUserRank(null)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isAuthenticated, user?.id])
 
   const filtered = useMemo(() => {
     return challenges.filter(c => {
@@ -177,31 +234,27 @@ const BookmarksPage: React.FC = () => {
   }
 
   const rankDisplay = useMemo(() => {
-    if (!user || user.rank === undefined || user.rank === null) {
+    if (!userRank) {
       return '—'
     }
-    return new Intl.NumberFormat().format(user.rank)
-  }, [user])
+    return new Intl.NumberFormat().format(userRank.rank)
+  }, [userRank])
 
   const rankingPointDisplay = useMemo(() => {
-    if (
-      !user ||
-      user.rankingPoint === undefined ||
-      user.rankingPoint === null
-    ) {
+    if (!userRank) {
       return '—'
     }
-    return new Intl.NumberFormat().format(user.rankingPoint)
-  }, [user])
+    return new Intl.NumberFormat().format(userRank.rankingPoint)
+  }, [userRank])
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#121418] text-gray-100">
+      <div className="min-h-screen bg-background text-foreground">
         <div className="mx-auto max-w-7xl px-6 py-8">
-          <div className="rounded-lg border border-gray-800 bg-[#1f202a] p-8 text-center">
-            <Bookmark className="mx-auto mb-4 h-12 w-12 text-gray-500" />
+          <div className="rounded-lg border border-border bg-card p-8 text-center">
+            <Bookmark className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
             <h2 className="mb-2 text-xl font-semibold">Login Required</h2>
-            <p className="mb-4 text-gray-400">
+            <p className="mb-4 text-muted-foreground">
               Please login to view your bookmarks
             </p>
             <button
@@ -217,9 +270,9 @@ const BookmarksPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#121418] text-gray-100">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
-      <header className="border-b border-gray-800 bg-[#1f202a]">
+      <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div>
             <Breadcrumb
@@ -233,7 +286,7 @@ const BookmarksPage: React.FC = () => {
           <div className="text-right">
             {isAuthenticated && user ? (
               <div className="flex flex-col items-end gap-2">
-                <div className="text-xs text-gray-400">
+                <div className="text-xs text-muted-foreground">
                   Keep going—every challenge boosts your position.
                 </div>
                 <div className="flex items-center gap-2">
@@ -241,13 +294,13 @@ const BookmarksPage: React.FC = () => {
                   <div className="group relative overflow-hidden rounded-lg border border-emerald-500/30 bg-gradient-to-br from-emerald-500/5 to-transparent px-3 py-2 transition-all duration-300 hover:border-emerald-400/50 hover:shadow-md hover:shadow-emerald-500/20">
                     <div className="flex items-center gap-2">
                       <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 transition-transform duration-300 group-hover:scale-110">
-                        <Trophy className="h-4 w-4 text-emerald-400" />
+                        <Trophy className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                       </div>
                       <div>
-                        <div className="text-[10px] font-medium uppercase tracking-wider text-emerald-400/80">
+                        <div className="text-[10px] font-medium uppercase tracking-wider text-emerald-600/80 dark:text-emerald-400/80">
                           Rank
                         </div>
-                        <div className="text-lg font-bold leading-none text-white">
+                        <div className="text-lg font-bold leading-none text-foreground">
                           {rankDisplay}
                         </div>
                       </div>
@@ -258,13 +311,13 @@ const BookmarksPage: React.FC = () => {
                   <div className="group relative overflow-hidden rounded-lg border border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-transparent px-3 py-2 transition-all duration-300 hover:border-amber-400/50 hover:shadow-md hover:shadow-amber-500/20">
                     <div className="flex items-center gap-2">
                       <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-600/10 transition-transform duration-300 group-hover:scale-110">
-                        <Sparkles className="h-4 w-4 text-amber-400" />
+                        <Sparkles className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                       </div>
                       <div>
-                        <div className="text-[10px] font-medium uppercase tracking-wider text-amber-400/80">
+                        <div className="text-[10px] font-medium uppercase tracking-wider text-amber-600/80 dark:text-amber-400/80">
                           Points
                         </div>
-                        <div className="text-lg font-bold leading-none text-white">
+                        <div className="text-lg font-bold leading-none text-foreground">
                           {rankingPointDisplay}
                         </div>
                       </div>
@@ -294,12 +347,12 @@ const BookmarksPage: React.FC = () => {
               <section>
                 <h2 className="mb-4 text-2xl font-bold">Problems</h2>
                 {filtered.length === 0 ? (
-                  <div className="rounded-lg border border-gray-800 bg-[#1f202a] p-8 text-center">
-                    <Bookmark className="mx-auto mb-4 h-12 w-12 text-gray-500" />
+                  <div className="rounded-lg border border-border bg-card p-8 text-center">
+                    <Bookmark className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
                     <h3 className="mb-2 text-lg font-semibold">
                       No problem bookmarks yet
                     </h3>
-                    <p className="mb-4 text-gray-400">
+                    <p className="mb-4 text-muted-foreground">
                       Start bookmarking challenges to see them here
                     </p>
                     <button
@@ -326,12 +379,12 @@ const BookmarksPage: React.FC = () => {
               <section>
                 <h2 className="mb-4 text-2xl font-bold">Lessons</h2>
                 {filteredLessons.length === 0 ? (
-                  <div className="rounded-lg border border-gray-800 bg-[#1f202a] p-8 text-center">
-                    <Bookmark className="mx-auto mb-4 h-12 w-12 text-gray-500" />
+                  <div className="rounded-lg border border-border bg-card p-8 text-center">
+                    <Bookmark className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
                     <h3 className="mb-2 text-lg font-semibold">
                       No lesson bookmarks yet
                     </h3>
-                    <p className="mb-4 text-gray-400">
+                    <p className="mb-4 text-muted-foreground">
                       Start bookmarking lessons to see them here
                     </p>
                     <button
@@ -378,7 +431,7 @@ const BookmarksPage: React.FC = () => {
                       type="checkbox"
                       checked={difficulties.includes('easy')}
                       onChange={() => toggleDifficulty('easy')}
-                      className="h-4 w-4 rounded border-gray-700 bg-gray-800 text-green-500 focus:ring-0 focus:ring-offset-0"
+                      className="h-4 w-4 rounded border-border bg-input text-green-500 focus:ring-0 focus:ring-offset-0"
                     />
                     <span className="text-sm">Easy</span>
                   </label>
@@ -387,7 +440,7 @@ const BookmarksPage: React.FC = () => {
                       type="checkbox"
                       checked={difficulties.includes('medium')}
                       onChange={() => toggleDifficulty('medium')}
-                      className="h-4 w-4 rounded border-gray-700 bg-gray-800 text-green-500 focus:ring-0 focus:ring-offset-0"
+                      className="h-4 w-4 rounded border-border bg-input text-green-500 focus:ring-0 focus:ring-offset-0"
                     />
                     <span className="text-sm">Medium</span>
                   </label>
@@ -396,7 +449,7 @@ const BookmarksPage: React.FC = () => {
                       type="checkbox"
                       checked={difficulties.includes('hard')}
                       onChange={() => toggleDifficulty('hard')}
-                      className="h-4 w-4 rounded border-gray-700 bg-gray-800 text-green-500 focus:ring-0 focus:ring-offset-0"
+                      className="h-4 w-4 rounded border-border bg-input text-green-500 focus:ring-0 focus:ring-offset-0"
                     />
                     <span className="text-sm">Hard</span>
                   </label>
@@ -428,7 +481,7 @@ const BookmarksPage: React.FC = () => {
                           type="checkbox"
                           checked={topics.includes(topic)}
                           onChange={() => toggleTopic(topic)}
-                          className="h-4 w-4 rounded border-gray-700 bg-gray-800 text-blue-500 focus:ring-0 focus:ring-offset-0"
+                          className="h-4 w-4 rounded border-border bg-input text-blue-500 focus:ring-0 focus:ring-offset-0"
                         />
                         <span className="text-sm">{topic}</span>
                       </label>

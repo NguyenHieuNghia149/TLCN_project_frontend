@@ -1,27 +1,32 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ChevronDown,
-  RotateCcw,
-  Settings,
-  Maximize2,
-  Bug,
-  Copy,
   Check,
-  Sun,
-  Moon,
+  ChevronDown,
+  Copy,
+  Maximize2,
+  Minimize2,
+  RotateCcw,
 } from 'lucide-react'
-import MonacoEditorWrapper from './MonacoEditorWrapper'
-import ConsolePanel from './ConsolePanel'
-import type { TestCase, OutputState } from '@/types/editor.types'
-import { useTheme } from '@/contexts/useTheme'
 
-// Types moved to src/types/editor.types.ts
+import {
+  SUBMISSION_LANGUAGE_OPTIONS,
+  type LanguageOption,
+} from '@/constants/submissionLanguages'
+import { useTheme } from '@/contexts/useTheme'
+import type { OutputState, TestCase } from '@/types/editor.types'
+import type { SupportedLanguage } from '@/types/submission.types'
+
+import ConsolePanel from './ConsolePanel'
+import MonacoEditorWrapper from './MonacoEditorWrapper'
+
+import './CodeEditorSection.css'
 
 interface CodeEditorSectionProps {
   code: string
   onCodeChange: (code: string) => void
-  selectedLanguage: string
-  onLanguageChange: (language: string) => void
+  selectedLanguage: SupportedLanguage
+  onLanguageChange: (language: SupportedLanguage) => void
+  languageOptions?: LanguageOption[]
   testCases: TestCase[]
   selectedTestCase: string
   onTestCaseSelect: (testCaseId: string) => void
@@ -29,16 +34,18 @@ interface CodeEditorSectionProps {
   onRun: () => void
   onSubmit: () => void
   onReset: () => void
-  autosaveStatus?: 'idle' | 'saving' | 'saved' | 'error'
 }
 
-const LANGUAGES = ['C++']
+const DEFAULT_FONT_SIZE = 16
+const MIN_FONT_SIZE = 13
+const MAX_FONT_SIZE = 20
 
 const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
   code,
   onCodeChange,
   selectedLanguage,
   onLanguageChange,
+  languageOptions,
   testCases,
   selectedTestCase,
   onTestCaseSelect,
@@ -46,349 +53,416 @@ const CodeEditorSection: React.FC<CodeEditorSectionProps> = ({
   onRun,
   onSubmit,
   onReset,
-  autosaveStatus,
 }) => {
   const [copied, setCopied] = useState(false)
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false)
   const [consoleExpanded, setConsoleExpanded] = useState(false)
   const [consoleHeight, setConsoleHeight] = useState<number>(280)
-  const containerRef = useRef<HTMLDivElement | null>(null)
-  const { theme: appTheme } = useTheme()
-  const [editorTheme, setEditorTheme] = useState<'dark' | 'light'>(
-    appTheme === 'dark' ? 'dark' : 'light'
-  )
-
-  useEffect(() => {
-    setEditorTheme(appTheme === 'dark' ? 'dark' : 'light')
-  }, [appTheme])
-
-  const startResizeConsole = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      e.preventDefault()
-      e.stopPropagation()
-      const startY = e.clientY
-      const startHeight = consoleHeight
-      const containerEl = containerRef.current
-      const containerRect = containerEl?.getBoundingClientRect()
-      const maxHeight = containerRect
-        ? Math.max(120, Math.floor(containerRect.height * 0.9))
-        : 600
-
-      const onMove = (ev: MouseEvent) => {
-        const delta = startY - ev.clientY
-        const next = Math.min(maxHeight, Math.max(120, startHeight + delta))
-        setConsoleHeight(next)
-        if (!consoleExpanded) setConsoleExpanded(true)
-      }
-      const onUp = () => {
-        window.removeEventListener('mousemove', onMove)
-        window.removeEventListener('mouseup', onUp)
-      }
-      window.addEventListener('mousemove', onMove)
-      window.addEventListener('mouseup', onUp)
-    },
-    [consoleHeight, consoleExpanded]
-  )
   const [activeConsoleTab, setActiveConsoleTab] = useState<
     'testcase' | 'output'
   >('testcase')
+  const [wordWrap, setWordWrap] = useState<'on' | 'off'>('on')
+  const [fontSize, setFontSize] = useState(DEFAULT_FONT_SIZE)
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
-  const handleCopyCode = () => {
-    navigator.clipboard.writeText(code)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const consolePanelRef = useRef<HTMLDivElement | null>(null)
+  const isDraggingRef = useRef(false)
+  const dragStartYRef = useRef(0)
+  const dragStartHeightRef = useRef(0)
+  const rafIdRef = useRef<number | null>(null)
+  const pendingHeightRef = useRef<number | null>(null)
+  const { theme: appTheme } = useTheme()
+
+  const availableLanguageOptions =
+    languageOptions && languageOptions.length > 0
+      ? languageOptions
+      : SUBMISSION_LANGUAGE_OPTIONS
+
+  const selectedLanguageOption = useMemo(
+    () =>
+      availableLanguageOptions.find(
+        option => option.value === selectedLanguage
+      ) ?? availableLanguageOptions[0],
+    [availableLanguageOptions, selectedLanguage]
+  )
+
+  useEffect(() => {
+    if (!isFullscreen) {
+      return undefined
+    }
+
+    const originalOverflow = document.body.style.overflow
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsFullscreen(false)
+      }
+    }
+
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.body.style.overflow = originalOverflow
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isFullscreen])
+
+  // Setup resize listeners ONCE
+  useEffect(() => {
+    const containerElement = containerRef.current
+    if (!containerElement) return
+
+    const handleMouseMove = (event: MouseEvent) => {
+      if (!isDraggingRef.current) return
+      event.preventDefault()
+
+      const containerRect = containerElement.getBoundingClientRect()
+      const maxHeight = Math.max(120, Math.floor(containerRect.height * 0.9))
+      const delta = dragStartYRef.current - event.clientY
+      const nextHeight = Math.min(
+        maxHeight,
+        Math.max(120, dragStartHeightRef.current + delta)
+      )
+      pendingHeightRef.current = nextHeight
+
+      // Throttle updates with RAF - update DOM directly to avoid re-renders
+      if (rafIdRef.current === null) {
+        rafIdRef.current = requestAnimationFrame(() => {
+          if (pendingHeightRef.current !== null && consolePanelRef.current) {
+            // Update DOM directly without state update to avoid expensive re-renders
+            consolePanelRef.current.style.height = `${pendingHeightRef.current}px`
+            // Ensure console is expanded by adding inline style
+            if (!consoleExpanded) {
+              setConsoleExpanded(true)
+            }
+          }
+          rafIdRef.current = null
+        })
+      }
+    }
+
+    const handleMouseUp = () => {
+      isDraggingRef.current = false
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current)
+        rafIdRef.current = null
+      }
+      // Update state after drag is done so it persists
+      if (pendingHeightRef.current !== null) {
+        setConsoleHeight(pendingHeightRef.current)
+        pendingHeightRef.current = null
+      }
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [consoleExpanded])
+
+  // Sync wrapper height with state when not dragging
+  useEffect(() => {
+    if (!isDraggingRef.current && consolePanelRef.current) {
+      const targetHeight = consoleExpanded ? consoleHeight : 110
+      consolePanelRef.current.style.height = `${targetHeight}px`
+    }
+  }, [consoleHeight, consoleExpanded])
+
+  const startResizeConsole = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      event.preventDefault()
+      event.stopPropagation()
+      isDraggingRef.current = true
+      dragStartYRef.current = event.clientY
+      dragStartHeightRef.current = consoleHeight
+    },
+    [consoleHeight]
+  )
+
+  const handleCopyCode = async () => {
+    if (!navigator.clipboard?.writeText) {
+      return
+    }
+
+    await navigator.clipboard.writeText(code)
     setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    window.setTimeout(() => setCopied(false), 1800)
   }
 
+  const isDarkEditor = appTheme === 'dark'
+  const editorLineHeight = useMemo(
+    () => Math.round(fontSize * 1.65),
+    [fontSize]
+  )
+
+  const shellStyle = useMemo(
+    () =>
+      ({
+        '--code-editor-shell-bg': isDarkEditor ? '#1f1f1f' : '#f8fafc',
+        '--code-editor-header-bg': isDarkEditor ? '#242424' : '#ffffff',
+        '--code-editor-panel-bg': isDarkEditor ? '#1f1f1f' : '#f8fafc',
+        '--code-editor-monaco-frame': isDarkEditor ? '#232323' : '#ffffff',
+        '--code-editor-border': isDarkEditor
+          ? 'rgba(255, 255, 255, 0.12)'
+          : 'rgba(15, 23, 42, 0.12)',
+        '--code-editor-text': isDarkEditor
+          ? 'rgba(255, 255, 255, 0.86)'
+          : '#0f172a',
+        '--code-editor-text-strong': isDarkEditor ? '#ffffff' : '#020617',
+        '--code-editor-muted': isDarkEditor
+          ? 'rgba(255, 255, 255, 0.62)'
+          : '#475569',
+        '--code-editor-control-bg': isDarkEditor
+          ? 'rgba(255, 255, 255, 0.03)'
+          : 'rgba(255, 255, 255, 0.94)',
+        '--code-editor-control-hover': isDarkEditor
+          ? 'rgba(255, 255, 255, 0.08)'
+          : '#eff6ff',
+        '--code-editor-control-active': isDarkEditor
+          ? 'rgba(98, 176, 255, 0.14)'
+          : '#dbeafe',
+        '--code-editor-accent-border': isDarkEditor
+          ? 'rgba(98, 176, 255, 0.34)'
+          : 'rgba(37, 99, 235, 0.24)',
+        '--code-editor-badge-bg': isDarkEditor
+          ? 'rgba(255, 255, 255, 0.08)'
+          : 'rgba(15, 23, 42, 0.06)',
+        '--code-editor-shadow': isDarkEditor
+          ? '0 18px 40px rgba(0, 0, 0, 0.24)'
+          : '0 16px 32px rgba(15, 23, 42, 0.12)',
+        '--code-editor-backdrop': 'rgba(8, 10, 14, 0.72)',
+      }) as React.CSSProperties,
+    [isDarkEditor]
+  )
+
+  const languageControlSurface = isDarkEditor
+    ? 'rgba(255, 255, 255, 0.03)'
+    : 'rgba(255, 255, 255, 0.94)'
+  const languageControlHoverSurface = isDarkEditor
+    ? 'rgba(255, 255, 255, 0.08)'
+    : '#eff6ff'
+  const languageMenuSurface = isDarkEditor ? '#252525' : '#ffffff'
+  const languageMenuHoverSurface = isDarkEditor
+    ? 'rgba(255, 255, 255, 0.08)'
+    : '#f1f5f9'
+  const languageMenuSelectedSurface = isDarkEditor
+    ? 'rgba(98, 176, 255, 0.14)'
+    : '#dbeafe'
+
   return (
-    <div
-      className="flex flex-1 flex-col"
-      style={{
-        backgroundColor: 'var(--editor-bg)',
-        border: '1px solid var(--surface-border)',
-        borderRadius: '8px',
-        overflow: 'hidden',
-      }}
-    >
-      {/* Toolbar */}
-      <div
-        className="flex items-center justify-between border-b p-3"
-        style={{
-          borderColor: 'var(--surface-border)',
-          backgroundColor: 'var(--exam-toolbar-bg)',
-        }}
-      >
-        <div className="flex items-center gap-2">
-          {/* Language Selector */}
-          {/* Autosave indicator (small subtle badge) */}
-          {autosaveStatus && (
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                marginRight: 4,
-                color: 'var(--muted-text)',
-                fontSize: 12,
-              }}
-            >
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 8,
-                  display: 'inline-block',
-                  background:
-                    autosaveStatus === 'saving'
-                      ? '#f59e0b'
-                      : autosaveStatus === 'saved'
-                        ? '#10b981'
-                        : autosaveStatus === 'error'
-                          ? '#ef4444'
-                          : 'transparent',
-                  boxShadow:
-                    autosaveStatus === 'saving'
-                      ? '0 0 6px rgba(245,158,11,0.3)'
-                      : 'none',
-                }}
-              />
-              <span>
-                {autosaveStatus === 'saving'
-                  ? 'Saving...'
-                  : autosaveStatus === 'saved'
-                    ? 'Saved'
-                    : autosaveStatus === 'error'
-                      ? 'Save failed'
-                      : ''}
-              </span>
-            </div>
-          )}
-          {/* Autosave status placeholder removed (was a leftover causing lint warnings) */}
-          <div className="relative">
-            <button
-              onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
-              className="flex items-center gap-2 rounded px-3 py-2 text-sm font-medium transition-colors"
-              style={{
-                backgroundColor: 'var(--exam-panel-bg)',
-                color: 'var(--text-color)',
-                border: '1px solid var(--surface-border)',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.backgroundColor = 'var(--exam-panel-bg)'
-              }}
-            >
-              <span>{selectedLanguage}</span>
-              <ChevronDown size={16} />
-            </button>
+    <>
+      {isFullscreen && (
+        <button
+          type="button"
+          className="code-editor-backdrop"
+          aria-label="Close fullscreen editor"
+          onClick={() => setIsFullscreen(false)}
+        />
+      )}
 
-            {showLanguageDropdown && (
-              <div
-                className="absolute left-0 top-full z-10 mt-1 rounded border shadow-lg"
-                style={{
-                  backgroundColor: 'var(--exam-panel-bg)',
-                  borderColor: 'var(--surface-border)',
-                }}
-              >
-                {LANGUAGES.map(lang => (
-                  <button
-                    key={lang}
-                    onClick={() => {
-                      onLanguageChange(lang)
-                      setShowLanguageDropdown(false)
-                    }}
-                    className="w-full px-4 py-2 text-left text-sm transition-colors"
-                    style={{
-                      color: 'var(--text-color)',
-                      backgroundColor:
-                        selectedLanguage === lang
-                          ? 'var(--editor-bg)'
-                          : 'transparent',
-                    }}
-                    onMouseEnter={e => {
-                      if (selectedLanguage !== lang) {
-                        e.currentTarget.style.backgroundColor =
-                          'var(--editor-bg)'
-                      }
-                    }}
-                    onMouseLeave={e => {
-                      if (selectedLanguage !== lang) {
-                        e.currentTarget.style.backgroundColor = 'transparent'
-                      }
-                    }}
-                  >
-                    {lang}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <button
-            onClick={() =>
-              setEditorTheme(prev => (prev === 'dark' ? 'light' : 'dark'))
-            }
-            className="rounded px-3 py-2 transition-colors"
-            style={{
-              backgroundColor: 'var(--exam-panel-bg)',
-              color: 'var(--text-color)',
-              border: '1px solid var(--surface-border)',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.backgroundColor = 'var(--exam-panel-bg)'
-            }}
-            title="Toggle editor theme"
-            aria-label="Toggle editor theme"
-          >
-            <div className="flex items-center gap-2 text-sm font-medium">
-              {editorTheme === 'dark' ? (
-                <>
-                  <Sun size={16} style={{ color: 'var(--accent)' }} />
-                  <span>Light</span>
-                </>
-              ) : (
-                <>
-                  <Moon size={16} style={{ color: 'var(--accent)' }} />
-                  <span>Dark</span>
-                </>
-              )}
-            </div>
-          </button>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onReset}
-            title="Reset Code"
-            className="rounded p-2 transition-colors"
-            style={{ color: 'var(--text-color)' }}
-            onMouseEnter={e => {
-              e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.backgroundColor = 'transparent'
-            }}
-          >
-            <RotateCcw size={18} />
-          </button>
-          <button
-            onClick={handleCopyCode}
-            title="Copy Code"
-            className="rounded p-2 transition-colors"
-            style={{ color: 'var(--text-color)' }}
-            onMouseEnter={e => {
-              e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.backgroundColor = 'transparent'
-            }}
-          >
-            {copied ? (
-              <Check size={18} style={{ color: '#10b981' }} />
-            ) : (
-              <Copy size={18} />
-            )}
-          </button>
-          <button
-            title="Settings"
-            className="rounded p-2 transition-colors"
-            style={{ color: 'var(--text-color)' }}
-            onMouseEnter={e => {
-              e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.backgroundColor = 'transparent'
-            }}
-          >
-            <Settings size={18} />
-          </button>
-          <button
-            title="Report Bug"
-            className="rounded p-2 transition-colors"
-            style={{ color: 'var(--text-color)' }}
-            onMouseEnter={e => {
-              e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.backgroundColor = 'transparent'
-            }}
-          >
-            <Bug size={18} />
-          </button>
-          <button
-            title="Fullscreen"
-            className="rounded p-2 transition-colors"
-            style={{ color: 'var(--text-color)' }}
-            onMouseEnter={e => {
-              e.currentTarget.style.backgroundColor = 'var(--editor-bg)'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.backgroundColor = 'transparent'
-            }}
-          >
-            <Maximize2 size={18} />
-          </button>
-        </div>
-      </div>
-
-      {/* Editor Area */}
       <div
         ref={containerRef}
-        className="flex flex-1 flex-col overflow-hidden"
-        style={{ minHeight: 0 }}
+        role={isFullscreen ? 'dialog' : undefined}
+        aria-modal={isFullscreen || undefined}
+        aria-label={isFullscreen ? 'Code editor' : undefined}
+        className={`code-editor-shell ${isFullscreen ? 'code-editor-shell--fullscreen' : ''}`}
+        style={shellStyle}
       >
-        {/* Monaco-style Code Editor */}
-        <div
-          className="flex-1 overflow-hidden px-3 py-3"
-          style={{ minHeight: 0 }}
-        >
-          <MonacoEditorWrapper
-            value={code}
-            onChange={onCodeChange}
-            language={
-              selectedLanguage.toLowerCase() === 'c++'
-                ? 'cpp'
-                : selectedLanguage.toLowerCase()
-            }
-            editorTheme={
-              editorTheme === 'dark' ? 'custom-dark' : 'custom-light'
-            }
-          />
+        <div className="code-editor-toolbar">
+          <div className="code-editor-toolbar__group">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowLanguageDropdown(open => !open)}
+                className="code-editor-control"
+                style={{
+                  backgroundColor: languageControlSurface,
+                  borderColor: 'var(--code-editor-border)',
+                }}
+                onMouseEnter={event => {
+                  event.currentTarget.style.backgroundColor =
+                    languageControlHoverSurface
+                }}
+                onMouseLeave={event => {
+                  event.currentTarget.style.backgroundColor =
+                    languageControlSurface
+                }}
+              >
+                <span>{selectedLanguageOption?.label ?? selectedLanguage}</span>
+                <ChevronDown size={16} />
+              </button>
+
+              {showLanguageDropdown && (
+                <div
+                  className="code-editor-dropdown"
+                  style={{ backgroundColor: languageMenuSurface }}
+                >
+                  {availableLanguageOptions.map(option => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className="code-editor-dropdown-item"
+                      data-selected={selectedLanguage === option.value}
+                      style={{
+                        backgroundColor:
+                          selectedLanguage === option.value
+                            ? languageMenuSelectedSurface
+                            : languageMenuSurface,
+                      }}
+                      onClick={() => {
+                        onLanguageChange(option.value)
+                        setShowLanguageDropdown(false)
+                      }}
+                      onMouseEnter={event => {
+                        if (selectedLanguage !== option.value) {
+                          event.currentTarget.style.backgroundColor =
+                            languageMenuHoverSurface
+                        }
+                      }}
+                      onMouseLeave={event => {
+                        if (selectedLanguage !== option.value) {
+                          event.currentTarget.style.backgroundColor =
+                            languageMenuSurface
+                        }
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="code-editor-control"
+              aria-pressed={wordWrap === 'on'}
+              aria-label={
+                wordWrap === 'on' ? 'Disable word wrap' : 'Enable word wrap'
+              }
+              title={
+                wordWrap === 'on' ? 'Disable word wrap' : 'Enable word wrap'
+              }
+              onClick={() =>
+                setWordWrap(current => (current === 'on' ? 'off' : 'on'))
+              }
+            >
+              <span>Wrap</span>
+              <span className="code-editor-control__badge">
+                {wordWrap === 'on' ? 'On' : 'Off'}
+              </span>
+            </button>
+          </div>
+
+          <div className="code-editor-toolbar__group">
+            <button
+              type="button"
+              className="code-editor-icon-button"
+              aria-label="Decrease font size"
+              title="Decrease font size"
+              onClick={() =>
+                setFontSize(current => Math.max(MIN_FONT_SIZE, current - 1))
+              }
+            >
+              <span className="text-xs font-semibold">A-</span>
+            </button>
+
+            <div className="code-editor-font-chip" aria-live="polite">
+              {fontSize}px
+            </div>
+
+            <button
+              type="button"
+              className="code-editor-icon-button"
+              aria-label="Increase font size"
+              title="Increase font size"
+              onClick={() =>
+                setFontSize(current => Math.min(MAX_FONT_SIZE, current + 1))
+              }
+            >
+              <span className="text-xs font-semibold">A+</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onReset}
+              title="Reset code"
+              aria-label="Reset code"
+              className="code-editor-icon-button"
+            >
+              <RotateCcw size={18} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void handleCopyCode()}
+              title="Copy code"
+              aria-label="Copy code"
+              className="code-editor-icon-button"
+            >
+              {copied ? (
+                <Check size={18} style={{ color: '#10b981' }} />
+              ) : (
+                <Copy size={18} />
+              )}
+            </button>
+
+            <button
+              type="button"
+              title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+              aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+              className="code-editor-icon-button"
+              onClick={() => setIsFullscreen(open => !open)}
+            >
+              {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+            </button>
+          </div>
         </div>
 
-        {/* Resize handle */}
-        <div
-          onMouseDown={startResizeConsole}
-          className="h-2 w-full cursor-row-resize transition-colors"
-          style={{ backgroundColor: 'var(--surface-border)' }}
-          title="Drag to resize"
-          onMouseEnter={e => {
-            e.currentTarget.style.backgroundColor = 'var(--accent)'
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.backgroundColor = 'var(--surface-border)'
-          }}
-        />
-        {/* Console/Output Area - Resizable, Collapsible */}
-        <ConsolePanel
-          consoleExpanded={consoleExpanded}
-          onToggleConsole={() => setConsoleExpanded(!consoleExpanded)}
-          consoleHeight={consoleHeight}
-          activeConsoleTab={activeConsoleTab}
-          onConsoleTabChange={setActiveConsoleTab}
-          testCases={testCases}
-          selectedTestCase={selectedTestCase}
-          onTestCaseSelect={onTestCaseSelect}
-          output={output}
-          onRun={onRun}
-          onSubmit={onSubmit}
-        />
+        <div className="code-editor-body">
+          <div className="code-editor-frame">
+            <div className="code-editor-monaco-frame">
+              <MonacoEditorWrapper
+                value={code}
+                onChange={onCodeChange}
+                language={selectedLanguageOption?.monacoLanguage ?? 'plaintext'}
+                editorTheme={
+                  appTheme === 'dark' ? 'custom-dark' : 'custom-light'
+                }
+                fontSize={fontSize}
+                lineHeight={editorLineHeight}
+                wordWrap={wordWrap}
+              />
+            </div>
+          </div>
+
+          <div
+            onMouseDown={startResizeConsole}
+            className="code-editor-resizer"
+            title="Drag to resize"
+          />
+
+          <ConsolePanel
+            ref={consolePanelRef}
+            consoleExpanded={consoleExpanded}
+            onToggleConsole={() => setConsoleExpanded(!consoleExpanded)}
+            consoleHeight={consoleHeight}
+            activeConsoleTab={activeConsoleTab}
+            onConsoleTabChange={setActiveConsoleTab}
+            testCases={testCases}
+            selectedTestCase={selectedTestCase}
+            onTestCaseSelect={onTestCaseSelect}
+            output={output}
+            onRun={onRun}
+            onSubmit={onSubmit}
+          />
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 

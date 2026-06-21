@@ -1,15 +1,16 @@
 /* TechAcademyContent.css */
 :root {
-  --primary-color: #3b82f6; /* Blue - Primary color from Tailwind */
-  --primary-dark: #2563eb; /* Dark Blue - Hover state */
-  --text-primary: #ffffff; /* White - Main text (dark theme) */
-  --text-secondary: #cbd5e1; /* Light gray - Secondary text */
-  --text-light: #ffffff; /* White - Headings */
-  --code-bg: #1f202a; /* Dark card bg - Code block background */
-  --code-text: #f8fafc; /* Light bg - Code text */
-  --bg-light: #1f202a; /* Dark card bg - Light backgrounds */
-  --border-light: #4a4b53; /* Gray - Borders */
-  --accent-green: #20d761; /* Green - Success/accent color */
+  /* Map to Global Theme Variables */
+  --primary-color: rgb(var(--primary));
+  --primary-dark: rgb(var(--primary) / 0.9);
+  --text-primary: rgb(var(--foreground));
+  --text-secondary: rgb(var(--muted-foreground));
+  --text-light: rgb(var(--foreground)); /* Headings share foreground color */
+  --code-bg: rgb(var(--muted));
+  --code-text: rgb(var(--foreground));
+  --bg-light: rgb(var(--card));
+  --border-light: rgb(var(--border));
+  --accent-green: rgb(var(--primary));
 }
 
 /* Entry Content Container */
@@ -120,6 +121,7 @@
   border-radius: 3px;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 0.9rem;
+  border: 1px solid var(--border-light);
 }
 
 /* Code blocks */
@@ -133,6 +135,7 @@
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 0.95rem;
   line-height: 1.6;
+  border: 1px solid var(--border-light);
 }
 
 .entry-content pre code {
@@ -140,6 +143,7 @@
   color: inherit;
   padding: 0;
   border-radius: 0;
+  border: none;
 }
 
 /* Enlighter Code Blocks (TechAcademy styling) */
@@ -153,6 +157,7 @@
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace !important;
   font-size: 0.95rem !important;
   line-height: 1.6 !important;
+  border: 1px solid var(--border-light) !important;
 }
 
 .enlighter-default {
@@ -164,33 +169,33 @@
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace !important;
 }
 
-/* Code highlighting colors */
+/* Code highlighting colors - Adapting to theme */
 .enlighter-c0 {
-  color: #75715e !important;
+  color: rgb(var(--muted-foreground)) !important;
 } /* Comment */
 .enlighter-k1 {
-  color: #66d9ef !important;
+  color: rgb(var(--primary)) !important;
 } /* Keyword */
 .enlighter-s0 {
-  color: #e6db74 !important;
+  color: #e6db74 !important; /* Keep yellow for strings or adapt */
 } /* String */
 .enlighter-m0 {
-  color: #a6e22e !important;
+  color: var(--primary-color) !important;
 } /* Method */
 .enlighter-m3 {
-  color: #a6e22e !important;
+  color: var(--primary-color) !important;
 } /* Method */
 .enlighter-n1 {
-  color: #ae81ff !important;
+  color: #ae81ff !important; /* Keep purple for numbers */
 } /* Number */
 .enlighter-g0 {
-  color: #f8f8f2 !important;
+  color: var(--text-primary) !important;
 } /* Generic */
 .enlighter-g1 {
-  color: #f8f8f2 !important;
+  color: var(--text-primary) !important;
 } /* Generic */
 .enlighter-text {
-  color: #f8f8f2 !important;
+  color: var(--text-primary) !important;
 }
 
 .enlighter-toolbar-top,
@@ -224,6 +229,7 @@ pre.EnlighterJSRAW {
   background-color: var(--bg-light);
   padding: 1rem 1.5rem;
   border-radius: 3px;
+  border: 1px solid var(--border-light);
 }
 
 /* Tables */
@@ -233,11 +239,12 @@ pre.EnlighterJSRAW {
   margin: 1.5rem 0;
   border-radius: 5px;
   overflow: hidden;
+  border: 1px solid var(--border-light);
 }
 
 .entry-content table th {
   background-color: var(--primary-color);
-  color: white;
+  color: rgb(var(--primary-foreground));
   padding: 0.75rem;
   text-align: left;
   font-weight: 600;
@@ -253,7 +260,7 @@ pre.EnlighterJSRAW {
 }
 
 .entry-content table tr:hover {
-  background-color: rgba(32, 215, 97, 0.05);
+  background-color: rgb(var(--muted));
 }
 
 /* Figure captions */
@@ -286,6 +293,7 @@ pre.EnlighterJSRAW {
   padding: 1rem;
   background-color: var(--bg-light);
   border-radius: 5px;
+  border: 1px solid var(--border-light);
 }
 
 .kksr-stars {
@@ -308,6 +316,7 @@ pre.EnlighterJSRAW {
   padding: 1.5rem;
   margin: 1.5rem 0;
   color: var(--text-primary);
+  border: 1px solid var(--border-light);
 }
 
 .ez-toc-title-container {
@@ -357,6 +366,7 @@ pre.EnlighterJSRAW {
   padding: 1.5rem;
   border-radius: 5px;
   margin: 1.5rem 0;
+  border: 1px solid var(--border-light);
 }
 
 .rpbt_shortcode ul {
@@ -377,7 +387,7 @@ pre.EnlighterJSRAW {
     var(--primary-color) 0%,
     var(--primary-dark) 100%
   );
-  color: white;
+  color: rgb(var(--primary-foreground));
   border: none;
   padding: 0.75rem 1.5rem;
   border-radius: 5px;
@@ -406,12 +416,12 @@ pre.EnlighterJSRAW {
 /* Strong and emphasis */
 .entry-content strong {
   font-weight: 700;
-  color: white;
+  color: var(--text-primary);
 }
 
 .entry-content em {
   font-style: italic;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 /* Responsive adjustments */

@@ -12,16 +12,20 @@ import {
   Tooltip,
   Tag,
   DatePicker,
+  Popconfirm,
 } from 'antd'
 import type { TablePaginationConfig } from 'antd/es/table'
 import {
   PlusOutlined,
   EditOutlined,
-  DeleteOutlined,
   UserOutlined,
+  StopOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons'
 import { apiClient } from '@/config/axios.config'
 import dayjs from 'dayjs'
+import { BanUserModal } from '@/components/admin/BanUserModal'
+import { adminService } from '@/services/api/adminUser.service'
 
 interface ApiResponse {
   data?:
@@ -71,9 +75,12 @@ const ManageTeacher: React.FC = () => {
   })
   const [showForm, setShowForm] = useState<boolean>(false)
   const [editing, setEditing] = useState<UserItem | null>(null)
+  const [banModalVisible, setBanModalVisible] = useState<boolean>(false)
+  const [selectedTeacherForBan, setSelectedTeacherForBan] =
+    useState<UserItem | null>(null)
   const [form] = Form.useForm()
 
-  const { modal, notification } = App.useApp()
+  const { notification } = App.useApp()
 
   const fetchTeachers = React.useCallback(
     async (page: number = 1, pageSize: number = 10, search?: string) => {
@@ -169,40 +176,37 @@ const ManageTeacher: React.FC = () => {
       firstName: teacher.firstName,
       lastName: teacher.lastName,
       email: teacher.email,
-      status: teacher.status,
       gender: teacher.gender || undefined,
       dateOfBirth: teacher.dateOfBirth ? dayjs(teacher.dateOfBirth) : undefined,
     })
     setShowForm(true)
   }
 
-  const onDelete = (teacher: UserItem) => {
-    modal.confirm({
-      title: `Delete teacher ${teacher.name}?`,
-      content: 'This action cannot be undone.',
-      okText: 'Yes',
-      okType: 'danger',
-      cancelText: 'No',
-      onOk: async () => {
-        try {
-          await apiClient.delete(`/admin/users/${teacher.id}`)
-          notification.success({
-            message: 'Success',
-            description: 'Teacher deleted successfully',
-            placement: 'topRight',
-          })
-          fetchTeachers(pagination.current, pagination.pageSize, searchText)
-        } catch (error: unknown) {
-          const err = error as { response?: { data?: { message?: string } } }
-          notification.error({
-            message: 'Error',
-            description:
-              err.response?.data?.message || 'Failed to delete teacher',
-            placement: 'topRight',
-          })
+  const handleToggleStatus = async (teacher: UserItem) => {
+    if (teacher.status === 'active') {
+      setSelectedTeacherForBan(teacher)
+      setBanModalVisible(true)
+    } else {
+      try {
+        await adminService.unbanUser(teacher.id)
+        notification.success({
+          message: 'Success',
+          description: 'Teacher unbanned successfully',
+          placement: 'topRight',
+        })
+        fetchTeachers(pagination.current, pagination.pageSize, searchText)
+      } catch (error: unknown) {
+        const err = error as {
+          response?: { data?: { error?: { message?: string } } }
         }
-      },
-    })
+        notification.error({
+          message: 'Error',
+          description:
+            err.response?.data?.error?.message || 'Failed to unban teacher',
+          placement: 'topRight',
+        })
+      }
+    }
   }
 
   const handleFormSubmit = async (values: {
@@ -220,7 +224,7 @@ const ManageTeacher: React.FC = () => {
         lastName: values.lastName,
         email: values.email,
         role: 'teacher',
-        status: values.status,
+        status: editing ? editing.status : 'active',
         gender: values.gender || undefined,
         dateOfBirth: values.dateOfBirth
           ? values.dateOfBirth.toISOString()
@@ -312,15 +316,30 @@ const ManageTeacher: React.FC = () => {
               onClick={() => onEdit(record)}
             />
           </Tooltip>
-          <Tooltip title="Delete">
-            <Button
-              type="primary"
-              danger
-              ghost
-              shape="circle"
-              icon={<DeleteOutlined />}
-              onClick={() => onDelete(record)}
-            />
+          <Tooltip title={record.status === 'active' ? 'Ban' : 'Unban'}>
+            {record.status === 'active' ? (
+              <Button
+                danger
+                type="primary"
+                ghost
+                shape="circle"
+                icon={<StopOutlined />}
+                onClick={() => handleToggleStatus(record)}
+              />
+            ) : (
+              <Popconfirm
+                title="Are you sure you want to unban this teacher?"
+                onConfirm={() => handleToggleStatus(record)}
+                okText="Yes"
+                cancelText="No"
+              >
+                <Button
+                  shape="circle"
+                  icon={<CheckCircleOutlined />}
+                  style={{ color: '#52c41a', borderColor: '#52c41a' }}
+                />
+              </Popconfirm>
+            )}
           </Tooltip>
         </Space>
       ),
@@ -392,14 +411,7 @@ const ManageTeacher: React.FC = () => {
         footer={null}
         width={600}
       >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleFormSubmit}
-          initialValues={{
-            status: 'active',
-          }}
-        >
+        <Form form={form} layout="vertical" onFinish={handleFormSubmit}>
           <Form.Item
             name="firstName"
             label="First Name"
@@ -439,17 +451,6 @@ const ManageTeacher: React.FC = () => {
             <DatePicker className="w-full" />
           </Form.Item>
 
-          <Form.Item
-            name="status"
-            label="Status"
-            rules={[{ required: true, message: 'Please select status' }]}
-          >
-            <Select>
-              <Select.Option value="active">Active</Select.Option>
-              <Select.Option value="banned">Banned</Select.Option>
-            </Select>
-          </Form.Item>
-
           {!editing && (
             <Form.Item
               name="password"
@@ -479,6 +480,24 @@ const ManageTeacher: React.FC = () => {
           </div>
         </Form>
       </Modal>
+
+      <BanUserModal
+        isOpen={banModalVisible}
+        userId={selectedTeacherForBan?.id}
+        userName={selectedTeacherForBan?.name}
+        onClose={() => {
+          setBanModalVisible(false)
+          setSelectedTeacherForBan(null)
+        }}
+        onSuccess={() => {
+          notification.success({
+            message: 'Success',
+            description: 'Teacher banned successfully',
+            placement: 'topRight',
+          })
+          fetchTeachers(pagination.current, pagination.pageSize, searchText)
+        }}
+      />
     </div>
   )
 }

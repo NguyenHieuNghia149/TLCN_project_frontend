@@ -7,53 +7,23 @@ interface DecodedToken {
   [key: string]: string | number | undefined
 }
 
-const ACCESS_TOKEN_STORAGE_KEY =
-  import.meta.env.VITE_ACCESS_TOKEN_STORAGE_KEY || 'auth_access_token'
+// ❌ No storage key needed - pure in-memory storage
 
 class TokenManager {
   private accessToken: string | null = null
   private tokenExpiryCheckInterval: NodeJS.Timeout | null = null
   private tokenRefreshCallback: (() => Promise<string>) | null = null
 
+  // ✅ No sessionStorage hydration
+  // Access token will be fetched fresh via refresh token on every page load
   constructor() {
-    this.hydrateFromSessionStorage()
-  }
-
-  private hydrateFromSessionStorage(): void {
-    if (typeof window === 'undefined') return
-    try {
-      const storedToken = window.sessionStorage.getItem(
-        ACCESS_TOKEN_STORAGE_KEY
-      )
-      if (storedToken) {
-        this.accessToken = storedToken
-        if (this.isTokenExpired()) {
-          this.clearAccessToken()
-        } else {
-          this.startExpiryCheck()
-        }
-      }
-    } catch {
-      // Ignore sessionStorage access issues
-    }
-  }
-
-  private persistToken(token: string | null): void {
-    if (typeof window === 'undefined') return
-    try {
-      if (token) {
-        window.sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token)
-      } else {
-        window.sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY)
-      }
-    } catch {
-      // Ignore storage errors
-    }
+    // Removed hydrateFromSessionStorage() - pure in-memory storage
   }
 
   setAccessToken(token: string | null): void {
+    // ✅ Store ONLY in memory (RAM)
+    // ❌ Do NOT persist to sessionStorage or localStorage - security risk
     this.accessToken = token
-    this.persistToken(token)
 
     if (token) {
       this.startExpiryCheck()
@@ -67,8 +37,8 @@ class TokenManager {
   }
 
   clearAccessToken(): void {
+    // ✅ Clear in-memory token only
     this.accessToken = null
-    this.persistToken(null)
     this.stopExpiryCheck()
   }
 

@@ -1,17 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { commentApi } from '@/services/api/comment.service'
 import type { CommentWithUser, CommentWithReplies } from '@/types/comment.types'
-import { useSelector } from 'react-redux'
+import { useSelector, useDispatch } from 'react-redux'
 import type { RootState } from '@/store/stores'
+import type { AppDispatch } from '@/store/stores'
 import {
-  MessageCircle,
-  Edit2,
-  Trash2,
-  Send,
-  Reply as ReplyIcon,
-  ChevronDown,
-  ChevronUp,
-} from 'lucide-react'
+  asyncGetBatchLikeStatus,
+  initializeCommentsFromFetch,
+} from '@/store/slices/commentSlice'
+import { MessageCircle, Send } from 'lucide-react'
+import CommentItem from './CommentItem'
 
 interface Props {
   lessonId?: string
@@ -21,6 +19,7 @@ interface Props {
 const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
   const contextId = lessonId || problemId
   const contextType = lessonId ? 'lesson' : 'problem'
+  const dispatch = useDispatch<AppDispatch>()
 
   const [comments, setComments] = useState<CommentWithReplies[]>([])
   const [loading, setLoading] = useState(false)
@@ -42,12 +41,30 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
           ? (await commentApi.listByLesson(contextId)).data
           : (await commentApi.listByProblem(contextId)).data
       setComments(data)
+
+      // Initialize Redux state with comment data (pin status, like count)
+      dispatch(initializeCommentsFromFetch(data))
+
+      // Batch fetch like status for all comments (to prevent N+1 queries)
+      if (data.length > 0) {
+        const allCommentIds = data.reduce(
+          (acc, comment) => [
+            ...acc,
+            comment.comment.id,
+            ...comment.replies.map(r => r.comment.id),
+          ],
+          [] as string[]
+        )
+        if (allCommentIds.length > 0) {
+          dispatch(asyncGetBatchLikeStatus(allCommentIds))
+        }
+      }
     } catch (err) {
       console.error('Failed to load comments', err)
     } finally {
       setLoading(false)
     }
-  }, [contextId, contextType])
+  }, [contextId, contextType, dispatch])
 
   useEffect(() => {
     if (!contextId) return
@@ -139,223 +156,47 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
     setExpandedReplies(newExpanded)
   }
 
-  const getUserNameFromUser = (user: CommentWithUser['user']) => {
-    if (!user) return 'Anonymous'
-    if (user.firstName && user.lastName)
-      return `${user.firstName} ${user.lastName}`
-    if (user.firstName) return user.firstName
-    if (user.lastName) return user.lastName
-    return user.email
-  }
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr)
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
-
   const renderCommentItem = (
     commentData: CommentWithUser,
     parentId?: string,
     replies?: CommentWithUser[]
-  ) => {
-    const { comment, user } = commentData
-    const isEditing = editingId === comment.id
-    const canEdit =
-      auth.isAuthenticated &&
-      (auth.user?.id === comment.userId ||
-        (auth.user?.role && ['owner', 'teacher'].includes(auth.user.role)))
-    const commentReplies = replies || []
-
+  ): React.JSX.Element => {
     return (
-      <div
-        key={comment.id}
-        className="rounded-lg border border-gray-700 bg-[#252730] p-4 transition-colors hover:border-gray-600"
-      >
-        {/* User Info */}
-        <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {user?.avatar ? (
-              <img
-                src={user.avatar}
-                alt={getUserNameFromUser(user)}
-                className="h-8 w-8 rounded-full object-cover"
-              />
-            ) : (
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600">
-                <span className="text-xs font-semibold text-white">
-                  {getUserNameFromUser(user).charAt(0).toUpperCase()}
-                </span>
-              </div>
-            )}
-            <div>
-              <p className="font-medium text-white">
-                {getUserNameFromUser(user)}
-              </p>
-              <p className="text-xs text-gray-400">
-                {formatDate(comment.createdAt)}
-              </p>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          {canEdit && (
-            <div className="flex gap-2">
-              {auth.user?.id === comment.userId && (
-                <button
-                  onClick={() => handleEdit(comment.id, comment.content)}
-                  className="rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-700 hover:text-yellow-400"
-                  title="Edit"
-                  disabled={editingId !== null}
-                >
-                  <Edit2 className="h-4 w-4" />
-                </button>
-              )}
-              <button
-                onClick={() => handleDelete(comment.id)}
-                className="rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-700 hover:text-red-400"
-                title="Delete"
-                disabled={editingId !== null}
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Comment Content */}
-        {isEditing ? (
-          <div className="space-y-3">
-            <textarea
-              className="w-full rounded-lg border border-blue-500 bg-[#1a1b23] px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              rows={2}
-              value={editingContent}
-              onChange={e => setEditingContent(e.target.value)}
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setEditingId(null)}
-                className="rounded px-3 py-1 text-sm text-gray-400 transition-colors hover:bg-gray-700"
-                disabled={submitting}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleSaveEdit(comment.id)}
-                className="rounded bg-blue-600 px-3 py-1 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
-                disabled={submitting || !editingContent.trim()}
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        ) : (
-          <p className="whitespace-pre-wrap text-gray-200">{comment.content}</p>
-        )}
-
-        {/* Reply Button */}
-        {auth.isAuthenticated && !parentId && (
-          <div className="mt-3 flex gap-2">
-            {replyingTo !== comment.id ? (
-              <button
-                onClick={() => setReplyingTo(comment.id)}
-                className="inline-flex items-center gap-1 text-sm text-blue-400 transition-colors hover:text-blue-300"
-              >
-                <ReplyIcon className="h-4 w-4" />
-                Reply
-              </button>
-            ) : (
-              <button
-                onClick={() => setReplyingTo(null)}
-                className="inline-flex items-center gap-1 text-sm text-gray-400 transition-colors hover:text-gray-300"
-              >
-                Cancel
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Replies */}
-        {!parentId && commentReplies.length > 0 && (
-          <div className="mt-4 space-y-3 border-t border-gray-700 pt-4">
-            <button
-              onClick={() => toggleReplies(comment.id)}
-              className="flex items-center gap-2 text-sm text-gray-400 transition-colors hover:text-gray-300"
-            >
-              {expandedReplies.has(comment.id) ? (
-                <>
-                  <ChevronUp className="h-4 w-4" />
-                  Hide {commentReplies.length} repl
-                  {commentReplies.length === 1 ? 'y' : 'ies'}
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="h-4 w-4" />
-                  Show {commentReplies.length} repl
-                  {commentReplies.length === 1 ? 'y' : 'ies'}
-                </>
-              )}
-            </button>
-
-            {expandedReplies.has(comment.id) && (
-              <div className="space-y-3 border-l-2 border-gray-700 pl-4">
-                {commentReplies.map(reply =>
-                  renderCommentItem(reply, comment.id)
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Reply Form */}
-        {replyingTo === comment.id && (
-          <form
-            onSubmit={e => handleReply(e, comment.id)}
-            className="mt-4 space-y-3 border-t border-gray-700 pt-4"
-          >
-            <textarea
-              className="w-full rounded-lg border border-gray-700 bg-[#1a1b23] px-3 py-2 text-white placeholder-gray-500 transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              rows={2}
-              value={replyContent}
-              onChange={e => setReplyContent(e.target.value)}
-              placeholder="Write a reply..."
-              disabled={submitting}
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setReplyingTo(null)}
-                className="rounded px-3 py-1 text-sm text-gray-400 transition-colors hover:bg-gray-700"
-                disabled={submitting}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="inline-flex items-center gap-2 rounded bg-blue-600 px-3 py-1 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
-                disabled={submitting || !replyContent.trim()}
-              >
-                <Send className="h-3 w-3" />
-                Reply
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
+      <CommentItem
+        key={commentData.comment.id}
+        commentData={commentData}
+        parentId={parentId}
+        replies={replies}
+        auth={auth}
+        editingId={editingId}
+        editingContent={editingContent}
+        replyingTo={replyingTo}
+        expandedReplies={expandedReplies}
+        submitting={submitting}
+        onEdit={handleEdit}
+        onSaveEdit={handleSaveEdit}
+        onDelete={handleDelete}
+        onReplyClick={commentId => setReplyingTo(commentId)}
+        onReplyCancel={() => setReplyingTo(null)}
+        onRepliesToggle={toggleReplies}
+        onEditingContentChange={setEditingContent}
+        onEditingCancel={() => setEditingId(null)}
+        onReplySubmit={handleReply}
+        onReplyContentChange={setReplyContent}
+        replyContent={replyContent}
+        renderChildComments={reply =>
+          renderCommentItem(reply, commentData.comment.id)
+        }
+      />
     )
   }
 
   return (
-    <section className="mt-10 rounded-lg border border-gray-800 bg-[#1a1b23] p-6">
+    <section className="mt-10 rounded-lg border border-border bg-card p-6 shadow-sm">
       {/* Header */}
       <div className="mb-6 flex items-center gap-3">
-        <MessageCircle className="h-5 w-5 text-blue-400" />
-        <h3 className="text-xl font-semibold text-white">
+        <MessageCircle className="h-5 w-5 text-primary" />
+        <h3 className="text-xl font-semibold text-foreground">
           Comments (
           {comments.reduce(
             (acc, c) => acc + 1 + (c as CommentWithReplies).replies.length,
@@ -369,7 +210,7 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
       {auth.isAuthenticated ? (
         <form onSubmit={handleSubmit} className="mb-6">
           <textarea
-            className="w-full rounded-lg border border-gray-700 bg-[#252730] px-4 py-3 text-white placeholder-gray-500 transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded-lg border border-border bg-input px-4 py-3 text-foreground placeholder-muted-foreground transition-colors focus:border-primary focus:outline-none focus:ring-1 focus:ring-ring"
             rows={3}
             value={content}
             onChange={e => setContent(e.target.value)}
@@ -378,7 +219,7 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
           />
           <div className="mt-3 flex justify-end">
             <button
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
               type="submit"
               disabled={submitting || !content.trim()}
             >
@@ -388,9 +229,9 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
           </div>
         </form>
       ) : (
-        <div className="mb-6 rounded-lg border border-gray-700 bg-[#252730] p-4 text-center">
-          <p className="text-gray-400">
-            <a href="/login" className="text-blue-400 hover:underline">
+        <div className="mb-6 rounded-lg border border-border bg-muted/50 p-4 text-center">
+          <p className="text-muted-foreground">
+            <a href="/login" className="text-primary hover:underline">
               Log in
             </a>{' '}
             to post comments.
@@ -401,20 +242,27 @@ const CommentsSection: React.FC<Props> = ({ lessonId, problemId }) => {
       {/* Comments List */}
       {loading ? (
         <div className="py-8 text-center">
-          <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
+          <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
         </div>
       ) : comments.length === 0 ? (
-        <div className="rounded-lg border border-gray-700 bg-[#252730] p-8 text-center">
-          <MessageCircle className="mx-auto h-8 w-8 text-gray-600 opacity-50" />
-          <p className="mt-2 text-gray-500">
+        <div className="rounded-lg border border-border bg-muted/30 p-8 text-center">
+          <MessageCircle className="mx-auto h-8 w-8 text-muted-foreground opacity-50" />
+          <p className="mt-2 text-muted-foreground">
             No comments yet. Be the first to comment!
           </p>
         </div>
       ) : (
         <ul className="space-y-4">
-          {comments.map(commentData =>
-            renderCommentItem(commentData, undefined, commentData.replies)
-          )}
+          {comments
+            .sort((a, b) => {
+              // Pinned comments appear first
+              if (a.comment.isPinned && !b.comment.isPinned) return -1
+              if (!a.comment.isPinned && b.comment.isPinned) return 1
+              return 0
+            })
+            .map(commentData =>
+              renderCommentItem(commentData, undefined, commentData.replies)
+            )}
         </ul>
       )}
     </section>
