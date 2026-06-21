@@ -32,6 +32,10 @@ function resolveSocketBaseURL(baseURL: string): string {
   }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
 export class ProctoringSocketClient {
   private socket: Socket | null = null
   private readonly baseURL: string
@@ -106,21 +110,33 @@ export class ProctoringSocketClient {
     if (!events.length) {
       return true
     }
-    return this.emitWithAck('telemetry.batch', { events })
+    const lastClientSeq = events.reduce(
+      (max, e) => Math.max(max, e.clientSeq),
+      0
+    )
+    return this.emitWithAck('telemetry.batch', { events }, lastClientSeq)
   }
 
   async sendUrgent(event: ProctoringTelemetryFrame): Promise<boolean> {
-    return this.emitWithAck('telemetry.urgent', { event })
+    return this.emitWithAck('telemetry.urgent', { event }, event.clientSeq)
   }
 
   async requestFinalFlush(
     request: ProctoringFinalFlushRequest
   ): Promise<boolean | string> {
-    const accepted = await this.emitWithAck('final_flush.request', request)
+    const accepted = await this.emitWithAck(
+      'final_flush.request',
+      request,
+      request.lastClientSeq ?? undefined
+    )
     return accepted
   }
 
-  private emitWithAck(eventName: string, payload: unknown): Promise<boolean> {
+  private emitWithAck(
+    eventName: string,
+    payload: unknown,
+    lastClientSeq?: number
+  ): Promise<boolean> {
     if (!this.socket?.connected) {
       return Promise.resolve(false)
     }
@@ -135,12 +151,32 @@ export class ProctoringSocketClient {
         window.clearTimeout(timeoutId)
         resolve(value)
       }
-      const onAck = () => finish(true)
-      const onRetry = () => finish(false)
+      const onAck = (ackPayload: unknown) => {
+        if (
+          lastClientSeq !== undefined &&
+          isRecord(ackPayload) &&
+          typeof ackPayload.lastClientSeq === 'number' &&
+          ackPayload.lastClientSeq < lastClientSeq
+        ) {
+          return
+        }
+        finish(true)
+      }
+      const onRetry = (retryPayload: unknown) => {
+        if (
+          lastClientSeq !== undefined &&
+          isRecord(retryPayload) &&
+          typeof retryPayload.lastClientSeq === 'number' &&
+          retryPayload.lastClientSeq < lastClientSeq
+        ) {
+          return
+        }
+        finish(false)
+      }
       const timeoutId = window.setTimeout(() => finish(false), this.timeoutMs)
 
-      this.socket?.once('telemetry.ack', onAck)
-      this.socket?.once('telemetry.retry_required', onRetry)
+      this.socket?.on('telemetry.ack', onAck)
+      this.socket?.on('telemetry.retry_required', onRetry)
       this.socket?.emit(eventName, payload)
     })
   }
