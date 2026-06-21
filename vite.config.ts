@@ -17,9 +17,6 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (id.includes('antd') || id.includes('@ant-design')) {
-              return 'vendor-antd'
-            }
             if (id.includes('monaco-editor') || id.includes('@monaco-editor')) {
               return 'vendor-monaco'
             }
