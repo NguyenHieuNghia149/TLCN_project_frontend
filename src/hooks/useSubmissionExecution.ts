@@ -204,7 +204,7 @@ export function useSubmissionExecution(options: {
       }
 
       streamFallbackTimerRef.current = window.setTimeout(() => {
-        if (!receivedMessage) {
+        if (isSubmit && !receivedMessage) {
           fallbackToPolling()
         }
       }, fallbackDelayMs)
@@ -226,7 +226,22 @@ export function useSubmissionExecution(options: {
       }
 
       eventSource.onerror = () => {
-        fallbackToPolling()
+        if (completedRef.current) {
+          return
+        }
+
+        if (isSubmit) {
+          fallbackToPolling()
+          return
+        }
+
+        closeStream()
+        clearStreamFallback()
+        streamFallbackTimerRef.current = window.setTimeout(() => {
+          if (!completedRef.current) {
+            startStream(submissionId, isSubmit, fallbackDelayMs)
+          }
+        }, 1000)
       }
     },
     [
