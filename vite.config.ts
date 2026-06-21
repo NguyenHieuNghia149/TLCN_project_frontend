@@ -24,9 +24,6 @@ export default defineConfig({
             if (id.includes('framer-motion')) {
               return 'vendor-framer'
             }
-            if (id.includes('recharts') || id.includes('chart.js')) {
-              return 'vendor-charts'
-            }
             if (id.includes('@tinymce')) {
               return 'vendor-tinymce'
             }
