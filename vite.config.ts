@@ -13,6 +13,7 @@ export default defineConfig({
     open: true,
   },
   build: {
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -38,6 +39,9 @@ export default defineConfig({
             }
             if (id.includes('@reduxjs') || id.includes('react-redux')) {
               return 'vendor-redux'
+            }
+            if (id.includes('mammoth')) {
+              return 'vendor-mammoth'
             }
           }
         },

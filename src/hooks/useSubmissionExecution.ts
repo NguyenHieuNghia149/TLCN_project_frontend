@@ -43,6 +43,7 @@ export function useSubmissionExecution(options: {
   const pollTimerRef = useRef<number | null>(null)
   const streamRef = useRef<SubmissionStreamConnection | null>(null)
   const streamFallbackTimerRef = useRef<number | null>(null)
+  const executionTimeoutTimerRef = useRef<number | null>(null)
   const completedRef = useRef(false)
   const latestTestCasesRef = useRef(testCases)
   const latestResultsRef = useRef<OutputState['results']>(undefined)
@@ -76,11 +77,19 @@ export function useSubmissionExecution(options: {
     }
   }, [])
 
+  const clearExecutionTimeout = useCallback(() => {
+    if (executionTimeoutTimerRef.current) {
+      window.clearTimeout(executionTimeoutTimerRef.current)
+      executionTimeoutTimerRef.current = null
+    }
+  }, [])
+
   const cleanupRealtime = useCallback(() => {
     clearPoll()
     clearStreamFallback()
+    clearExecutionTimeout()
     closeStream()
-  }, [clearPoll, clearStreamFallback, closeStream])
+  }, [clearExecutionTimeout, clearPoll, clearStreamFallback, closeStream])
 
   useEffect(() => cleanupRealtime, [cleanupRealtime])
 
@@ -191,27 +200,14 @@ export function useSubmissionExecution(options: {
           return
         }
         closeStream()
-        if (!isSubmit) {
-          setOutput({
-            status: 'rejected',
-            message:
-              'Execution stream disconnected before results were received. Please run again.',
-            error: 'Execution stream disconnected',
-            isSubmit,
-          })
-          completedRef.current = true
-          return
-        }
         void startPolling(submissionId, isSubmit)
       }
 
-      if (isSubmit) {
-        streamFallbackTimerRef.current = window.setTimeout(() => {
-          if (!receivedMessage) {
-            fallbackToPolling()
-          }
-        }, fallbackDelayMs)
-      }
+      streamFallbackTimerRef.current = window.setTimeout(() => {
+        if (!receivedMessage) {
+          fallbackToPolling()
+        }
+      }, fallbackDelayMs)
 
       eventSource.onmessage = async event => {
         receivedMessage = true
@@ -274,6 +270,23 @@ export function useSubmissionExecution(options: {
 
         const submissionId = created.submissionId
         const isSubmit = kind === 'submit'
+        if (!isSubmit) {
+          executionTimeoutTimerRef.current = window.setTimeout(() => {
+            if (completedRef.current) {
+              return
+            }
+            cleanupRealtime()
+            completedRef.current = true
+            setOutput({
+              status: 'rejected',
+              message:
+                'Execution timed out while waiting for final results. Please run again.',
+              error: 'Execution result timeout',
+              isSubmit: false,
+            })
+          }, 45000)
+        }
+
         const completedDuringHydration = isSubmit
           ? await hydrateSubmission(submissionId, isSubmit)
           : false
