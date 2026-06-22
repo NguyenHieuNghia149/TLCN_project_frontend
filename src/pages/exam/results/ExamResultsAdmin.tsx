@@ -165,6 +165,21 @@ function extractApiErrorMessage(error: unknown, fallback: string) {
   return fallback
 }
 
+function sleep(ms: number) {
+  return new Promise(resolve => window.setTimeout(resolve, ms))
+}
+
+function isPendingLlmSummary(review: AdminProctoringReview | null) {
+  return review?.llmSummary?.status === 'pending'
+}
+
+function getLlmSummaryIdentity(review: AdminProctoringReview | null) {
+  return {
+    summaryId: review?.llmSummary?.summaryId ?? null,
+    status: review?.llmSummary?.status ?? null,
+  }
+}
+
 const ExamResultsAdmin: React.FC = () => {
   const { id, examId: examIdParam } = useParams<{
     id?: string
@@ -209,6 +224,53 @@ const ExamResultsAdmin: React.FC = () => {
   const [detailsLoading, setDetailsLoading] = useState(false)
   const [proctoringLoading, setProctoringLoading] = useState(false)
   const [proctoringActionLoading, setProctoringActionLoading] = useState(false)
+
+  const fetchProctoringReviewWithRetry = useCallback(
+    async (options?: {
+      initialReview?: AdminProctoringReview | null
+      pollUntilSettled?: boolean
+    }) => {
+      if (!examId || !selectedParticipationId) {
+        return null
+      }
+
+      const initialIdentity = getLlmSummaryIdentity(
+        options?.initialReview ?? null
+      )
+      let progressObserved = false
+      let latestPayload: AdminProctoringReview | null = null
+      const maxAttempts = options?.pollUntilSettled ? 8 : 1
+
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        latestPayload = await examService.getAdminProctoringReview(
+          examId,
+          selectedParticipationId
+        )
+
+        const nextIdentity = getLlmSummaryIdentity(latestPayload)
+        const identityChanged =
+          nextIdentity.summaryId !== initialIdentity.summaryId ||
+          nextIdentity.status !== initialIdentity.status
+
+        if (identityChanged || isPendingLlmSummary(latestPayload)) {
+          progressObserved = true
+        }
+
+        if (
+          !options?.pollUntilSettled ||
+          !progressObserved ||
+          !isPendingLlmSummary(latestPayload)
+        ) {
+          return latestPayload
+        }
+
+        await sleep(1500)
+      }
+
+      return latestPayload
+    },
+    [examId, selectedParticipationId]
+  )
 
   const fetchResults = useCallback(
     async (isBackground = false) => {
@@ -408,10 +470,13 @@ const ExamResultsAdmin: React.FC = () => {
     if (!examId || !selectedParticipationId) return
     setProctoringLoading(true)
     try {
-      const payload = await examService.getAdminProctoringReview(
-        examId,
-        selectedParticipationId
-      )
+      const payload = await fetchProctoringReviewWithRetry({
+        initialReview: selectedProctoringReview,
+        pollUntilSettled: isPendingLlmSummary(selectedProctoringReview),
+      })
+      if (!payload) {
+        return
+      }
       setSelectedProctoringReview(payload)
       setProctoringActionStatus(null)
     } catch (apiError: unknown) {
@@ -433,21 +498,31 @@ const ExamResultsAdmin: React.FC = () => {
     } finally {
       setProctoringLoading(false)
     }
-  }, [examId, notification, selectedParticipationId])
+  }, [
+    examId,
+    fetchProctoringReviewWithRetry,
+    notification,
+    selectedParticipationId,
+    selectedProctoringReview,
+  ])
 
   const handleRecomputeProctoringReview = useCallback(async () => {
     if (!examId || !selectedParticipationId) return
     setProctoringActionLoading(true)
     setProctoringActionStatus(null)
     try {
+      const previousReview = selectedProctoringReview
       await examService.recomputeAdminProctoringReview(
         examId,
         selectedParticipationId
       )
-      const payload = await examService.getAdminProctoringReview(
-        examId,
-        selectedParticipationId
-      )
+      const payload = await fetchProctoringReviewWithRetry({
+        initialReview: previousReview,
+        pollUntilSettled: true,
+      })
+      if (!payload) {
+        return
+      }
       setSelectedProctoringReview(payload)
       setProctoringActionStatus({
         type: 'success',
@@ -476,7 +551,13 @@ const ExamResultsAdmin: React.FC = () => {
     } finally {
       setProctoringActionLoading(false)
     }
-  }, [examId, notification, selectedParticipationId])
+  }, [
+    examId,
+    fetchProctoringReviewWithRetry,
+    notification,
+    selectedParticipationId,
+    selectedProctoringReview,
+  ])
 
   const handleReviewProctoring = useCallback(
     async (payload: {
