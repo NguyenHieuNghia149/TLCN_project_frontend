@@ -480,92 +480,106 @@ const ManageRoadmap: React.FC = () => {
       {
         title: 'Actions',
         key: 'actions',
-        render: (_: unknown, record: AdminRoadmapRow) => (
-          <Space size="middle">
-            <Tooltip title="View detail">
-              <Button
-                type="primary"
-                ghost
-                shape="circle"
-                icon={<EyeOutlined />}
-                onClick={() => handleViewDetail(record.id)}
-                loading={detailLoading}
-              />
-            </Tooltip>
-            <Tooltip title="Toggle visibility">
-              <Button
-                shape="circle"
-                icon={<SwapOutlined />}
-                onClick={async () => {
-                  const next =
-                    record.visibility === 'public' ? 'private' : 'public'
-                  try {
-                    await dispatch(
-                      asyncUpdateAdminRoadmapVisibility({
-                        id: record.id,
-                        visibility: next,
+        render: (_: unknown, record: AdminRoadmapRow) => {
+          if (!record) return null
+          return (
+            <Space size="middle">
+              <Tooltip title="View detail">
+                <Button
+                  type="primary"
+                  ghost
+                  shape="circle"
+                  icon={<EyeOutlined />}
+                  onClick={() => handleViewDetail(record.id)}
+                  loading={detailLoading}
+                />
+              </Tooltip>
+              <Tooltip title="Toggle visibility">
+                <Button
+                  shape="circle"
+                  icon={<SwapOutlined />}
+                  onClick={async () => {
+                    const next =
+                      record.visibility === 'public' ? 'private' : 'public'
+                    try {
+                      await dispatch(
+                        asyncUpdateAdminRoadmapVisibility({
+                          id: record.id,
+                          visibility: next,
+                        })
+                      ).unwrap()
+                      notification.success({
+                        message: 'Success',
+                        description: `Visibility updated to ${next}`,
+                        placement: 'topRight',
                       })
-                    ).unwrap()
-                    notification.success({
-                      message: 'Success',
-                      description: `Visibility updated to ${next}`,
-                      placement: 'topRight',
+                    } catch (err: unknown) {
+                      notification.error({
+                        message: 'Error',
+                        description: String(
+                          err || 'Failed to update visibility'
+                        ),
+                        placement: 'topRight',
+                      })
+                    }
+                  }}
+                />
+              </Tooltip>
+              <Tooltip title="Delete">
+                <Button
+                  danger
+                  type="primary"
+                  ghost
+                  shape="circle"
+                  icon={<DeleteOutlined />}
+                  onClick={() => {
+                    modal.confirm({
+                      title: `Delete roadmap "${record.title}"?`,
+                      content:
+                        'This will delete items and progress. This action cannot be undone.',
+                      okText: 'Delete',
+                      okType: 'danger',
+                      cancelText: 'Cancel',
+                      onOk: async () => {
+                        try {
+                          await dispatch(
+                            asyncDeleteAdminRoadmap({ id: record.id })
+                          ).unwrap()
+                          notification.success({
+                            message: 'Deleted',
+                            description: 'Roadmap deleted successfully',
+                            placement: 'topRight',
+                          })
+                        } catch (err: unknown) {
+                          notification.error({
+                            message: 'Error',
+                            description: String(
+                              err || 'Failed to delete roadmap'
+                            ),
+                            placement: 'topRight',
+                          })
+                        }
+                      },
                     })
-                  } catch (err: unknown) {
-                    notification.error({
-                      message: 'Error',
-                      description: String(err || 'Failed to update visibility'),
-                      placement: 'topRight',
-                    })
-                  }
-                }}
-              />
-            </Tooltip>
-            <Tooltip title="Delete">
-              <Button
-                danger
-                type="primary"
-                ghost
-                shape="circle"
-                icon={<DeleteOutlined />}
-                onClick={() => {
-                  modal.confirm({
-                    title: `Delete roadmap "${record.title}"?`,
-                    content:
-                      'This will delete items and progress. This action cannot be undone.',
-                    okText: 'Delete',
-                    okType: 'danger',
-                    cancelText: 'Cancel',
-                    onOk: async () => {
-                      try {
-                        await dispatch(
-                          asyncDeleteAdminRoadmap({ id: record.id })
-                        ).unwrap()
-                        notification.success({
-                          message: 'Deleted',
-                          description: 'Roadmap deleted successfully',
-                          placement: 'topRight',
-                        })
-                      } catch (err: unknown) {
-                        notification.error({
-                          message: 'Error',
-                          description: String(
-                            err || 'Failed to delete roadmap'
-                          ),
-                          placement: 'topRight',
-                        })
-                      }
-                    },
-                  })
-                }}
-              />
-            </Tooltip>
-          </Space>
-        ),
+                  }}
+                />
+              </Tooltip>
+            </Space>
+          )
+        },
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [dispatch, keyword, createdBy, visibility, list.limit, modal, notification]
+    [
+      dispatch,
+      keyword,
+      createdBy,
+      visibility,
+      list.limit,
+      detailLoading,
+      modal,
+      notification,
+    ]
   )
 
   return (
