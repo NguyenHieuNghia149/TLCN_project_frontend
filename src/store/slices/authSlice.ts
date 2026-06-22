@@ -337,31 +337,12 @@ const authSlice = createSlice({
           return
         }
 
-        // For other errors (network, cookie not sent, etc.)
-        // ❌ Do NOT re-hydrate from localStorage user data anymore
-        // If refresh failed, user must login again
-        try {
-          if (typeof window !== 'undefined') {
-            const storedAuth =
-              window.localStorage.getItem(STORAGE_KEYS.IS_AUTHENTICATED) ===
-              'true'
-
-            if (storedAuth) {
-              // Flag exists but refresh failed
-              // Clear everything - user needs to login again
-              state.session.user = null
-              state.session.isAuthenticated = false
-              state.session.isLoading = false
-              return
-            }
-          }
-        } catch (error) {
-          console.warn('Failed to check auth flag:', error)
-          // Fall through to clear state if hydration fails
-        }
-
-        // No stored auth or hydration failed - clear everything
-        state.session = { ...initialSessionState, isLoading: false }
+        // For other errors (network, cookie not sent, NO_REFRESH_TOKEN, etc.):
+        // hydrateSessionState already set isAuthenticated=true from localStorage,
+        // so keep that state. Just stop the loading spinner to let the app render.
+        // The axios interceptor will handle token refresh on the next API call;
+        // if that fails it fires auth:failed → logoutUser().
+        state.session.isLoading = false
       })
 
     // Login
