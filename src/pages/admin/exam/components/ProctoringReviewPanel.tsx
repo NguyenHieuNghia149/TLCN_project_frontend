@@ -797,7 +797,7 @@ const ProctoringReviewPanel: React.FC<ProctoringReviewPanelProps> = ({
               {review.llmSummary.status === 'hidden_disabled'
                 ? 'Summary generation is disabled in current proctoring settings.'
                 : review.llmSummary.status === 'unavailable'
-                  ? 'No accepted LLM summary has been generated for this participation yet.'
+                  ? 'No accepted LLM summary has been generated for this participation yet. Use Recompute to queue one.'
                   : 'Summary is hidden for this review state.'}
             </p>
           ) : review.llmSummary.status === 'accepted' ? (

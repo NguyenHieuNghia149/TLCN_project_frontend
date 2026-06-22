@@ -157,15 +157,14 @@ class AxiosInstanceManager {
         const errorCode =
           (error.response as unknown as { data?: { code?: string } })?.data
             ?.code || (error as unknown as { code?: string }).code
-        // Don't attempt refresh if refresh token is expired or missing
+        // Don't attempt refresh if refresh token itself is expired, missing, or not found
         // These errors mean the user must log in again
         const isRefreshTokenError =
-          errorCode === 'NO_REFRESH_TOKEN' || errorCode === 'TOKEN_EXPIRED'
+          errorCode === 'REFRESH_TOKEN_EXPIRED' ||
+          errorCode === 'REFRESH_TOKEN_NOT_FOUND' ||
+          errorCode === 'NO_REFRESH_TOKEN'
 
-        const shouldAttemptRefresh =
-          statusIs401 &&
-          !isRefreshTokenError &&
-          (errorCode === 'TOKEN_EXPIRED' || !errorCode)
+        const shouldAttemptRefresh = statusIs401 && !isRefreshTokenError
 
         if (
           shouldAttemptRefresh &&

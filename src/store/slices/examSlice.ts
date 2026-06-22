@@ -167,7 +167,7 @@ const examSlice = createSlice({
 
     // Clear exam state when session expires
     builder.addCase(initializeSession.rejected, (state, action) => {
-      if (action.payload?.isRefreshTokenExpired) {
+      if (action.payload?.shouldClearSession) {
         state.exams = []
         state.currentExam = null
         state.submissions = []

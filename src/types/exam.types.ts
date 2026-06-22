@@ -195,6 +195,14 @@ export interface ProctoringSettings {
   clipboardPolicy: 'log_only' | 'block' | 'ignore' | string
   aiAnomalyEnabled: boolean
   aiShadowMode: boolean
+  aiAdvisoryVisible?: boolean
+  aiMinimumEvaluationStatus?: string
+  llmPrivacyApprovedAt?: string | null
+  llmPrivacyApprovedBy?: string | null
+  providerDpaReference?: string | null
+  llmSummaryEnabled?: boolean
+  llmSummaryProvider?: string | null
+  llmSummaryModelVersion?: string | null
   aiJobWindowSeconds: number
   consentNoticeVersion: string
   legalLinksJson: Record<string, string>
@@ -256,6 +264,9 @@ export interface AdminUpdateProctoringSettingsPayload {
   aiAnomalyEnabled?: boolean
   aiShadowMode?: boolean
   aiAdvisoryVisible?: boolean
+  llmPrivacyApprovedAt?: string | null
+  llmPrivacyApprovedBy?: string | null
+  providerDpaReference?: string | null
   llmSummaryEnabled?: boolean
 }
 

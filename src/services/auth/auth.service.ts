@@ -29,9 +29,19 @@ export class AuthService {
           response: {
             data: {
               message?: string
-              error?: string
+              error?:
+                | string
+                | {
+                    message?: string
+                    code?: string
+                    details?: unknown
+                  }
               code?: string
               errors?: Array<{ field: string; message: string }>
+              data?: {
+                message?: string
+                code?: string
+              }
             }
             status: number
             statusText: string
@@ -39,11 +49,24 @@ export class AuthService {
         }
 
         const { data, status, statusText } = axiosError.response
-        const message = data?.message || data?.error || defaultMessage
-        const code = data?.code || String(status)
-        const fieldErrors = Array.isArray(data?.errors)
+        const message =
+          data?.message ||
+          (typeof data?.error === 'object' && data?.error?.message) ||
+          data?.data?.message ||
+          (typeof data?.error === 'string' ? data.error : undefined) ||
+          defaultMessage
+        const code =
+          data?.code ||
+          (typeof data?.error === 'object' && data?.error?.code) ||
+          data?.data?.code ||
+          String(status)
+        const rawErrors = Array.isArray(data?.errors)
           ? data.errors
-          : undefined
+          : typeof data?.error === 'object' &&
+              Array.isArray(data?.error?.details)
+            ? data.error.details
+            : undefined
+        const fieldErrors = rawErrors
 
         throw new ApiError(
           message || `${status} ${statusText}`,
@@ -198,9 +221,12 @@ export class AuthService {
           throw tokenExpiredError
         }
 
-        // Generic 401 or NO_REFRESH_TOKEN - don't logout, just return error
-        // This could be temporary (cookie not sent due to path mismatch)
-        throw new Error('Not authenticated')
+        // Generic 401 - authentication failed (cookie missing, token not found, etc.)
+        const authError = new Error('Not authenticated')
+        if (errorCode) {
+          ;(authError as unknown as { code: string }).code = errorCode
+        }
+        throw authError
       }
 
       const nested = response.data?.data
@@ -223,6 +249,7 @@ export class AuthService {
         error instanceof Error &&
         (error.message === 'Refresh token expired or revoked' ||
           (error as { code?: string }).code === 'REFRESH_TOKEN_EXPIRED' ||
+          (error as { code?: string }).code === 'REFRESH_TOKEN_NOT_FOUND' ||
           (error as { code?: string }).code === 'NO_REFRESH_TOKEN')
       ) {
         throw error
@@ -240,6 +267,7 @@ export class AuthService {
         if (axiosError.response?.status === 401) {
           const errorCode = axiosError.response?.data?.code
           if (
+            errorCode === 'REFRESH_TOKEN_NOT_FOUND' ||
             errorCode === 'NO_REFRESH_TOKEN' ||
             errorCode === 'REFRESH_TOKEN_EXPIRED'
           ) {

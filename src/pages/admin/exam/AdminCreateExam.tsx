@@ -77,8 +77,8 @@ import type {
 const STEP_ITEMS = [
   { key: 'basic', title: 'Basic' },
   { key: 'access', title: 'Access' },
-  { key: 'participants', title: 'Participants' },
   { key: 'challenges', title: 'Challenges' },
+  { key: 'participants', title: 'Participants' },
   { key: 'notifications', title: 'Notifications' },
   { key: 'review', title: 'Review' },
 ] as const
@@ -780,7 +780,11 @@ const AdminCreateExam: React.FC = () => {
     payload: AdminUpdateProctoringSettingsPayload
   ) => {
     if (!resolvedExamId) return
-    await examService.updateAdminProctoringSettings(resolvedExamId, payload)
+    const savedSettings = await examService.updateAdminProctoringSettings(
+      resolvedExamId,
+      payload
+    )
+    setProctoringSettings(savedSettings)
     setProctoringSaveSuccess(true)
   }
 
@@ -1148,8 +1152,8 @@ const AdminCreateExam: React.FC = () => {
     )
   }
 
-  const stepFields: Array<Array<keyof ExamFormValues>> = [
-    [
+  const stepFields: Record<WizardStepKey, Array<keyof ExamFormValues>> = {
+    basic: [
       'title',
       'slug',
       'startDate',
@@ -1158,7 +1162,7 @@ const AdminCreateExam: React.FC = () => {
       'maxAttempts',
       'isVisible',
     ],
-    [
+    access: [
       'accessMode',
       'selfRegistrationApprovalMode',
       'selfRegistrationPasswordRequired',
@@ -1166,44 +1170,87 @@ const AdminCreateExam: React.FC = () => {
       'registrationOpenAt',
       'registrationCloseAt',
     ],
-    [],
-    [],
-    [],
-    [],
-  ]
+    challenges: [],
+    participants: [],
+    notifications: [],
+    review: [],
+  }
 
-  const handleNext = async () => {
-    try {
-      const fields = stepFields[currentStep]
-      if (fields.length > 0) {
-        await form.validateFields(fields)
+  const validateStepBeforeLeaving = useCallback(
+    async (stepIndex: number, warningMessage: string) => {
+      const stepKey = STEP_ITEMS[stepIndex]?.key
+      if (!stepKey) {
+        return true
       }
 
-      if (currentStep === 3 && selectedChallenges.length === 0) {
+      try {
+        const fields = stepFields[stepKey]
+        if (fields.length > 0) {
+          await form.validateFields(fields)
+        }
+
+        if (stepKey === 'challenges' && selectedChallenges.length === 0) {
+          notification.warning({
+            message: warningMessage,
+            description: 'Add at least one challenge before continuing.',
+            placement: 'topRight',
+          })
+          return false
+        }
+
+        return true
+      } catch (error) {
+        const validationError = error as {
+          errorFields?: Array<{ name: (string | number)[] }>
+        }
+        const firstErrorField = validationError.errorFields?.[0]?.name
+        if (firstErrorField && firstErrorField.length > 0) {
+          form.scrollToField(firstErrorField)
+        }
         notification.warning({
-          message: 'Choose challenges',
-          description: 'Add at least one challenge before continuing.',
+          message: warningMessage,
+          description: 'Please complete required fields in this step first.',
           placement: 'topRight',
         })
-        return
+        return false
       }
+    },
+    [form, notification, selectedChallenges.length]
+  )
 
-      setCurrentStep(step => Math.min(step + 1, STEP_ITEMS.length - 1))
-    } catch (error) {
-      const validationError = error as {
-        errorFields?: Array<{ name: (string | number)[] }>
-      }
-      const firstErrorField = validationError.errorFields?.[0]?.name
-      if (firstErrorField && firstErrorField.length > 0) {
-        form.scrollToField(firstErrorField)
-      }
-      notification.warning({
-        message: 'Cannot move to next step',
-        description: 'Please complete required fields in this step first.',
-        placement: 'topRight',
-      })
+  const handleNext = async () => {
+    const canProceed = await validateStepBeforeLeaving(
+      currentStep,
+      currentStepKey === 'challenges'
+        ? 'Choose challenges'
+        : 'Cannot move to next step'
+    )
+
+    if (!canProceed) {
       return
     }
+
+    setCurrentStep(step => Math.min(step + 1, STEP_ITEMS.length - 1))
+  }
+
+  const handleStepChange = async (targetStep: number) => {
+    if (targetStep <= currentStep) {
+      setCurrentStep(targetStep)
+      return
+    }
+
+    for (let stepIndex = 0; stepIndex < targetStep; stepIndex += 1) {
+      const canLeaveStep = await validateStepBeforeLeaving(
+        stepIndex,
+        'Cannot jump to step'
+      )
+
+      if (!canLeaveStep) {
+        return
+      }
+    }
+
+    setCurrentStep(targetStep)
   }
 
   const handlePrevious = () => {
@@ -2118,10 +2165,10 @@ const AdminCreateExam: React.FC = () => {
         return renderBasicStep()
       case 'access':
         return renderAccessStep()
-      case 'participants':
-        return renderParticipantsStep()
       case 'challenges':
         return renderChallengesStep()
+      case 'participants':
+        return renderParticipantsStep()
       case 'notifications':
         return renderNotificationsStep()
       case 'review':
@@ -2188,8 +2235,8 @@ const AdminCreateExam: React.FC = () => {
               {id ? 'Edit Exam' : 'Create Exam'}
             </h1>
             <div className="text-sm opacity-70">
-              Multi-step wizard for schedule, access, participants, challenges,
-              and invite delivery.
+              Multi-step wizard for schedule, access, challenges, participants,
+              invite delivery, and review.
             </div>
           </div>
         </div>
@@ -2214,6 +2261,9 @@ const AdminCreateExam: React.FC = () => {
         <Steps
           current={currentStep}
           items={STEP_ITEMS.map(item => ({ title: item.title }))}
+          onChange={nextStep => {
+            void handleStepChange(nextStep)
+          }}
           responsive
         />
 

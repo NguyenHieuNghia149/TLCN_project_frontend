@@ -7,24 +7,26 @@ interface DecodedToken {
   [key: string]: string | number | undefined
 }
 
-// ❌ No storage key needed - pure in-memory storage
+const SESSION_STORAGE_KEY = 'access_token'
 
 class TokenManager {
   private accessToken: string | null = null
   private tokenExpiryCheckInterval: NodeJS.Timeout | null = null
   private tokenRefreshCallback: (() => Promise<string>) | null = null
 
-  // ✅ No sessionStorage hydration
-  // Access token will be fetched fresh via refresh token on every page load
   constructor() {
-    // Removed hydrateFromSessionStorage() - pure in-memory storage
+    this.accessToken = this.loadFromStorage()
   }
 
   setAccessToken(token: string | null): void {
-    // ✅ Store ONLY in memory (RAM)
-    // ❌ Do NOT persist to sessionStorage or localStorage - security risk
     this.accessToken = token
-
+    if (typeof sessionStorage !== 'undefined') {
+      if (token) {
+        sessionStorage.setItem(SESSION_STORAGE_KEY, token)
+      } else {
+        sessionStorage.removeItem(SESSION_STORAGE_KEY)
+      }
+    }
     if (token) {
       this.startExpiryCheck()
     } else {
@@ -33,13 +35,39 @@ class TokenManager {
   }
 
   getAccessToken(): string | null {
-    return this.accessToken
+    if (this.accessToken) {
+      if (!this.isTokenExpired()) return this.accessToken
+      this.accessToken = null
+      this.stopExpiryCheck()
+    }
+    const stored = this.loadFromStorage()
+    if (stored) {
+      this.accessToken = stored
+      this.startExpiryCheck()
+      if (!this.isTokenExpired()) return this.accessToken
+      this.accessToken = null
+      this.stopExpiryCheck()
+    }
+    return null
   }
 
   clearAccessToken(): void {
-    // ✅ Clear in-memory token only
     this.accessToken = null
     this.stopExpiryCheck()
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem(SESSION_STORAGE_KEY)
+    }
+  }
+
+  private loadFromStorage(): string | null {
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        return sessionStorage.getItem(SESSION_STORAGE_KEY)
+      }
+    } catch {
+      // storage unavailable
+    }
+    return null
   }
 
   setTokenRefreshCallback(callback: () => Promise<string>): void {

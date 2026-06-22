@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   Divider,
+  Input,
   Select,
   Space,
   Switch,
@@ -47,6 +48,24 @@ const ProctoringSettingsPanel: React.FC<ProctoringSettingsPanelProps> = ({
     (initialSettings?.clipboardPolicy as 'log_only' | 'block' | 'ignore') ??
       'log_only'
   )
+  const [aiShadowMode, setAiShadowMode] = useState(
+    initialSettings?.aiShadowMode ?? true
+  )
+  const [aiAdvisoryVisible, setAiAdvisoryVisible] = useState(
+    initialSettings?.aiAdvisoryVisible ?? false
+  )
+  const [llmSummaryEnabled, setLlmSummaryEnabled] = useState(
+    initialSettings?.llmSummaryEnabled ?? false
+  )
+  const [llmPrivacyApprovedAt, setLlmPrivacyApprovedAt] = useState(
+    initialSettings?.llmPrivacyApprovedAt ?? ''
+  )
+  const [llmPrivacyApprovedBy, setLlmPrivacyApprovedBy] = useState(
+    initialSettings?.llmPrivacyApprovedBy ?? ''
+  )
+  const [providerDpaReference, setProviderDpaReference] = useState(
+    initialSettings?.providerDpaReference ?? ''
+  )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -59,10 +78,31 @@ const ProctoringSettingsPanel: React.FC<ProctoringSettingsPanelProps> = ({
         (initialSettings.clipboardPolicy as 'log_only' | 'block' | 'ignore') ??
           'log_only'
       )
+      setAiShadowMode(initialSettings.aiShadowMode ?? true)
+      setAiAdvisoryVisible(initialSettings.aiAdvisoryVisible ?? false)
+      setLlmSummaryEnabled(initialSettings.llmSummaryEnabled ?? false)
+      setLlmPrivacyApprovedAt(initialSettings.llmPrivacyApprovedAt ?? '')
+      setLlmPrivacyApprovedBy(initialSettings.llmPrivacyApprovedBy ?? '')
+      setProviderDpaReference(initialSettings.providerDpaReference ?? '')
     }
   }, [initialSettings])
 
   const handleSave = async () => {
+    if (llmSummaryEnabled && !llmPrivacyApprovedAt.trim()) {
+      setError('Privacy approval date is required before enabling LLM summary.')
+      return
+    }
+    if (llmSummaryEnabled && !llmPrivacyApprovedBy.trim()) {
+      setError('Privacy approver is required before enabling LLM summary.')
+      return
+    }
+    if (llmSummaryEnabled && !providerDpaReference.trim()) {
+      setError(
+        'Provider DPA reference is required before enabling LLM summary.'
+      )
+      return
+    }
+
     setSaving(true)
     setError(null)
     try {
@@ -74,9 +114,18 @@ const ProctoringSettingsPanel: React.FC<ProctoringSettingsPanelProps> = ({
         requireMonitorDisplaySurface: false,
         clipboardPolicy,
         aiAnomalyEnabled: true,
-        aiShadowMode: true,
-        aiAdvisoryVisible: false,
-        llmSummaryEnabled: false,
+        aiShadowMode,
+        aiAdvisoryVisible: aiShadowMode ? false : aiAdvisoryVisible,
+        llmSummaryEnabled,
+        llmPrivacyApprovedAt: llmSummaryEnabled
+          ? llmPrivacyApprovedAt.trim()
+          : null,
+        llmPrivacyApprovedBy: llmSummaryEnabled
+          ? llmPrivacyApprovedBy.trim()
+          : null,
+        providerDpaReference: llmSummaryEnabled
+          ? providerDpaReference.trim()
+          : null,
       })
     } catch (err) {
       setError(
@@ -121,6 +170,7 @@ const ProctoringSettingsPanel: React.FC<ProctoringSettingsPanelProps> = ({
             checked={enabled}
             onChange={setEnabled}
             disabled={loading || saving}
+            aria-label="Enable browser proctoring"
           />
         </div>
 
@@ -139,6 +189,7 @@ const ProctoringSettingsPanel: React.FC<ProctoringSettingsPanelProps> = ({
             checked={requireCamera}
             onChange={setRequireCamera}
             disabled={!enabled || loading || saving}
+            aria-label="Require camera"
           />
         </div>
 
@@ -155,6 +206,7 @@ const ProctoringSettingsPanel: React.FC<ProctoringSettingsPanelProps> = ({
             checked={requireFullscreen}
             onChange={setRequireFullscreen}
             disabled={!enabled || loading || saving}
+            aria-label="Require fullscreen"
           />
         </div>
 
@@ -190,11 +242,21 @@ const ProctoringSettingsPanel: React.FC<ProctoringSettingsPanelProps> = ({
               }}
             >
               <Text strong>AI anomaly shadow mode</Text>
-              <Text type="secondary">ON</Text>
+              <Switch
+                checked={aiShadowMode}
+                onChange={checked => {
+                  setAiShadowMode(checked)
+                  if (checked) {
+                    setAiAdvisoryVisible(false)
+                  }
+                }}
+                disabled={loading || saving}
+                aria-label="AI anomaly shadow mode"
+              />
             </div>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              AI anomaly signals are processed in shadow mode (visible only to
-              platform operators).
+              Keep this on to process anomaly signals without showing them to
+              reviewers. Turn it off before enabling reviewer-visible advisory.
             </Text>
 
             <Divider style={{ margin: '4px 0' }} />
@@ -207,12 +269,22 @@ const ProctoringSettingsPanel: React.FC<ProctoringSettingsPanelProps> = ({
               }}
             >
               <Text strong>AI advisory visibility</Text>
-              <Text type="warning">Locked until pilot gate passes</Text>
+              <Switch
+                checked={aiAdvisoryVisible}
+                onChange={setAiAdvisoryVisible}
+                disabled={aiShadowMode || loading || saving}
+                aria-label="AI advisory visibility"
+              />
             </div>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              AI advisory becomes visible to reviewers only after the pilot
-              evaluation gate is satisfied.
+              Reviewer-visible anomaly advisory. Backend will still reject save
+              if the pilot evaluation gate has not passed.
             </Text>
+            {aiShadowMode ? (
+              <Text type="warning" style={{ fontSize: 12 }}>
+                Turn off shadow mode to enable advisory visibility.
+              </Text>
+            ) : null}
 
             <Divider style={{ margin: '4px 0' }} />
 
@@ -224,14 +296,47 @@ const ProctoringSettingsPanel: React.FC<ProctoringSettingsPanelProps> = ({
               }}
             >
               <Text strong>LLM summary</Text>
-              <Text type="danger">
-                Disabled until privacy/runtime gate passes
-              </Text>
+              <Switch
+                checked={llmSummaryEnabled}
+                onChange={setLlmSummaryEnabled}
+                disabled={loading || saving}
+                aria-label="LLM summary"
+              />
             </div>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              LLM-generated review summaries are disabled until the privacy and
-              runtime gate is approved.
+              Enable assistive review summaries. Privacy approval and provider
+              DPA metadata are required before save.
             </Text>
+            <label className="grid gap-1">
+              <Text style={{ fontSize: 12 }}>Privacy approval date</Text>
+              <Input
+                value={llmPrivacyApprovedAt}
+                onChange={event => setLlmPrivacyApprovedAt(event.target.value)}
+                placeholder="2026-06-22T00:00:00.000Z"
+                disabled={!llmSummaryEnabled || loading || saving}
+                aria-label="Privacy approval date"
+              />
+            </label>
+            <label className="grid gap-1">
+              <Text style={{ fontSize: 12 }}>Privacy approved by</Text>
+              <Input
+                value={llmPrivacyApprovedBy}
+                onChange={event => setLlmPrivacyApprovedBy(event.target.value)}
+                placeholder="teacher-1"
+                disabled={!llmSummaryEnabled || loading || saving}
+                aria-label="Privacy approved by"
+              />
+            </label>
+            <label className="grid gap-1">
+              <Text style={{ fontSize: 12 }}>Provider DPA reference</Text>
+              <Input
+                value={providerDpaReference}
+                onChange={event => setProviderDpaReference(event.target.value)}
+                placeholder="dpa-ref-1"
+                disabled={!llmSummaryEnabled || loading || saving}
+                aria-label="Provider DPA reference"
+              />
+            </label>
           </Space>
         </Card>
       </Space>

@@ -10,7 +10,7 @@ import { notificationService } from '@/services/api/notifications.service'
 import { ENotificationType, Notification } from '@/types/notification.types'
 
 const NotificationDropdown: React.FC = () => {
-  const { user } = useAuth()
+  const { user, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -34,7 +34,7 @@ const NotificationDropdown: React.FC = () => {
 
   // Fetch initial notifications
   const fetchNotifications = React.useCallback(async () => {
-    if (!user) return
+    if (!user || !isAuthenticated) return
     try {
       const data = await notificationService.getMyNotifications(20, 0)
       // Backend returns { notifications: [], unreadCount: 0 } structure if created in earlier step
@@ -46,19 +46,22 @@ const NotificationDropdown: React.FC = () => {
         setUnreadCount(data.unreadCount || 0)
       }
     } catch (error) {
-      console.error('Error fetching notifications:', error)
+      const axiosError = error as { response?: { status?: number } }
+      if (axiosError.response?.status !== 401) {
+        console.error('Error fetching notifications:', error)
+      }
     }
-  }, [user])
+  }, [user, isAuthenticated])
 
   useEffect(() => {
-    if (user) {
+    if (user && isAuthenticated) {
       fetchNotifications()
     }
-  }, [user, fetchNotifications])
+  }, [user, isAuthenticated, fetchNotifications])
 
   // WebSocket connection
   useEffect(() => {
-    if (!user) return
+    if (!user || !isAuthenticated) return
 
     //const socketUrl =
     //  import.meta.env.REACT_APP_API_URL || 'https://api.algoforge.site'
@@ -68,29 +71,37 @@ const NotificationDropdown: React.FC = () => {
       ? configuredApiUrl.replace(/\/api\/?$/, '')
       : window.location.origin
     const socket = io(socketUrl, {
+      autoConnect: false,
       transports: ['websocket', 'polling'],
       withCredentials: true,
     })
 
     socketRef.current = socket
 
-    socket.on('connect', () => {
+    const handleConnect = () => {
       // Authenticate
       socket.emit('authenticate', { userId: user.id })
-    })
+    }
 
-    socket.on('notification_new', (newNotification: Notification) => {
+    const handleNotificationNew = (newNotification: Notification) => {
       // Add to list and increment unread
       setNotifications(prev => [newNotification, ...prev])
       setUnreadCount(prev => prev + 1)
 
       // Optional: Play sound or show toast
-    })
+    }
+
+    socket.on('connect', handleConnect)
+    socket.on('notification_new', handleNotificationNew)
+    socket.connect()
 
     return () => {
+      socket.off('connect', handleConnect)
+      socket.off('notification_new', handleNotificationNew)
+      socketRef.current = null
       socket.disconnect()
     }
-  }, [user])
+  }, [user, isAuthenticated])
 
   const handleMarkAsRead = async (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation()

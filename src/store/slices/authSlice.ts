@@ -77,6 +77,8 @@ const initialRegisterState: RegisterState = {
   pendingRegistration: null,
 }
 
+const SESSION_USER_KEY = 'auth_user_data'
+
 const persistSessionSnapshot = (
   user: User | null,
   isAuthenticated: boolean
@@ -84,15 +86,16 @@ const persistSessionSnapshot = (
   if (typeof window === 'undefined') return
   try {
     if (isAuthenticated) {
-      // ✅ Only save authentication flag for UX (show loading on refresh)
-      // ❌ Do NOT save user data - security risk
       window.localStorage.setItem(STORAGE_KEYS.IS_AUTHENTICATED, 'true')
-      // Clean up old user data if exists (migration)
-      window.localStorage.removeItem(STORAGE_KEYS.USER)
+      if (user && typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem(SESSION_USER_KEY, JSON.stringify(user))
+      }
     } else {
-      // Clear on logout
       window.localStorage.removeItem(STORAGE_KEYS.IS_AUTHENTICATED)
       window.localStorage.removeItem(STORAGE_KEYS.USER)
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem(SESSION_USER_KEY)
+      }
     }
   } catch {
     // Ignore storage errors to keep auth flow running
@@ -109,13 +112,18 @@ const hydrateSessionState = (): SessionState => {
       window.localStorage.getItem(STORAGE_KEYS.IS_AUTHENTICATED) === 'true'
 
     if (storedAuth) {
-      // ✅ Only restore authentication flag
-      // ❌ Do NOT restore user data from localStorage (security risk)
-      // Full user data will be fetched via initializeSession from API
+      let user: User | null = null
+      try {
+        if (typeof sessionStorage !== 'undefined') {
+          const raw = sessionStorage.getItem(SESSION_USER_KEY)
+          if (raw) user = JSON.parse(raw) as User
+        }
+      } catch {
+        // ignore parse errors
+      }
       return {
-        user: null, // No user data from localStorage
-        isAuthenticated: true, // Flag to know we should fetch user
-        // Keep loading spinner while we validate refresh token server-side
+        user,
+        isAuthenticated: true,
         isLoading: true,
       }
     }
@@ -136,7 +144,13 @@ const initialState: AuthState = {
 export const initializeSession = createAsyncThunk<
   User,
   void,
-  { rejectValue: { message: string; isRefreshTokenExpired: boolean } }
+  {
+    rejectValue: {
+      message: string
+      isRefreshTokenExpired: boolean
+      shouldClearSession: boolean
+    }
+  }
 >('auth/refreshToken', async (_, { rejectWithValue }) => {
   try {
     const { accessToken, user } = await authService.refreshToken()
@@ -146,31 +160,40 @@ export const initializeSession = createAsyncThunk<
     persistSessionSnapshot(user, true)
     return user
   } catch (error) {
-    // Check if refresh token is expired or revoked - this means true logout
-    // Only logout if explicitly expired/revoked, not for NO_REFRESH_TOKEN (could be cookie path issue)
+    const errorCode =
+      error instanceof Error ? (error as { code?: string }).code : undefined
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error'
     const isRefreshTokenExpired =
-      error instanceof Error &&
-      (error.message === 'Refresh token expired or revoked' ||
-        (error as { code?: string }).code === 'REFRESH_TOKEN_EXPIRED' ||
-        (error as { code?: string }).code === 'TOKEN_EXPIRED')
+      errorMessage === 'Refresh token expired or revoked' ||
+      errorCode === 'REFRESH_TOKEN_EXPIRED' ||
+      errorCode === 'TOKEN_EXPIRED' ||
+      errorCode === 'REFRESH_TOKEN_NOT_FOUND'
 
     if (isRefreshTokenExpired) {
-      // Refresh token expired/revoked - clear everything and logout
       authService.clearAllAuthData()
       persistSessionSnapshot(null, false)
       return rejectWithValue({
         message: 'Refresh token expired or revoked',
         isRefreshTokenExpired: true,
+        shouldClearSession: true,
       })
     }
 
-    // Other errors (network, cookie not sent, NO_REFRESH_TOKEN, etc.) - clear token in memory but keep localStorage
-    // This allows the reducer to re-hydrate from localStorage if available
-    // NO_REFRESH_TOKEN could mean cookie not sent due to path mismatch, so don't logout
-    authService.clearAllAuthData()
+    if (errorCode === 'AUTHENTICATION_ERROR') {
+      authService.clearAllAuthData()
+      persistSessionSnapshot(null, false)
+      return rejectWithValue({
+        message: 'Not authenticated',
+        isRefreshTokenExpired: false,
+        shouldClearSession: true,
+      })
+    }
+
     return rejectWithValue({
-      message: 'Not authenticated',
+      message: errorMessage || 'Session refresh unavailable',
       isRefreshTokenExpired: false,
+      shouldClearSession: false,
     })
   }
 })
@@ -328,20 +351,11 @@ const authSlice = createSlice({
         state.session.isLoading = false
       })
       .addCase(initializeSession.rejected, (state, action) => {
-        const isRefreshTokenExpired =
-          action.payload?.isRefreshTokenExpired ?? false
-
-        // If refresh token is expired or revoked, clear everything - true logout
-        if (isRefreshTokenExpired) {
+        if (action.payload?.shouldClearSession) {
           state.session = { ...initialSessionState, isLoading: false }
           return
         }
 
-        // For other errors (network, cookie not sent, NO_REFRESH_TOKEN, etc.):
-        // hydrateSessionState already set isAuthenticated=true from localStorage,
-        // so keep that state. Just stop the loading spinner to let the app render.
-        // The axios interceptor will handle token refresh on the next API call;
-        // if that fails it fires auth:failed → logoutUser().
         state.session.isLoading = false
       })
 

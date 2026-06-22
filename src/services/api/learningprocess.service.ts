@@ -39,6 +39,17 @@ export interface LessonProgressResponse {
   recentLesson?: LessonProgress
 }
 
+function unwrapResponseData<T>(response: {
+  data?: T | { data?: T }
+}): T | null {
+  const payload = response.data
+  if (!payload) return null
+  if (typeof payload === 'object' && payload !== null && 'data' in payload) {
+    return (payload as { data?: T }).data ?? null
+  }
+  return payload as T
+}
+
 export class LearningProcessService {
   /**
    * Get user's complete learning progress
@@ -46,7 +57,7 @@ export class LearningProcessService {
   async getUserProgress(): Promise<LearningProgressResponse | null> {
     try {
       const response = await apiClient.get('/learningprocess/user/progress')
-      return response.data?.data ?? null
+      return unwrapResponseData<LearningProgressResponse>(response)
     } catch (error) {
       console.error('Error fetching user learning progress:', error)
       return null
@@ -59,7 +70,7 @@ export class LearningProcessService {
   async getTopicProgress(topicId: string): Promise<TopicProgress | null> {
     try {
       const response = await apiClient.get(`/learningprocess/topic/${topicId}`)
-      return response.data?.data ?? null
+      return unwrapResponseData<TopicProgress>(response)
     } catch (error) {
       console.error(`Error fetching topic progress for ${topicId}:`, error)
       return null
@@ -72,7 +83,7 @@ export class LearningProcessService {
   async getRecentTopic(): Promise<TopicProgress | null> {
     try {
       const response = await apiClient.get('/learningprocess/user/recent')
-      return response.data?.data ?? null
+      return unwrapResponseData<TopicProgress>(response)
     } catch (error: unknown) {
       const axiosError = error as { response?: { status?: number } }
       // Silently handle 401 - user may not be authenticated
@@ -92,7 +103,7 @@ export class LearningProcessService {
       const response = await apiClient.get(
         '/learningprocess/lessons/user/progress'
       )
-      return response.data?.data ?? null
+      return unwrapResponseData<LessonProgressResponse>(response)
     } catch (error) {
       console.error('Error fetching user lesson progress:', error)
       return null
@@ -107,7 +118,7 @@ export class LearningProcessService {
       const response = await apiClient.get(
         `/learningprocess/lessons/${lessonId}`
       )
-      return response.data?.data ?? null
+      return unwrapResponseData<LessonProgress>(response)
     } catch (error) {
       console.error(`Error fetching lesson progress for ${lessonId}:`, error)
       return null
@@ -122,7 +133,7 @@ export class LearningProcessService {
       const response = await apiClient.get(
         '/learningprocess/lessons/user/recent'
       )
-      return response.data?.data ?? null
+      return unwrapResponseData<LessonProgress>(response)
     } catch (error: unknown) {
       const axiosError = error as { response?: { status?: number } }
       // Silently handle 401 - user may not be authenticated

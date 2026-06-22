@@ -129,28 +129,35 @@ const Login: React.FC = () => {
   )
 
   const handleGoogleSuccess = useCallback(
-    (credential: string) => {
-      dispatch(loginWithGoogle(credential)).then(() => {
+    async (credential: string) => {
+      try {
+        await dispatch(loginWithGoogle(credential)).unwrap()
         message.success('Login with Google successful!')
-      })
+        const redirectTo = location.state?.from?.pathname || '/'
+        navigate(redirectTo)
+      } catch {
+        // Error handled by Redux
+      }
     },
-    [dispatch, message]
+    [dispatch, message, navigate, location.state]
   )
 
   const handleGoogleError = useCallback(() => {
     // Fallback: try One Tap prompt
-    googleAuthService.initGoogleAuth()
     googleAuthService
       .signInWithGoogle()
       .then(credential => {
-        dispatch(loginWithGoogle(credential)).then(() => {
-          message.success('Login with Google successful!')
-        })
+        return dispatch(loginWithGoogle(credential)).unwrap()
+      })
+      .then(() => {
+        message.success('Login with Google successful!')
+        const redirectTo = location.state?.from?.pathname || '/'
+        navigate(redirectTo)
       })
       .catch(() => {
         // Error handled by Redux
       })
-  }, [dispatch, message])
+  }, [dispatch, message, navigate, location.state])
 
   return (
     <div className="login-page">

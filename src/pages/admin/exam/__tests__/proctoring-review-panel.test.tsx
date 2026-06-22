@@ -685,7 +685,7 @@ describe('ProctoringReviewPanel', () => {
 
     expect(
       screen.getByText(
-        /No accepted LLM summary has been generated for this participation yet\./i
+        /No accepted LLM summary has been generated for this participation yet\. Use Recompute to queue one\./i
       )
     ).toBeInTheDocument()
   })

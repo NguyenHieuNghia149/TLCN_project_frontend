@@ -30,6 +30,11 @@ function makeSettings(
     clipboardPolicy: 'log_only',
     aiAnomalyEnabled: true,
     aiShadowMode: true,
+    aiAdvisoryVisible: false,
+    llmPrivacyApprovedAt: null,
+    llmPrivacyApprovedBy: null,
+    providerDpaReference: null,
+    llmSummaryEnabled: false,
     aiJobWindowSeconds: 300,
     consentNoticeVersion: 'phase-1',
     legalLinksJson: {},
@@ -45,7 +50,7 @@ describe('ProctoringSettingsPanel', () => {
     cleanup()
   })
 
-  it('renders locked AI advisory and LLM summary', () => {
+  it('renders configurable AI advisory and LLM summary controls', () => {
     render(
       <ProctoringSettingsPanel
         examId="exam-1"
@@ -54,11 +59,16 @@ describe('ProctoringSettingsPanel', () => {
       />
     )
 
+    expect(screen.getByText(/AI advisory visibility/i)).toBeInTheDocument()
+    expect(screen.getByText(/LLM summary/i)).toBeInTheDocument()
     expect(
-      screen.getByText(/locked until pilot gate passes/i)
+      screen.getByRole('switch', { name: /AI anomaly shadow mode/i })
     ).toBeInTheDocument()
     expect(
-      screen.getByText(/disabled until privacy\/runtime gate passes/i)
+      screen.getByRole('switch', { name: /AI advisory visibility/i })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('switch', { name: /LLM summary/i })
     ).toBeInTheDocument()
   })
 
@@ -96,7 +106,41 @@ describe('ProctoringSettingsPanel', () => {
     expect(payload.llmSummaryEnabled).toBe(false)
   })
 
-  it('never sends aiAdvisoryVisible=true or llmSummaryEnabled=true', async () => {
+  it('allows enabling AI advisory visibility when shadow mode is off', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue(undefined)
+
+    render(
+      <ProctoringSettingsPanel
+        examId="exam-1"
+        initialSettings={makeSettings({
+          aiShadowMode: true,
+          aiAdvisoryVisible: false,
+        })}
+        onSave={onSave}
+      />
+    )
+
+    await user.click(
+      screen.getByRole('switch', { name: /AI anomaly shadow mode/i })
+    )
+    await user.click(
+      screen.getByRole('switch', { name: /AI advisory visibility/i })
+    )
+    await user.click(
+      screen.getByRole('button', { name: /save proctoring settings/i })
+    )
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledTimes(1)
+    })
+
+    const payload = onSave.mock.calls[0][0]
+    expect(payload.aiShadowMode).toBe(false)
+    expect(payload.aiAdvisoryVisible).toBe(true)
+  })
+
+  it('requires privacy approval fields before enabling LLM summary', async () => {
     const user = userEvent.setup()
     const onSave = vi.fn().mockResolvedValue(undefined)
 
@@ -108,6 +152,39 @@ describe('ProctoringSettingsPanel', () => {
       />
     )
 
+    await user.click(screen.getByRole('switch', { name: /LLM summary/i }))
+    await user.click(
+      screen.getByRole('button', { name: /save proctoring settings/i })
+    )
+
+    expect(onSave).not.toHaveBeenCalled()
+    expect(
+      screen.getByText(/privacy approval date is required/i)
+    ).toBeInTheDocument()
+  })
+
+  it('sends LLM summary gate fields when enabled', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue(undefined)
+
+    render(
+      <ProctoringSettingsPanel
+        examId="exam-1"
+        initialSettings={makeSettings()}
+        onSave={onSave}
+      />
+    )
+
+    await user.click(screen.getByRole('switch', { name: /LLM summary/i }))
+    await user.type(
+      screen.getByLabelText(/Privacy approval date/i),
+      '2026-06-22T00:00:00.000Z'
+    )
+    await user.type(screen.getByLabelText(/Privacy approved by/i), 'teacher-1')
+    await user.type(
+      screen.getByLabelText(/Provider DPA reference/i),
+      'dpa-ref-1'
+    )
     await user.click(
       screen.getByRole('button', { name: /save proctoring settings/i })
     )
@@ -117,9 +194,10 @@ describe('ProctoringSettingsPanel', () => {
     })
 
     const payload = onSave.mock.calls[0][0]
-    // The panel hardcodes these to false and never exposes UI to change them
-    expect(payload.aiAdvisoryVisible).toBe(false)
-    expect(payload.llmSummaryEnabled).toBe(false)
+    expect(payload.llmSummaryEnabled).toBe(true)
+    expect(payload.llmPrivacyApprovedAt).toBe('2026-06-22T00:00:00.000Z')
+    expect(payload.llmPrivacyApprovedBy).toBe('teacher-1')
+    expect(payload.providerDpaReference).toBe('dpa-ref-1')
   })
 
   it('disables requirement controls when enabled is off', () => {
@@ -131,13 +209,15 @@ describe('ProctoringSettingsPanel', () => {
       />
     )
 
-    const switches = screen.getAllByRole('switch')
-    // First switch is the main "Enable browser proctoring" toggle
-    expect(switches[0]).not.toBeChecked()
-    // Remaining switches should be disabled when enabled is off
-    for (let i = 1; i < switches.length; i++) {
-      expect(switches[i]).toBeDisabled()
-    }
+    expect(
+      screen.getByRole('switch', { name: /Enable browser proctoring/i })
+    ).not.toBeChecked()
+    expect(
+      screen.getByRole('switch', { name: /Require camera/i })
+    ).toBeDisabled()
+    expect(
+      screen.getByRole('switch', { name: /Require fullscreen/i })
+    ).toBeDisabled()
   })
 
   it('shows error message on save failure', async () => {

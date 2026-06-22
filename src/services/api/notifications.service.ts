@@ -1,4 +1,5 @@
 import { apiClient } from '@/config/axios.config'
+import { AxiosError } from 'axios'
 import { NotificationResponse } from '@/types/notification.types'
 
 export const notificationService = {
@@ -12,6 +13,10 @@ export const notificationService = {
       )
       return response.data.data || response.data
     } catch (error) {
+      const axiosError = error as AxiosError
+      if (axiosError.response?.status === 401) {
+        return { notifications: [], unreadCount: 0 }
+      }
       console.error('Failed to fetch notifications', error)
       return { notifications: [], unreadCount: 0 }
     }

@@ -27,6 +27,10 @@ import {
   LessonProgress,
 } from '@/services/api/learningprocess.service'
 import { roadmapService } from '@/services/api/roadmap.service'
+import {
+  hasRenderableLessonProgress,
+  hasRenderableTopicProgress,
+} from './homeContinuePractice'
 import { useNavigate } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { RootState, AppDispatch } from '@/store/stores'
@@ -123,7 +127,7 @@ const ContinuePracticeCard: React.FC<ContinuePracticeCardProps> = ({
   icon,
   onClick,
 }) => {
-  const percentage = Math.round((progress / total) * 100)
+  const percentage = total > 0 ? Math.round((progress / total) * 100) : 0
 
   return (
     <div
@@ -789,6 +793,11 @@ const HomePage: React.FC = () => {
     }
   }, [isAuthenticated])
 
+  const showRecentTopicProgress =
+    hasRenderableTopicProgress(recentTopicProgress)
+  const showRecentLessonProgress =
+    hasRenderableLessonProgress(recentLessonProgress)
+
   const iconForTopic = useMemo(() => {
     const mapping: Record<string, React.ReactNode> = {
       Algorithms: <Hash size={20} />,
@@ -817,13 +826,13 @@ const HomePage: React.FC = () => {
         {/* Continue Practicing Section - Updated Design */}
         {isAuthenticated &&
           !isLoadingProgress &&
-          (recentTopicProgress || recentLessonProgress) && (
+          (showRecentTopicProgress || showRecentLessonProgress) && (
             <div className="mb-12 mt-12">
               <h2 className="mb-6 text-2xl font-semibold text-foreground">
                 Continue Practicing
               </h2>
               <div className="grid gap-6 md:grid-cols-2">
-                {recentTopicProgress && (
+                {showRecentTopicProgress && (
                   <ContinuePracticeCard
                     title={recentTopicProgress.topicName}
                     progress={recentTopicProgress.solvedProblems}
@@ -842,7 +851,7 @@ const HomePage: React.FC = () => {
                   />
                 )}
 
-                {recentLessonProgress && (
+                {showRecentLessonProgress && (
                   <ContinuePracticeCard
                     title={recentLessonProgress.topicName}
                     progress={recentLessonProgress.completedLessons}

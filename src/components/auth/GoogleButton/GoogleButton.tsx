@@ -33,67 +33,79 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
   useEffect(() => {
     if (disabled) return
 
+    let cancelled = false
+    let googleReadyWithButton = false
+
     googleAuthService.initGoogleAuth()
 
-    const intervalRef = { current: null as NodeJS.Timeout | null }
-    let attempts = 0
-    const maxAttempts = 50 // 5 seconds total
+    const tryRender = () => {
+      if (cancelled) return
 
-    const checkAndInit = () => {
-      if (buttonRef.current && window.google?.accounts?.id) {
-        if (intervalRef.current) clearInterval(intervalRef.current)
+      if (!buttonRef.current || !window.google?.accounts?.id) {
+        return
+      }
 
-        try {
-          const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
-          if (!clientId) {
-            onError?.(new Error('Google Client ID not configured'))
-            return
-          }
-
-          window.google.accounts.id.initialize({
-            client_id: clientId,
-            callback: (response: { credential: string }) => {
-              if (response.credential) {
-                onSuccess(response.credential)
-              } else {
-                onError?.(new Error('No credential received'))
-              }
-            },
-          })
-
-          // Always render the native button (even if hidden) so it can be triggered
-          window.google.accounts.id.renderButton(buttonRef.current, {
-            theme,
-            size,
-            text,
-            width: width || buttonRef.current.offsetWidth || 300,
-            logo_alignment,
-          })
-
-          // Mark as loaded ONLY after successful init and render
-          setIsGoogleLoaded(true)
-        } catch (err) {
-          setIsGoogleLoaded(false)
-          onError?.(err as Error)
+      try {
+        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
+        if (!clientId) {
+          onError?.(new Error('Google Client ID not configured'))
+          return
         }
-      } else {
-        attempts++
-        if (attempts >= maxAttempts) {
-          if (intervalRef.current) clearInterval(intervalRef.current)
-          console.warn('Google Sign-In script failed to load within timeout.')
-        }
+
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: (response: { credential: string }) => {
+            if (response.credential) {
+              onSuccess(response.credential)
+            } else {
+              onError?.(new Error('No credential received'))
+            }
+          },
+        })
+
+        window.google.accounts.id.renderButton(buttonRef.current, {
+          theme,
+          size,
+          text,
+          width: width || buttonRef.current.offsetWidth || 300,
+          logo_alignment,
+        })
+
+        googleReadyWithButton = true
+        setIsGoogleLoaded(true)
+      } catch (err) {
+        setIsGoogleLoaded(false)
+        onError?.(err as Error)
       }
     }
 
-    // Check immediately first
-    checkAndInit()
+    let attempts = 0
+    const maxAttempts = 50
 
-    // Then poll
-    intervalRef.current = setInterval(checkAndInit, 100)
+    const poll = () => {
+      if (cancelled) return
+
+      if (googleReadyWithButton) {
+        return
+      }
+
+      if (window.google?.accounts?.id && buttonRef.current) {
+        tryRender()
+        return
+      }
+
+      attempts++
+      if (attempts < maxAttempts) {
+        setTimeout(poll, 100)
+      } else {
+        console.warn('Google Sign-In script failed to load within timeout.')
+      }
+    }
+
+    poll()
 
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current)
-      // Clean up Google One Tap/Button state on unmount
+      cancelled = true
       if (window.google?.accounts?.id) {
         window.google.accounts.id.cancel()
       }

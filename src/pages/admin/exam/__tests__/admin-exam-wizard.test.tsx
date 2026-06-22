@@ -1,23 +1,144 @@
-import { describe, expect, it } from 'vitest'
+// @vitest-environment jsdom
+
+import '@testing-library/jest-dom/vitest'
+import { App } from 'antd'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 
 import {
   getNextAutoSlug,
   resolveWizardStepIndex,
   syncWizardSearchParams,
 } from '@/pages/admin/exam/admin-exam-wizard.query'
+import AdminCreateExam from '@/pages/admin/exam/AdminCreateExam'
+
+const notificationWarning = vi.fn()
+
+vi.mock('@/services/api/challenge.service', () => ({
+  challengeService: {
+    getAllChallenges: vi.fn().mockResolvedValue({ items: [] }),
+  },
+}))
+
+vi.mock('@/services/api/exam.service', () => ({
+  examService: {
+    getAdminExamParticipants: vi.fn().mockResolvedValue([]),
+    searchAdminUsers: vi.fn().mockResolvedValue([]),
+    getAdminExamById: vi.fn(),
+    getProctoringSettings: vi.fn(),
+    createAdminExam: vi.fn(),
+    updateAdminExam: vi.fn(),
+    publishAdminExam: vi.fn(),
+    addAdminExamParticipants: vi.fn(),
+    importAdminExamParticipants: vi.fn(),
+    resendAdminExamParticipantInvite: vi.fn(),
+    updateAdminProctoringSettings: vi.fn(),
+  },
+}))
+
+vi.mock('antd', async importOriginal => {
+  const actual = await importOriginal<typeof import('antd')>()
+  return {
+    ...actual,
+    App: Object.assign(actual.App, {
+      useApp: () => ({
+        notification: {
+          success: vi.fn(),
+          error: vi.fn(),
+          info: vi.fn(),
+          warning: notificationWarning,
+        },
+      }),
+    }),
+  }
+})
 
 const STEP_KEYS = [
   'basic',
   'access',
-  'participants',
   'challenges',
+  'participants',
   'notifications',
   'review',
 ] as const
 
+function renderWizard(initialEntry = '/admin/exams/create') {
+  return render(
+    <App>
+      <MemoryRouter initialEntries={[initialEntry]}>
+        <Routes>
+          <Route path="/admin/exams/create" element={<AdminCreateExam />} />
+        </Routes>
+      </MemoryRouter>
+    </App>
+  )
+}
+
+async function clickStep(title: string) {
+  const steps = document.querySelector('.ant-steps') as HTMLElement | null
+  if (!steps) {
+    throw new Error('Steps container not found')
+  }
+
+  const target = within(steps).getByText(title)
+  const button = target.closest(
+    '.ant-steps-item-container'
+  ) as HTMLElement | null
+  if (!button) {
+    throw new Error(`Step item not found for ${title}`)
+  }
+  fireEvent.click(button)
+}
+
+afterEach(() => {
+  cleanup()
+})
+
+beforeAll(() => {
+  if (!window.matchMedia) {
+    window.matchMedia = (query: string) =>
+      ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      }) as unknown as MediaQueryList
+  }
+
+  const original = window.getComputedStyle
+  window.getComputedStyle = ((elt: Element) =>
+    original(elt)) as unknown as typeof window.getComputedStyle
+})
+
+beforeEach(() => {
+  notificationWarning.mockReset()
+})
+
 describe('admin exam wizard URL behavior', () => {
   it('resolves valid step index and falls back to basic for invalid step', () => {
-    expect(resolveWizardStepIndex('participants', STEP_KEYS)).toBe(2)
+    expect(resolveWizardStepIndex('challenges', STEP_KEYS)).toBe(2)
+    expect(resolveWizardStepIndex('participants', STEP_KEYS)).toBe(3)
     expect(resolveWizardStepIndex('unknown', STEP_KEYS)).toBe(0)
     expect(resolveWizardStepIndex(null, STEP_KEYS)).toBe(0)
   })
@@ -64,5 +185,57 @@ describe('admin exam wizard slug behavior', () => {
     )
 
     expect(nextSlug).toBe('custom-exam')
+  })
+})
+
+describe('admin exam wizard step clicking', () => {
+  it('rejects forward jumps when prior required fields are invalid', async () => {
+    renderWizard()
+
+    await clickStep('Access')
+
+    expect(
+      screen.getByRole('heading', { name: /create exam/i })
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText(/exam title/i)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(notificationWarning).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Cannot jump to step',
+        })
+      )
+    })
+  }, 15000)
+
+  it('allows backward jumps without revalidating prior steps', async () => {
+    renderWizard('/admin/exams/create?step=participants')
+
+    await waitFor(() => {
+      expect(screen.getByText(/server-persisted roster/i)).toBeInTheDocument()
+    })
+
+    await clickStep('Access')
+
+    expect(screen.getByText(/access mode guardrails/i)).toBeInTheDocument()
+    expect(notificationWarning).not.toHaveBeenCalled()
+  }, 15000)
+
+  it('rejects jumps to review when challenges are missing', async () => {
+    renderWizard()
+
+    const user = userEvent.setup()
+    await user.type(screen.getByLabelText(/exam title/i), 'Spring assessment')
+
+    await clickStep('Review')
+
+    expect(screen.getByLabelText(/exam title/i)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(notificationWarning).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Cannot jump to step',
+          description: 'Add at least one challenge before continuing.',
+        })
+      )
+    })
   })
 })

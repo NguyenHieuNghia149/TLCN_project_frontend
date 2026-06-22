@@ -10,6 +10,8 @@ import { ConfigProvider, App as AntdApp, theme as antdTheme, Spin } from 'antd'
 import { useTheme } from '@/contexts/useTheme'
 import { AppDispatch, RootState } from './store/stores'
 
+let sessionBootInitializationInFlight: Promise<unknown> | null = null
+
 function App() {
   const dispatch = useDispatch<AppDispatch>()
   const { theme } = useTheme()
@@ -20,8 +22,17 @@ function App() {
   )
 
   useEffect(() => {
-    // Initialize session on app load
-    dispatch(initializeSession())
+    if (!sessionBootInitializationInFlight) {
+      const initializationRequest = Promise.resolve(
+        dispatch(initializeSession())
+      )
+      const trackedInitialization = initializationRequest.finally(() => {
+        if (sessionBootInitializationInFlight === trackedInitialization) {
+          sessionBootInitializationInFlight = null
+        }
+      })
+      sessionBootInitializationInFlight = trackedInitialization
+    }
 
     // Listen for auth:failed event from axios interceptor
     // This happens when refresh token fails during API calls
