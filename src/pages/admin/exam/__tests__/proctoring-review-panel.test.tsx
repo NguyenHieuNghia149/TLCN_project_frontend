@@ -240,6 +240,27 @@ describe('ProctoringReviewPanel', () => {
     expect(screen.getByLabelText(/review decision/i)).toBeInTheDocument()
   })
 
+  it('shows inline action status when provided', () => {
+    render(
+      <ProctoringReviewPanel
+        review={makeReview()}
+        loading={false}
+        actionLoading={false}
+        actionStatus={{
+          type: 'success',
+          message: 'Official review decision saved.',
+        }}
+        onRefresh={vi.fn()}
+        onRecompute={vi.fn()}
+        onReview={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Official review decision saved.'
+    )
+  })
+
   it('keeps review label and review decision in separate sections', () => {
     render(
       <ProctoringReviewPanel
@@ -610,6 +631,63 @@ describe('ProctoringReviewPanel', () => {
     expect(card as HTMLElement).toHaveTextContent(
       'No notable browser or device interruptions were recorded.'
     )
+  })
+
+  it('falls back to evidence final flush status when summary status is missing', () => {
+    const review = makeReview()
+    if (review.summary) {
+      review.summary.finalFlushStatus = null
+    }
+    review.evidence.finalFlush = [
+      {
+        id: 'receipt-1',
+        status: 'persisted',
+        updatedAt: '2026-06-12T10:02:00.000Z',
+      },
+    ]
+
+    render(
+      <ProctoringReviewPanel
+        review={review}
+        loading={false}
+        actionLoading={false}
+        onRefresh={vi.fn()}
+        onRecompute={vi.fn()}
+        onReview={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText(/^Final flush$/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/persisted/i).length).toBeGreaterThan(0)
+  })
+
+  it('explains when LLM summary is unavailable instead of accepted', () => {
+    const review = makeReview()
+    review.llmSummary = {
+      visible: false,
+      status: 'unavailable',
+      riskFacts: [],
+      citations: [],
+      missingDataNotes: [],
+      modelNotes: [],
+    }
+
+    render(
+      <ProctoringReviewPanel
+        review={review}
+        loading={false}
+        actionLoading={false}
+        onRefresh={vi.fn()}
+        onRecompute={vi.fn()}
+        onReview={vi.fn()}
+      />
+    )
+
+    expect(
+      screen.getByText(
+        /No accepted LLM summary has been generated for this participation yet\./i
+      )
+    ).toBeInTheDocument()
   })
 
   it('review attention card does not change the official review decision', async () => {

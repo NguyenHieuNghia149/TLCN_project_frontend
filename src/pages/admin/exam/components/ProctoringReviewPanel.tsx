@@ -13,6 +13,10 @@ type ProctoringReviewPanelProps = {
   review: AdminProctoringReview | null
   loading: boolean
   actionLoading: boolean
+  actionStatus?: {
+    type: 'success' | 'error'
+    message: string
+  } | null
   onRefresh: () => void
   onRecompute: () => void
   onReview: (payload: {
@@ -226,10 +230,77 @@ function formatScore(value: number | undefined) {
   return typeof value === 'number' ? value.toFixed(2) : '--'
 }
 
+function getRiskTone(riskLevel: string | null | undefined) {
+  const normalized = String(riskLevel ?? '').toLowerCase()
+  if (normalized === 'critical') {
+    return {
+      card: 'border-rose-300 bg-rose-50',
+      text: 'text-rose-700',
+      badge: 'Critical',
+      badgeClass: 'bg-rose-100 text-rose-700',
+    }
+  }
+  if (normalized === 'high') {
+    return {
+      card: 'border-amber-300 bg-amber-50',
+      text: 'text-amber-700',
+      badge: 'High',
+      badgeClass: 'bg-amber-100 text-amber-700',
+    }
+  }
+  if (normalized === 'medium') {
+    return {
+      card: 'border-sky-300 bg-sky-50',
+      text: 'text-sky-700',
+      badge: 'Medium',
+      badgeClass: 'bg-sky-100 text-sky-700',
+    }
+  }
+  return {
+    card: 'border-emerald-300 bg-emerald-50',
+    text: 'text-emerald-700',
+    badge: 'Low',
+    badgeClass: 'bg-emerald-100 text-emerald-700',
+  }
+}
+
+function getFinalFlushStatusLabel(review: AdminProctoringReview | null) {
+  if (review?.summary?.finalFlushStatus) {
+    return review.summary.finalFlushStatus
+  }
+
+  const receipts = Array.isArray(review?.evidence?.finalFlush)
+    ? review?.evidence?.finalFlush
+    : []
+  const latestReceipt = [...receipts]
+    .filter(
+      item =>
+        item && typeof item === 'object' && typeof item.status === 'string'
+    )
+    .sort((a, b) => {
+      const aTime =
+        typeof a.updatedAt === 'string'
+          ? a.updatedAt
+          : typeof a.createdAt === 'string'
+            ? a.createdAt
+            : ''
+      const bTime =
+        typeof b.updatedAt === 'string'
+          ? b.updatedAt
+          : typeof b.createdAt === 'string'
+            ? b.createdAt
+            : ''
+      return bTime.localeCompare(aTime)
+    })[0]
+
+  return typeof latestReceipt?.status === 'string' ? latestReceipt.status : '--'
+}
+
 const ProctoringReviewPanel: React.FC<ProctoringReviewPanelProps> = ({
   review,
   loading,
   actionLoading,
+  actionStatus,
   onRefresh,
   onRecompute,
   onReview,
@@ -418,6 +489,8 @@ const ProctoringReviewPanel: React.FC<ProctoringReviewPanelProps> = ({
   }
 
   const summary = review.summary
+  const riskTone = getRiskTone(summary?.riskLevel)
+  const finalFlushStatus = getFinalFlushStatusLabel(review)
 
   return (
     <section className="rounded-xl border p-4">
@@ -453,28 +526,52 @@ const ProctoringReviewPanel: React.FC<ProctoringReviewPanelProps> = ({
         </div>
       </div>
 
+      {actionStatus ? (
+        <div
+          className={`mt-4 rounded-lg border px-3 py-2 text-sm ${
+            actionStatus.type === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-rose-200 bg-rose-50 text-rose-700'
+          }`}
+          role="status"
+        >
+          {actionStatus.message}
+        </div>
+      ) : null}
+
       <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-        <div className="rounded-lg border p-3">
+        <div className={`rounded-lg border p-3 ${riskTone.card}`}>
           <p className="text-xs uppercase opacity-70">Risk level</p>
-          <p className="mt-1 text-lg font-semibold">
+          <div className="mt-2 flex items-center gap-2">
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${riskTone.badgeClass}`}
+            >
+              {riskTone.badge}
+            </span>
+          </div>
+          <p className={`mt-2 text-lg font-semibold ${riskTone.text}`}>
             {summary?.riskLevel ?? '--'}
           </p>
         </div>
-        <div className="rounded-lg border p-3">
+        <div className={`rounded-lg border p-3 ${riskTone.card}`}>
           <p className="text-xs uppercase opacity-70">Risk score</p>
-          <p className="mt-1 text-lg font-semibold">
+          <p className={`mt-2 text-lg font-semibold ${riskTone.text}`}>
             {summary?.riskScore ?? '--'}
           </p>
         </div>
         <div className="rounded-lg border p-3">
           <p className="text-xs uppercase opacity-70">Final flush</p>
-          <p className="mt-1 text-lg font-semibold">
-            {summary?.finalFlushStatus ?? '--'}
-          </p>
+          <p className="mt-1 text-lg font-semibold">{finalFlushStatus}</p>
         </div>
       </div>
 
-      <div className="mt-4 rounded-lg border border-sky-100 bg-sky-50/70 p-3">
+      <div
+        className={`mt-4 rounded-lg border p-3 ${
+          hasReviewAttentionSignals
+            ? 'border-amber-200 bg-amber-50/80'
+            : 'border-emerald-200 bg-emerald-50/70'
+        }`}
+      >
         <p className="text-sm font-semibold">Review attention</p>
         <p className="mt-1 text-sm font-medium text-slate-900">
           {hasReviewAttentionSignals
@@ -674,7 +771,9 @@ const ProctoringReviewPanel: React.FC<ProctoringReviewPanelProps> = ({
             </div>
           ) : (
             <p className="mt-3 text-sm opacity-75">
-              Advisory signal is hidden for this review state.
+              {review.aiAdvisory.status === 'hidden_shadow_mode'
+                ? 'AI advisory is hidden because shadow mode is enabled.'
+                : 'AI advisory is hidden until visibility gates pass.'}
             </p>
           )}
         </div>
@@ -696,8 +795,10 @@ const ProctoringReviewPanel: React.FC<ProctoringReviewPanelProps> = ({
           {!review.llmSummary.visible ? (
             <p className="mt-3 text-sm opacity-75">
               {review.llmSummary.status === 'hidden_disabled'
-                ? 'Summary generation is disabled.'
-                : 'Summary is hidden for this review state.'}
+                ? 'Summary generation is disabled in current proctoring settings.'
+                : review.llmSummary.status === 'unavailable'
+                  ? 'No accepted LLM summary has been generated for this participation yet.'
+                  : 'Summary is hidden for this review state.'}
             </p>
           ) : review.llmSummary.status === 'accepted' ? (
             <div className="mt-3 grid gap-3 text-sm">

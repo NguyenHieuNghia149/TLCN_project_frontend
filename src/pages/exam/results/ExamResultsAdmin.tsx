@@ -7,7 +7,7 @@ import React, {
 } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Calendar, Code, RefreshCw, Search } from 'lucide-react'
-import { Drawer } from 'antd'
+import { App, Drawer } from 'antd'
 
 import Button from '@/components/common/Button/Button'
 import Input from '@/components/common/Input/Input'
@@ -174,6 +174,7 @@ const ExamResultsAdmin: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const adminThemeContext = useContext(AdminThemeContext)
+  const { notification } = App.useApp()
   const adminTheme = adminThemeContext?.adminTheme ?? 'dark'
   const themeStyles = useMemo(
     () => buildAdminResultsThemeStyles(adminTheme),
@@ -201,6 +202,10 @@ const ExamResultsAdmin: React.FC = () => {
   > | null>(null)
   const [selectedProctoringReview, setSelectedProctoringReview] =
     useState<AdminProctoringReview | null>(null)
+  const [proctoringActionStatus, setProctoringActionStatus] = useState<{
+    type: 'success' | 'error'
+    message: string
+  } | null>(null)
   const [detailsLoading, setDetailsLoading] = useState(false)
   const [proctoringLoading, setProctoringLoading] = useState(false)
   const [proctoringActionLoading, setProctoringActionLoading] = useState(false)
@@ -360,6 +365,7 @@ const ExamResultsAdmin: React.FC = () => {
       setSelectedParticipationId(participationId)
       setSelectedDetails(null)
       setSelectedProctoringReview(null)
+      setProctoringActionStatus(null)
       setDetailsLoading(true)
       setProctoringLoading(true)
 
@@ -407,16 +413,32 @@ const ExamResultsAdmin: React.FC = () => {
         selectedParticipationId
       )
       setSelectedProctoringReview(payload)
-    } catch {
+      setProctoringActionStatus(null)
+    } catch (apiError: unknown) {
       setSelectedProctoringReview(null)
+      setProctoringActionStatus({
+        type: 'error',
+        message: extractApiErrorMessage(
+          apiError,
+          'Unable to refresh proctoring review data.'
+        ),
+      })
+      notification.error({
+        message: 'Failed to refresh proctoring review',
+        description: extractApiErrorMessage(
+          apiError,
+          'Unable to refresh proctoring review data.'
+        ),
+      })
     } finally {
       setProctoringLoading(false)
     }
-  }, [examId, selectedParticipationId])
+  }, [examId, notification, selectedParticipationId])
 
   const handleRecomputeProctoringReview = useCallback(async () => {
     if (!examId || !selectedParticipationId) return
     setProctoringActionLoading(true)
+    setProctoringActionStatus(null)
     try {
       await examService.recomputeAdminProctoringReview(
         examId,
@@ -427,10 +449,34 @@ const ExamResultsAdmin: React.FC = () => {
         selectedParticipationId
       )
       setSelectedProctoringReview(payload)
+      setProctoringActionStatus({
+        type: 'success',
+        message: 'Deterministic proctoring review was recomputed successfully.',
+      })
+      notification.success({
+        message: 'Proctoring review recomputed',
+        description: 'Deterministic review evidence has been refreshed.',
+      })
+    } catch (apiError: unknown) {
+      setProctoringActionStatus({
+        type: 'error',
+        message: extractApiErrorMessage(
+          apiError,
+          'Unable to recompute proctoring review.'
+        ),
+      })
+      notification.error({
+        message: 'Failed to recompute proctoring review',
+        description: extractApiErrorMessage(
+          apiError,
+          'Unable to recompute proctoring review.'
+        ),
+      })
+      throw apiError
     } finally {
       setProctoringActionLoading(false)
     }
-  }, [examId, selectedParticipationId])
+  }, [examId, notification, selectedParticipationId])
 
   const handleReviewProctoring = useCallback(
     async (payload: {
@@ -439,6 +485,7 @@ const ExamResultsAdmin: React.FC = () => {
     }) => {
       if (!examId || !selectedParticipationId) return
       setProctoringActionLoading(true)
+      setProctoringActionStatus(null)
       try {
         const summary = await examService.reviewAdminProctoring(
           examId,
@@ -448,11 +495,35 @@ const ExamResultsAdmin: React.FC = () => {
         setSelectedProctoringReview(current =>
           current ? { ...current, summary } : current
         )
+        setProctoringActionStatus({
+          type: 'success',
+          message: 'Official review decision saved.',
+        })
+        notification.success({
+          message: 'Review decision saved',
+          description: 'Official review decision was updated successfully.',
+        })
+      } catch (apiError: unknown) {
+        setProctoringActionStatus({
+          type: 'error',
+          message: extractApiErrorMessage(
+            apiError,
+            'Unable to save review decision.'
+          ),
+        })
+        notification.error({
+          message: 'Failed to save review decision',
+          description: extractApiErrorMessage(
+            apiError,
+            'Unable to save review decision.'
+          ),
+        })
+        throw apiError
       } finally {
         setProctoringActionLoading(false)
       }
     },
-    [examId, selectedParticipationId]
+    [examId, notification, selectedParticipationId]
   )
 
   const handleLabelProctoringReview = useCallback(
@@ -463,6 +534,7 @@ const ExamResultsAdmin: React.FC = () => {
     }) => {
       if (!examId || !selectedParticipationId) return
       setProctoringActionLoading(true)
+      setProctoringActionStatus(null)
       try {
         await examService.labelAdminProctoringReview(
           examId,
@@ -474,15 +546,35 @@ const ExamResultsAdmin: React.FC = () => {
           selectedParticipationId
         )
         setSelectedProctoringReview(updatedReview)
+        setProctoringActionStatus({
+          type: 'success',
+          message: 'Model evaluation label saved.',
+        })
+        notification.success({
+          message: 'Review label saved',
+          description: 'Model evaluation label was updated successfully.',
+        })
       } catch (apiError: unknown) {
-        setError(
-          extractApiErrorMessage(apiError, 'Failed to save review label')
-        )
+        setProctoringActionStatus({
+          type: 'error',
+          message: extractApiErrorMessage(
+            apiError,
+            'Unable to save review label.'
+          ),
+        })
+        notification.error({
+          message: 'Failed to save review label',
+          description: extractApiErrorMessage(
+            apiError,
+            'Unable to save review label.'
+          ),
+        })
+        throw apiError
       } finally {
         setProctoringActionLoading(false)
       }
     },
-    [examId, selectedParticipationId]
+    [examId, notification, selectedParticipationId]
   )
 
   if (loading) {
@@ -725,6 +817,7 @@ const ExamResultsAdmin: React.FC = () => {
             setSelectedParticipationId(null)
             setSelectedDetails(null)
             setSelectedProctoringReview(null)
+            setProctoringActionStatus(null)
           }}
           destroyOnClose
         >
@@ -838,6 +931,7 @@ const ExamResultsAdmin: React.FC = () => {
                 review={selectedProctoringReview}
                 loading={proctoringLoading}
                 actionLoading={proctoringActionLoading}
+                actionStatus={proctoringActionStatus}
                 onRefresh={() => {
                   void refreshSelectedProctoringReview()
                 }}
