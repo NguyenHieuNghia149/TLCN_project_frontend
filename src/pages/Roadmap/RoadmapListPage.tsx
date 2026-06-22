@@ -6,10 +6,13 @@ import { asyncFetchRoadmaps } from '@/store/slices/roadmapSlice'
 import { roadmapService } from '@/services/api/roadmap.service'
 import type { RoadmapDetail, ProgressStats } from '@/types/roadmap.types'
 import { Code2, Hash, BarChart3, ChevronRight } from 'lucide-react'
+import { useTheme } from '@/contexts/useTheme'
 
 const RoadmapListPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>()
   const navigate = useNavigate()
+  const { theme } = useTheme()
+  const isDark = theme === 'dark'
   const { items, total, loading } = useSelector(
     (state: RootState) => state.roadmap.list
   )
@@ -166,14 +169,24 @@ const RoadmapListPage: React.FC = () => {
     }
 
     return (
-      <div className="roadmap-list-card rounded-2xl border border-slate-700/50 bg-slate-900/80 p-6 backdrop-blur-sm transition-all duration-300 hover:shadow-lg">
+      <div
+        className={`roadmap-list-card rounded-2xl border p-6 backdrop-blur-sm transition-all duration-300 hover:shadow-lg ${
+          isDark
+            ? 'border-slate-700/50 bg-slate-900/80'
+            : 'border-slate-200/50 bg-white/80'
+        }`}
+      >
         <div className="flex items-center gap-6">
           {/* Left side: Icon with progress circle */}
           <div className="relative flex flex-shrink-0 flex-col items-center">
             {getRoadmapIcon(title)}
             {/* Progress circle */}
             {isInUserList && (
-              <div className="absolute -bottom-2 -right-2 flex h-14 w-14 items-center justify-center rounded-full border-4 border-green-500 bg-slate-900">
+              <div
+                className={`absolute -bottom-2 -right-2 flex h-14 w-14 items-center justify-center rounded-full border-4 border-green-500 ${
+                  isDark ? 'bg-slate-900' : 'bg-white'
+                }`}
+              >
                 <div className="flex flex-col items-center">
                   <span className="text-xs font-bold text-green-400">
                     {percentage}%
@@ -186,31 +199,52 @@ const RoadmapListPage: React.FC = () => {
           {/* Left-middle: Title and info */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-3">
-              <h3 className="text-xl font-bold text-white">{title}</h3>
-              <span className="rounded border border-blue-500/50 bg-blue-500/30 px-3 py-1 text-xs font-medium text-blue-300">
+              <h3
+                className={`text-xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}
+              >
+                {title}
+              </h3>
+              <span
+                className={`rounded border px-3 py-1 text-xs font-medium ${
+                  isDark
+                    ? 'border-blue-500/50 bg-blue-500/30 text-blue-300'
+                    : 'border-blue-300/50 bg-blue-100/50 text-blue-700'
+                }`}
+              >
                 Cơ bản
               </span>
             </div>
 
             {/* Progress text */}
             {isInUserList && (
-              <div className="text-sm text-slate-300">
+              <div
+                className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}
+              >
                 <span className="font-semibold text-green-400">
                   {completed}/{total}
                 </span>
-                <span className="text-slate-400"> bài hoàn thành</span>
+                <span
+                  className={`${isDark ? 'text-slate-400' : 'text-slate-500'}`}
+                >
+                  {' '}
+                  bài hoàn thành
+                </span>
               </div>
             )}
 
             {/* Description */}
             {description && (
-              <p className="line-clamp-2 text-sm text-slate-400">
+              <p
+                className={`line-clamp-2 text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}
+              >
                 {description}
               </p>
             )}
 
             {/* Details */}
-            <div className="flex items-center gap-3 text-xs text-slate-400">
+            <div
+              className={`flex items-center gap-3 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}
+            >
               <span>{lessonCount} bài học</span>
               <span>•</span>
               <span>{problemCount} bài tập</span>
@@ -252,7 +286,9 @@ const RoadmapListPage: React.FC = () => {
           <div className="flex items-center justify-center py-12">
             <div className="flex flex-col items-center gap-3">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-green-500 border-t-transparent" />
-              <p className="text-sm text-slate-500">Loading roadmaps...</p>
+              <p className="text-sm text-muted-foreground">
+                Loading roadmaps...
+              </p>
             </div>
           </div>
         ) : (
@@ -275,17 +311,27 @@ const RoadmapListPage: React.FC = () => {
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium transition-colors hover:bg-slate-800 disabled:opacity-50"
+              className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
+                isDark
+                  ? 'border-slate-700 hover:bg-slate-800'
+                  : 'border-slate-300 hover:bg-slate-100'
+              }`}
             >
               Previous
             </button>
-            <div className="flex items-center px-4 text-sm font-medium">
+            <div
+              className={`flex items-center px-4 text-sm font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}
+            >
               Page {currentPage} of {Math.ceil(total / itemsPerPage)}
             </div>
             <button
               onClick={() => setCurrentPage(p => p + 1)}
               disabled={currentPage >= Math.ceil(total / itemsPerPage)}
-              className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium transition-colors hover:bg-slate-800 disabled:opacity-50"
+              className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
+                isDark
+                  ? 'border-slate-700 hover:bg-slate-800'
+                  : 'border-slate-300 hover:bg-slate-100'
+              }`}
             >
               Next
             </button>

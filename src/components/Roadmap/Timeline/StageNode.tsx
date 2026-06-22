@@ -1,19 +1,20 @@
-import React from 'react';
-import { getIconComponent } from '@/constants/roadmapStages';
-import { FiCheck } from 'react-icons/fi';
+import React from 'react'
+import { getIconComponent } from '@/constants/roadmapStages'
+import { FiCheck } from 'react-icons/fi'
+import { useTheme } from '@/contexts/useTheme'
 
 interface StageNodeProps {
-  id: string;
-  label: string;
-  description: string;
-  icon?: string;
-  isCompleted: boolean;
-  isCurrent: boolean;
-  isActive: boolean;
-  colorClass?: string;
-  onClick?: () => void;
-  className?: string;
-  'data-testid'?: string;
+  id: string
+  label: string
+  description: string
+  icon?: string
+  isCompleted: boolean
+  isCurrent: boolean
+  isActive: boolean
+  colorClass?: string
+  onClick?: () => void
+  className?: string
+  'data-testid'?: string
 }
 
 /**
@@ -44,22 +45,24 @@ export const StageNode = React.memo<StageNodeProps>(
     className = '',
     'data-testid': testId,
   }) => {
-    const IconComponent = icon ? getIconComponent(icon) : null;
+    const { theme } = useTheme()
+    const isDark = theme === 'dark'
+    const IconComponent = icon ? getIconComponent(icon) : null
 
     // Determine styling based on state - prioritize completion state over color
     const getBackgroundClass = (): string => {
       if (isCompleted) {
-        return 'bg-green-500';
+        return 'bg-green-500'
       }
       if (isCurrent) {
-        return 'bg-blue-500 ring-4 ring-blue-200 shadow-lg';
+        return 'bg-blue-500 ring-4 ring-blue-200 shadow-lg'
       }
-      return colorClass; // Use assigned color for normal state
-    };
+      return colorClass // Use assigned color for normal state
+    }
 
     return (
       <div
-        className={`relative flex flex-col items-center gap-3 group ${className}`}
+        className={`group relative flex flex-col items-center gap-3 ${className}`}
         role="img"
         aria-label={`${label} - ${
           isCompleted ? 'completed' : isCurrent ? 'current' : 'pending'
@@ -70,50 +73,43 @@ export const StageNode = React.memo<StageNodeProps>(
         {/* Stage node circle - colorful design matching the image */}
         <button
           onClick={onClick}
-          className={`
-            relative
-            w-20 h-20
-            rounded-full
-            flex items-center justify-center
-            transition-all duration-300
-            hover:scale-110 hover:shadow-xl
-            focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white
-            shadow-md
-            ${getBackgroundClass()}
-            ${onClick ? 'cursor-pointer' : 'cursor-default'}
-          `}
+          className={`relative flex h-20 w-20 items-center justify-center rounded-full shadow-md transition-all duration-300 hover:scale-110 hover:shadow-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${getBackgroundClass()} ${onClick ? 'cursor-pointer' : 'cursor-default'} `}
           type="button"
           aria-label={`${label}`}
         >
           {/* Icon - white color for contrast */}
           {IconComponent && (
-            <IconComponent className="w-8 h-8 text-white" aria-hidden="true" />
+            <IconComponent className="h-8 w-8 text-white" aria-hidden="true" />
           )}
 
           {/* Completion checkmark badge */}
           {isCompleted && (
-            <div className="absolute bottom-1 right-1 bg-white rounded-full p-1 border-2 border-green-500">
-              <FiCheck className="w-4 h-4 text-green-500" aria-hidden="true" />
+            <div className="absolute bottom-1 right-1 rounded-full border-2 border-green-500 bg-white p-1">
+              <FiCheck className="h-4 w-4 text-green-500" aria-hidden="true" />
             </div>
           )}
         </button>
 
         {/* Order/Label - number badge style */}
         <div className="flex flex-col items-center gap-1">
-          <span className="text-xs font-bold text-slate-600">
+          <span
+            className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}
+          >
             {label}
           </span>
         </div>
 
         {/* Description - shown on hover */}
         {description && (
-          <div className="absolute bottom-full mb-2 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-slate-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10 pointer-events-none">
+          <div
+            className={`pointer-events-none invisible absolute bottom-full z-10 mb-2 whitespace-nowrap rounded px-2 py-1 text-xs opacity-0 transition-opacity duration-300 group-hover:visible group-hover:opacity-100 ${isDark ? 'bg-slate-900 text-white' : 'bg-slate-700 text-white'}`}
+          >
             {description}
           </div>
         )}
       </div>
-    );
+    )
   }
-);
+)
 
-StageNode.displayName = 'StageNode';
+StageNode.displayName = 'StageNode'

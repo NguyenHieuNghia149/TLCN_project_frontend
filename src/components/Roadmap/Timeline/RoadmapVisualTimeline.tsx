@@ -5,6 +5,7 @@ import type {
   RoadmapItem,
   RoadmapItemWithLockStatus,
 } from '@/types/roadmap.types'
+import { useTheme } from '@/contexts/useTheme'
 
 type RoadmapVisualNode = RoadmapItem | RoadmapItemWithLockStatus
 
@@ -34,10 +35,12 @@ function CircleProgress({
   pct,
   r = 40,
   stroke = 7,
+  isDark = true,
 }: {
   pct: number
   r?: number
   stroke?: number
+  isDark?: boolean
 }) {
   const circ = 2 * Math.PI * r
   const dash = (pct / 100) * circ
@@ -50,7 +53,7 @@ function CircleProgress({
         cy={size / 2}
         r={r}
         fill="none"
-        stroke="#1e3a2a"
+        stroke={isDark ? '#1e3a2a' : '#dcfce7'}
         strokeWidth={stroke}
       />
       {/* filled */}
@@ -81,6 +84,9 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
       () => [...items].sort((a, b) => a.order - b.order),
       [items]
     )
+
+    const { theme } = useTheme()
+    const isDark = theme === 'dark'
 
     // container width observer
     useEffect(() => {
@@ -189,30 +195,45 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
       <div className={`space-y-4 ${className}`}>
         {/* ── HEADER: title + desc */}
         <div>
-          <h2 className="text-2xl font-bold text-white">{roadmap.title}</h2>
+          <h2
+            className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}
+          >
+            {roadmap.title}
+          </h2>
           {roadmap.description && (
-            <p className="mt-1 text-sm text-slate-400">{roadmap.description}</p>
+            <p
+              className={`mt-1 text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}
+            >
+              {roadmap.description}
+            </p>
           )}
         </div>
 
         {/* ── PROGRESS CARD ─────────────────────────────────────────── */}
         <div
-          style={{
-            background: 'linear-gradient(135deg,#0d1f14 0%,#111827 100%)',
-            border: '1px solid #1e3a2a',
-          }}
-          className="rounded-2xl p-5"
+          style={
+            isDark
+              ? {
+                  background: 'linear-gradient(135deg,#0d1f14 0%,#111827 100%)',
+                  border: '1px solid #1e3a2a',
+                }
+              : {
+                  background: 'linear-gradient(135deg,#f0fdf4 0%,#f8fafc 100%)',
+                  border: '1px solid #bbf7d0',
+                }
+          }
+          className="rounded-2xl p-5 transition-colors duration-300"
         >
-          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-green-400">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-green-500">
             Tiến độ
           </p>
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
             {/* ring */}
             <div className="relative flex h-24 w-24 flex-shrink-0 items-center justify-center">
-              <CircleProgress pct={pct} r={40} stroke={7} />
+              <CircleProgress pct={pct} r={40} stroke={7} isDark={isDark} />
               <span
-                className="absolute text-lg font-bold text-white"
-                style={{ textShadow: '0 0 8px #22c55eaa' }}
+                className={`absolute text-lg font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}
+                style={isDark ? { textShadow: '0 0 8px #22c55eaa' } : undefined}
               >
                 {pct}%
               </span>
@@ -220,11 +241,15 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
 
             {/* text */}
             <div className="min-w-0 flex-1">
-              <p className="text-xl font-bold text-white">
-                <span className="text-green-400">{progress.completed}</span>/
+              <p
+                className={`text-xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}
+              >
+                <span className="text-green-500">{progress.completed}</span>/
                 {progress.total} hoàn thành ({pct}%)
               </p>
-              <p className="mt-1 text-sm text-slate-400">
+              <p
+                className={`mt-1 text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}
+              >
                 {pct >= 80
                   ? 'Xuất sắc! Bạn gần hoàn thành rồi 🎉'
                   : pct >= 50
@@ -238,7 +263,7 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
               <div className="flex items-center gap-3">
                 <div
                   className="h-2 flex-1 rounded-full"
-                  style={{ background: '#1a2e1a' }}
+                  style={{ background: isDark ? '#1a2e1a' : '#dcfce7' }}
                 >
                   <div
                     className="h-2 rounded-full transition-all duration-700"
@@ -249,13 +274,17 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
                     }}
                   />
                 </div>
-                <span className="whitespace-nowrap text-xs font-medium text-slate-400">
+                <span
+                  className={`whitespace-nowrap text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}
+                >
                   {progress.completed}/{progress.total}
                 </span>
               </div>
 
               {/* legend */}
-              <div className="flex flex-wrap gap-4 text-xs text-slate-300">
+              <div
+                className={`flex flex-wrap gap-4 text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}
+              >
                 <span className="flex items-center gap-1.5">
                   <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" />
                   Hoàn thành
@@ -266,8 +295,8 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span
-                    className="inline-block h-2.5 w-2.5 rounded-full"
-                    style={{ background: '#334155' }}
+                    className={`inline-block h-2.5 w-2.5 rounded-full ${isDark ? '' : 'bg-slate-300'}`}
+                    style={isDark ? { background: '#334155' } : undefined}
                   />
                   Chưa bắt đầu
                 </span>
@@ -280,17 +309,30 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
         <div
           ref={containerRef}
           data-testid="timeline-snake"
-          style={{
-            background:
-              'linear-gradient(160deg,#060d18 0%,#0a1628 50%,#060d18 100%)',
-            border: '1px solid #1e293b',
-            backgroundImage: `
+          style={
+            isDark
+              ? {
+                  background:
+                    'linear-gradient(160deg,#060d18 0%,#0a1628 50%,#060d18 100%)',
+                  border: '1px solid #1e293b',
+                  backgroundImage: `
               linear-gradient(160deg,#060d18 0%,#0a1628 50%,#060d18 100%),
               radial-gradient(circle, #1e293b 1px, transparent 1px)
             `,
-            backgroundSize: '100% 100%, 28px 28px',
-          }}
-          className="overflow-x-auto rounded-2xl"
+                  backgroundSize: '100% 100%, 28px 28px',
+                }
+              : {
+                  background:
+                    'linear-gradient(160deg,#f8fafc 0%,#f1f5f9 50%,#f8fafc 100%)',
+                  border: '1px solid #e2e8f0',
+                  backgroundImage: `
+              linear-gradient(160deg,#f8fafc 0%,#f1f5f9 50%,#f8fafc 100%),
+              radial-gradient(circle, #e2e8f0 1px, transparent 1px)
+            `,
+                  backgroundSize: '100% 100%, 28px 28px',
+                }
+          }
+          className="overflow-x-auto rounded-2xl transition-colors duration-300"
         >
           {containerWidth > 0 && (
             <svg
@@ -347,7 +389,7 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
                 const fromC = completedSet.has(pos.item.id)
                 const toC = completedSet.has(next.item.id)
                 const segC = fromC && toC
-                const stroke = segC ? '#22c55e' : '#1e3a55'
+                const stroke = segC ? '#22c55e' : isDark ? '#1e3a55' : '#cbd5e1'
                 const sWidth = 3
 
                 if (pos.row === next.row) {
@@ -389,7 +431,7 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
                       {/* directional arrow head */}
                       <polygon
                         points={arrowPoints}
-                        fill={segC ? '#22c55e' : '#1e3a55'}
+                        fill={segC ? '#22c55e' : isDark ? '#1e3a55' : '#cbd5e1'}
                         opacity={0.9}
                       />
                     </g>
@@ -430,20 +472,20 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
                 const isLocked = !isUnlocked
 
                 // colours
-                let fill = '#0f2236' // locked
-                let strokeCol = '#1e3a55'
+                let fill = isDark ? '#0f2236' : '#f1f5f9' // locked
+                let strokeCol = isDark ? '#1e3a55' : '#94a3b8'
                 let strokeW = 2
                 if (isCompleted) {
-                  fill = '#166534'
+                  fill = isDark ? '#166534' : '#bbf7d0'
                   strokeCol = '#22c55e'
                   strokeW = 3
                 } else if (isCurrent) {
-                  fill = '#0c2a4a'
+                  fill = isDark ? '#0c2a4a' : '#dbeafe'
                   strokeCol = '#3b82f6'
                   strokeW = 3
                 } else if (isUnlocked) {
-                  fill = '#0f2236'
-                  strokeCol = '#334155'
+                  fill = isDark ? '#0f2236' : '#f8fafc'
+                  strokeCol = isDark ? '#334155' : '#cbd5e1'
                   strokeW = 2
                 }
 
@@ -458,9 +500,21 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
                 const badgeLabel =
                   item.itemType === 'lesson' ? 'BÀI HỌC' : 'BÀI TẬP'
                 const badgeColor =
-                  item.itemType === 'lesson' ? '#93c5fd' : '#fbbf24'
+                  item.itemType === 'lesson'
+                    ? isDark
+                      ? '#93c5fd'
+                      : '#1d4ed8'
+                    : isDark
+                      ? '#fbbf24'
+                      : '#b45309'
                 const badgeBg =
-                  item.itemType === 'lesson' ? '#1e3a8a' : '#451a03'
+                  item.itemType === 'lesson'
+                    ? isDark
+                      ? '#1e3a8a'
+                      : '#dbeafe'
+                    : isDark
+                      ? '#451a03'
+                      : '#fef3c7'
 
                 const labelY = y + NODE_R + 18
                 const badgeY = labelY + 20
@@ -498,7 +552,7 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
                         cy={y}
                         r={NODE_R + 5}
                         fill="none"
-                        stroke="#334155"
+                        stroke={isDark ? '#334155' : '#cbd5e1'}
                         strokeWidth={1.5}
                         strokeDasharray="4 5"
                       />
@@ -523,12 +577,20 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
                       dominantBaseline="central"
                       fill={
                         isCompleted
-                          ? '#bbf7d0'
+                          ? isDark
+                            ? '#bbf7d0'
+                            : '#166534'
                           : isCurrent
-                            ? '#93c5fd'
+                            ? isDark
+                              ? '#93c5fd'
+                              : '#1d4ed8'
                             : isLocked
-                              ? '#475569'
-                              : '#94a3b8'
+                              ? isDark
+                                ? '#475569'
+                                : '#94a3b8'
+                              : isDark
+                                ? '#94a3b8'
+                                : '#64748b'
                       }
                       fontSize={isCompleted ? 15 : 16}
                       fontWeight="700"
@@ -586,10 +648,16 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
                       dominantBaseline="hanging"
                       fill={
                         isCompleted
-                          ? '#86efac'
+                          ? isDark
+                            ? '#86efac'
+                            : '#16a34a'
                           : isCurrent
-                            ? '#93c5fd'
-                            : '#94a3b8'
+                            ? isDark
+                              ? '#93c5fd'
+                              : '#2563eb'
+                            : isDark
+                              ? '#94a3b8'
+                              : '#64748b'
                       }
                       fontSize={11.5}
                       fontWeight="600"
@@ -616,7 +684,7 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
                           width={56}
                           height={16}
                           rx={8}
-                          fill="#1e3a5f"
+                          fill={isDark ? '#1e3a5f' : '#dbeafe'}
                         />
                         <circle
                           cx={x - 16}
@@ -629,7 +697,7 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
                           y={badgeY + 30}
                           textAnchor="middle"
                           dominantBaseline="central"
-                          fill="#60a5fa"
+                          fill={isDark ? '#60a5fa' : '#2563eb'}
                           fontSize={9}
                           fontWeight="600"
                           fontFamily="system-ui"
@@ -665,7 +733,7 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
                         width={76}
                         height={22}
                         rx={11}
-                        fill="#14532d"
+                        fill={isDark ? '#14532d' : '#f0fdf4'}
                         stroke="#22c55e"
                         strokeWidth={1.5}
                       />
@@ -674,7 +742,7 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
                         y={first.y - NODE_R - 45}
                         textAnchor="middle"
                         dominantBaseline="central"
-                        fill="#4ade80"
+                        fill={isDark ? '#4ade80' : '#16a34a'}
                         fontSize={11}
                         fontWeight="700"
                         fontFamily="system-ui, sans-serif"
@@ -708,7 +776,7 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
                         width={80}
                         height={22}
                         rx={11}
-                        fill="#451a03"
+                        fill={isDark ? '#451a03' : '#fefce8'}
                         stroke="#f59e0b"
                         strokeWidth={1.5}
                       />
@@ -717,7 +785,7 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
                         y={last.y - NODE_R - 45}
                         textAnchor="middle"
                         dominantBaseline="central"
-                        fill="#fbbf24"
+                        fill={isDark ? '#fbbf24' : '#d97706'}
                         fontSize={11}
                         fontWeight="700"
                         fontFamily="system-ui, sans-serif"
@@ -732,7 +800,9 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
         </div>
 
         {/* hint */}
-        <p className="flex items-center justify-center gap-1.5 text-center text-xs text-slate-500">
+        <p
+          className={`flex items-center justify-center gap-1.5 text-center text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}
+        >
           <span>ℹ</span>
           Nhấp vào từng bài để xem chi tiết và theo dõi tiến độ.
         </p>

@@ -1,15 +1,16 @@
-import React, { useMemo } from 'react';
-import { StageNode } from './StageNode';
-import { getIconByItemType } from '@/constants/roadmapStages';
-import type { RoadmapItem } from '@/types/roadmap.types';
+import React, { useMemo } from 'react'
+import { StageNode } from './StageNode'
+import { getIconByItemType } from '@/constants/roadmapStages'
+import type { RoadmapItem } from '@/types/roadmap.types'
+import { useTheme } from '@/contexts/useTheme'
 
 interface TimelineTrackProps {
-  trackId: string;
-  items: RoadmapItem[];
-  completedItemIds: string[];
-  direction: 'ltr' | 'rtl'; // left-to-right or right-to-left
-  onItemClick?: (itemId: string) => void;
-  className?: string;
+  trackId: string
+  items: RoadmapItem[]
+  completedItemIds: string[]
+  direction: 'ltr' | 'rtl' // left-to-right or right-to-left
+  onItemClick?: (itemId: string) => void
+  className?: string
 }
 
 /**
@@ -34,54 +35,55 @@ export const TimelineTrack = React.memo<TimelineTrackProps>(
     onItemClick,
     className = '',
   }) => {
+    const { theme } = useTheme()
+    const isDark = theme === 'dark'
+
     // Reverse items for RTL display (but keep their internal data intact)
     const displayItems = useMemo(() => {
       if (direction === 'rtl') {
-        return [...items].reverse();
+        return [...items].reverse()
       }
-      return items;
-    }, [items, direction]);
+      return items
+    }, [items, direction])
 
     const handleItemClick = (itemId: string) => {
-      onItemClick?.(itemId);
-    };
+      onItemClick?.(itemId)
+    }
 
     if (displayItems.length === 0) {
       return (
-        <div className={`flex items-center justify-center py-8 text-slate-400 text-sm ${className}`}>
+        <div
+          className={`flex items-center justify-center py-8 text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'} ${className}`}
+        >
           No items
         </div>
-      );
+      )
     }
 
     return (
       <div
-        className={`
-          flex items-center justify-start
-          gap-3 sm:gap-4 md:gap-5 lg:gap-6
-          px-4 py-6
-          overflow-x-auto
-          ${direction === 'rtl' ? 'flex-row-reverse' : ''}
-          ${className}
-        `}
+        className={`flex items-center justify-start gap-3 overflow-x-auto px-4 py-6 sm:gap-4 md:gap-5 lg:gap-6 ${direction === 'rtl' ? 'flex-row-reverse' : ''} ${className} `}
         data-testid={`timeline-track-${trackId}`}
       >
         {displayItems.map((item, localIndex) => {
-          const isCompleted = completedItemIds.includes(item.id);
-          const iconKey = item.icon || getIconByItemType(item.itemType);
+          const isCompleted = completedItemIds.includes(item.id)
+          const iconKey = item.icon || getIconByItemType(item.itemType)
 
           // Assign color based on item order within the entire roadmap
-          const colorClass = getNodeColorClass(item.order);
+          const colorClass = getNodeColorClass(item.order)
 
           return (
             <div
               key={item.id}
-              className="flex items-center flex-shrink-0 relative"
+              className="relative flex flex-shrink-0 items-center"
             >
               {/* Node */}
               <StageNode
                 id={item.id}
-                label={item.itemTitle || `${item.itemType.charAt(0).toUpperCase() + item.itemType.slice(1)}`}
+                label={
+                  item.itemTitle ||
+                  `${item.itemType.charAt(0).toUpperCase() + item.itemType.slice(1)}`
+                }
                 description={`${item.itemType} #${item.order}`}
                 icon={iconKey}
                 isCompleted={isCompleted}
@@ -95,22 +97,22 @@ export const TimelineTrack = React.memo<TimelineTrackProps>(
               {/* Connecting Line (except last item) */}
               {localIndex < displayItems.length - 1 && (
                 <div
-                  className={`
-                    h-1 flex-shrink-0
-                    bg-gradient-to-r from-slate-300 to-slate-200
-                    ${isCompleted ? 'from-green-400 to-green-300' : ''}
-                  `}
+                  className={`h-1 flex-shrink-0 ${
+                    isDark
+                      ? 'bg-gradient-to-r from-slate-600 to-slate-700'
+                      : 'bg-gradient-to-r from-slate-300 to-slate-200'
+                  } ${isCompleted ? 'bg-gradient-to-r from-green-400 to-green-300' : ''} `}
                   style={{ width: '24px' }}
                   aria-hidden="true"
                 />
               )}
             </div>
-          );
+          )
         })}
       </div>
-    );
+    )
   }
-);
+)
 
 /**
  * Get node background color class based on item order
@@ -118,17 +120,17 @@ export const TimelineTrack = React.memo<TimelineTrackProps>(
  */
 function getNodeColorClass(order: number): string {
   const colors = [
-    'bg-red-400',      // 1
-    'bg-blue-400',     // 2
-    'bg-orange-400',   // 3
-    'bg-teal-400',     // 4
-    'bg-purple-400',   // 5
-    'bg-green-500',    // 6
-    'bg-pink-400',     // 7
-    'bg-cyan-400',     // 8
-    'bg-rose-400',     // 9
-  ];
-  return colors[(order - 1) % colors.length];
+    'bg-red-400', // 1
+    'bg-blue-400', // 2
+    'bg-orange-400', // 3
+    'bg-teal-400', // 4
+    'bg-purple-400', // 5
+    'bg-green-500', // 6
+    'bg-pink-400', // 7
+    'bg-cyan-400', // 8
+    'bg-rose-400', // 9
+  ]
+  return colors[(order - 1) % colors.length]
 }
 
-TimelineTrack.displayName = 'TimelineTrack';
+TimelineTrack.displayName = 'TimelineTrack'

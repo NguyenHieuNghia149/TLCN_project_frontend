@@ -5,6 +5,7 @@ import { CheckOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import type { AdminRoadmapRow } from '@/services/api/adminRoadmap.service'
 import { adminRoadmapAPI } from '@/services/api/adminRoadmap.service'
 import { apiClient } from '@/config/axios.config'
+import { useTheme } from '@/contexts/useTheme'
 
 interface UserRoadmapSelection {
   id: string
@@ -17,6 +18,8 @@ interface UserRoadmapSelection {
 
 const RoadmapSelectionPage: React.FC = () => {
   const { notification } = App.useApp()
+  const { theme } = useTheme()
+  const isDark = theme === 'dark'
   const [roadmaps, setRoadmaps] = useState<AdminRoadmapRow[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedRoadmapId, setSelectedRoadmapId] = useState<string | null>(
@@ -132,7 +135,9 @@ const RoadmapSelectionPage: React.FC = () => {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-600">
+                <p
+                  className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}
+                >
                   Currently selected roadmap:
                 </p>
                 <p className="text-lg font-semibold">
@@ -165,7 +170,7 @@ const RoadmapSelectionPage: React.FC = () => {
                     backgroundColor: 'var(--card-color)',
                     borderColor:
                       selectedRoadmapId === roadmap.id
-                        ? 'var(--primary-color)'
+                        ? 'var(--accent)'
                         : 'var(--surface-border)',
                     borderWidth: selectedRoadmapId === roadmap.id ? 2 : 1,
                   }}
@@ -182,23 +187,39 @@ const RoadmapSelectionPage: React.FC = () => {
                         />
                       )}
                     </div>
-                    <p className="mb-4 line-clamp-2 text-sm text-slate-600">
+                    <p
+                      className={`mb-4 line-clamp-2 text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}
+                    >
                       {roadmap.description || 'No description'}
                     </p>
                   </div>
 
                   <div className="mb-4 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-500">Items</span>
+                      <span
+                        className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}
+                      >
+                        Items
+                      </span>
                       <Tag color="blue">{roadmap.itemCount}</Tag>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-500">Visibility</span>
+                      <span
+                        className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}
+                      >
+                        Visibility
+                      </span>
                       <Tag color="green">PUBLIC</Tag>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-500">Created</span>
-                      <span className="text-xs text-slate-600">
+                      <span
+                        className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}
+                      >
+                        Created
+                      </span>
+                      <span
+                        className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}
+                      >
                         {new Date(roadmap.createdAt).toLocaleDateString()}
                       </span>
                     </div>

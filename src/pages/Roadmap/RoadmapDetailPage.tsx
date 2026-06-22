@@ -12,11 +12,14 @@ import type {
   ProgressStats,
   RoadmapItemWithLockStatus,
 } from '@/types/roadmap.types'
+import { useTheme } from '@/contexts/useTheme'
 
 const RoadmapDetailPage: React.FC = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const dispatch = useDispatch<AppDispatch>()
+  const { theme } = useTheme()
+  const isDark = theme === 'dark'
   const detail = useSelector((state: RootState) => state.roadmap.detail.current)
   const detailLoading = useSelector(
     (state: RootState) => state.roadmap.detail.loading
@@ -73,21 +76,22 @@ const RoadmapDetailPage: React.FC = () => {
     return { total, completed, percentage, completedItems }
   }, [detail])
 
-  if (!id) return <div className="p-4 text-slate-400">Roadmap not found.</div>
+  if (!id)
+    return <div className="p-4 text-muted-foreground">Roadmap not found.</div>
 
   if (detailLoading) {
     return (
       <div className="flex items-center justify-center py-24">
         <div className="flex flex-col items-center gap-3">
           <div className="h-9 w-9 animate-spin rounded-full border-4 border-green-500 border-t-transparent" />
-          <p className="text-sm text-slate-400">Đang tải roadmap...</p>
+          <p className="text-sm text-muted-foreground">Đang tải roadmap...</p>
         </div>
       </div>
     )
   }
 
   if (!detail)
-    return <div className="p-4 text-slate-400">Roadmap not found.</div>
+    return <div className="p-4 text-muted-foreground">Roadmap not found.</div>
 
   const handleItemClick = (itemId: string) => {
     const item = detail.items.find(i => i.id === itemId)
@@ -103,11 +107,17 @@ const RoadmapDetailPage: React.FC = () => {
 
   return (
     <div
-      className="min-h-full"
-      style={{
-        background:
-          'linear-gradient(160deg,#020d18 0%,#060f1e 60%,#020d18 100%)',
-      }}
+      className={`min-h-full transition-colors duration-300 ${
+        isDark ? '' : 'bg-background'
+      }`}
+      style={
+        isDark
+          ? {
+              background:
+                'linear-gradient(160deg,#020d18 0%,#060f1e 60%,#020d18 100%)',
+            }
+          : undefined
+      }
     >
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-8">
         <RoadmapVisualTimeline
