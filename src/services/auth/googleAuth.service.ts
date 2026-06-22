@@ -53,12 +53,29 @@ declare global {
 // Removed backend response type; backend auth handled elsewhere
 
 class GoogleAuthService {
+  private loadingScript = false
+
   initGoogleAuth(): void {
     if (window.google) return
+    if (this.loadingScript) return
+    if (
+      document.querySelector(
+        'script[src="https://accounts.google.com/gsi/client"]'
+      )
+    )
+      return
+
+    this.loadingScript = true
     const script = document.createElement('script')
     script.src = 'https://accounts.google.com/gsi/client'
     script.async = true
     script.defer = true
+    script.onload = () => {
+      this.loadingScript = false
+    }
+    script.onerror = () => {
+      this.loadingScript = false
+    }
     document.body.appendChild(script)
   }
 
