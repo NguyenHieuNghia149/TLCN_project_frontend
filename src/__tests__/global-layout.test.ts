@@ -9,6 +9,10 @@ const mainLayoutCss = readFileSync(
   resolve(process.cwd(), 'src/layouts/MainLayout/MainLayout.scss'),
   'utf8'
 )
+const mainLayoutTsx = readFileSync(
+  resolve(process.cwd(), 'src/layouts/MainLayout/MainLayout.tsx'),
+  'utf8'
+)
 
 function normalizeCss(source: string): string {
   return source.replace(/\s+/g, '')
@@ -44,5 +48,19 @@ describe('global layout styles', () => {
     expect(layoutRules.some(block => /(^|[;{])height:100%;/.test(block))).toBe(
       false
     )
+  })
+
+  it('separates the breadcrumb from the outlet body container', () => {
+    expect(mainLayoutTsx).toContain('className="main-layout-body"')
+  })
+
+  it('does not make the main layout content its own vertical scroller', () => {
+    const mainContentRule = getRuleBlocks(mainLayoutCss).find(block =>
+      block.startsWith('.main-layout-content{')
+    )
+
+    expect(mainContentRule).toBeDefined()
+    expect(mainContentRule).not.toContain('overflow-y:auto;')
+    expect(mainContentRule).not.toContain('overflow:auto;')
   })
 })

@@ -15,7 +15,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       <Header />
       <main className="main-layout-content" role="main">
         <AutoBreadcrumb />
-        {children || <Outlet />}
+        <div className="main-layout-body">{children || <Outlet />}</div>
       </main>
       <Footer />
     </div>

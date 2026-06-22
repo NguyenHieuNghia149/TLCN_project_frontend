@@ -31,12 +31,22 @@ body {
 }
 
 .main-layout-content {
+  display: flex;
   flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: visible;
   width: 100%;
   max-width: none;
   padding: 0;
-  /* Bỏ overflow-y: auto và min-height: 0 để content cuộn tự nhiên */
-  position: static; /* Đảm bảo flow bình thường */
+}
+
+.main-layout-body {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: none;
+  padding: 0;
 }
 
 /* Đảm bảo Header và Footer không bị cố định */
