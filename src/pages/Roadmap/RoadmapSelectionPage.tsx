@@ -111,7 +111,7 @@ const RoadmapSelectionPage: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen p-6"
+      className="min-h-full p-6"
       style={{ backgroundColor: 'var(--background-color)' }}
     >
       <div className="mx-auto max-w-6xl">

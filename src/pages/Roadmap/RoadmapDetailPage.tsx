@@ -103,7 +103,7 @@ const RoadmapDetailPage: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen"
+      className="min-h-full"
       style={{
         background:
           'linear-gradient(160deg,#020d18 0%,#060f1e 60%,#020d18 100%)',

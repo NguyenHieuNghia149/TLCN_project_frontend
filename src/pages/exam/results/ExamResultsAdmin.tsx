@@ -492,7 +492,7 @@ const ExamResultsAdmin: React.FC = () => {
   if (!exam || error) {
     return (
       <div
-        className="flex min-h-screen items-center justify-center px-4 transition-colors duration-300"
+        className="flex min-h-full items-center justify-center px-4 transition-colors duration-300"
         style={themeStyles.page}
       >
         <div
@@ -512,7 +512,7 @@ const ExamResultsAdmin: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen px-4 py-10 transition-colors duration-300"
+      className="min-h-full px-4 py-10 transition-colors duration-300"
       style={themeStyles.page}
     >
       <div className="mx-auto max-w-7xl space-y-7">

@@ -287,7 +287,7 @@ const ExamResults: React.FC = () => {
   if (error || !exam) {
     return (
       <div
-        className="flex min-h-screen items-center justify-center px-4"
+        className="flex min-h-full items-center justify-center px-4"
         style={{
           backgroundColor: 'var(--background-color)',
           color: 'var(--text-color)',
@@ -311,7 +311,7 @@ const ExamResults: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen px-4 py-10"
+      className="min-h-full px-4 py-10"
       style={{
         backgroundColor: 'var(--background-color)',
         color: 'var(--text-color)',

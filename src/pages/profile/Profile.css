@@ -5,7 +5,7 @@
 /* Profile page layout inspired by the screenshot - Dark Theme */
 @layer components {
   .profile-page {
-    min-height: 100vh;
+    min-height: 100%;
     background: rgb(var(--background));
     color: rgb(var(--foreground));
     padding: 2rem 1rem;

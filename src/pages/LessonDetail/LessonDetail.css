@@ -2,35 +2,9 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 
-/* Override global height constraint */
-html,
-body {
-  height: auto !important;
-  min-height: 100vh;
-}
-
-/* Base Layout */
-@layer base {
-  html {
-    @apply scroll-smooth;
-  }
-  html,
-  body {
-    @apply m-0 h-full overflow-x-hidden p-0;
-    background: rgb(var(--background));
-    font-family:
-      'Inter',
-      -apple-system,
-      BlinkMacSystemFont,
-      'Segoe UI',
-      Roboto,
-      sans-serif;
-    color: rgb(var(--foreground));
-  }
-}
-
 /* Base Layout */
 .lesson-detail-page {
+  min-height: 100%;
   background: rgb(var(--background));
   padding: 2rem;
   display: flex;

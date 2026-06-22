@@ -166,7 +166,7 @@ const ExamResultSubmissionDetail: React.FC = () => {
 
   if (!exam || !details || error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-slate-100">
+      <div className="flex min-h-full items-center justify-center bg-slate-950 px-4 text-slate-100">
         <div className="rounded-2xl border border-white/10 bg-slate-900 px-8 py-10 text-center">
           <p className="text-lg font-semibold">
             {error || 'Submission details not found'}
@@ -183,7 +183,7 @@ const ExamResultSubmissionDetail: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100">
+    <div className="min-h-full bg-slate-950 px-4 py-10 text-slate-100">
       <div className="mx-auto max-w-7xl space-y-6">
         <section className="rounded-3xl border border-white/10 bg-slate-900/90 p-7">
           <div className="flex flex-wrap items-center justify-between gap-4">

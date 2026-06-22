@@ -374,7 +374,7 @@ const ExamList: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen"
+      className="min-h-full"
       style={{
         backgroundColor: 'var(--background-color)',
         color: 'var(--text-color)',

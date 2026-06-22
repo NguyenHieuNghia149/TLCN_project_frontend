@@ -71,7 +71,7 @@ const Ranking: React.FC = () => {
   }
 
   return (
-    <div className="ranking-page min-h-screen bg-background text-foreground">
+    <div className="ranking-page bg-background text-foreground">
       <div className="ranking-container">
         <div className="ranking-header">
           <h1 className="ranking-title">Leaderboard</h1>

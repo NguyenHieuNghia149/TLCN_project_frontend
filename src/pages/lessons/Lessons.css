@@ -2,31 +2,9 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 
-@layer base {
-  html {
-    @apply scroll-smooth;
-  }
-  html,
-  body {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-    background-color: rgb(var(--background));
-    color: rgb(var(--foreground));
-    overflow-x: hidden;
-    font-family:
-      'Inter',
-      -apple-system,
-      BlinkMacSystemFont,
-      'Segoe UI',
-      Roboto,
-      sans-serif;
-  }
-}
-
 /* Lessons Page Styles */
 .lessons-page {
-  min-height: 100vh;
+  min-height: 100%;
   background-color: rgb(var(--background));
   color: rgb(var(--foreground));
 }

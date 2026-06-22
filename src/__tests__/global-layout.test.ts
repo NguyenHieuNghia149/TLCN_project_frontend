@@ -13,6 +13,24 @@ const mainLayoutTsx = readFileSync(
   resolve(process.cwd(), 'src/layouts/MainLayout/MainLayout.tsx'),
   'utf8'
 )
+const clientRouteFiles = [
+  'src/pages/challenge/ChallengePage.tsx',
+  'src/pages/bookmarks/BookmarksPage.tsx',
+  'src/pages/ranking/Ranking.tsx',
+  'src/pages/Roadmap/RoadmapSelectionPage.tsx',
+  'src/pages/Roadmap/RoadmapDetailPage.tsx',
+  'src/pages/exam/list/ExamList.tsx',
+  'src/pages/exam/results/ExamResults.tsx',
+  'src/pages/exam/results/ExamResultsAdmin.tsx',
+  'src/pages/exam/results/ExamResultSubmissionDetail.tsx',
+].map(file => readFileSync(resolve(process.cwd(), file), 'utf8'))
+const clientPageStylesheets = [
+  'src/pages/lessons/Lessons.css',
+  'src/pages/lessons/TopicLessonsPage.css',
+  'src/pages/LessonDetail/LessonDetail.css',
+  'src/pages/ranking/Ranking.css',
+  'src/pages/profile/Profile.css',
+].map(file => readFileSync(resolve(process.cwd(), file), 'utf8'))
 
 function normalizeCss(source: string): string {
   return source.replace(/\s+/g, '')
@@ -62,5 +80,23 @@ describe('global layout styles', () => {
     expect(mainContentRule).toBeDefined()
     expect(mainContentRule).not.toContain('overflow-y:auto;')
     expect(mainContentRule).not.toContain('overflow:auto;')
+  })
+
+  it('normalizes full-screen child wrappers inside the main layout body', () => {
+    expect(mainLayoutCss).toContain('.main-layout-body > .min-h-screen')
+    expect(mainLayoutCss).toContain('min-height: 100%')
+  })
+
+  it('keeps main-layout route pages off viewport-sized wrappers', () => {
+    clientRouteFiles.forEach(source => {
+      expect(source).not.toContain('min-h-screen')
+    })
+  })
+
+  it('keeps main-layout page styles off 100vh and document-level overrides', () => {
+    clientPageStylesheets.forEach(source => {
+      expect(source).not.toContain('min-height: 100vh')
+      expect(source).not.toMatch(/html\s*,\s*body/)
+    })
   })
 })

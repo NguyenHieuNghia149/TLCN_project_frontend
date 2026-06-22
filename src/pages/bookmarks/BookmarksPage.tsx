@@ -249,7 +249,7 @@ const BookmarksPage: React.FC = () => {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-background text-foreground">
+      <div className="min-h-full bg-background text-foreground">
         <div className="mx-auto max-w-7xl px-6 py-8">
           <div className="rounded-lg border border-border bg-card p-8 text-center">
             <Bookmark className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
@@ -270,7 +270,7 @@ const BookmarksPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-full bg-background text-foreground">
       {/* Header */}
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">

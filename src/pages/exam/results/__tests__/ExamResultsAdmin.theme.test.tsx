@@ -60,7 +60,7 @@ describe('ExamResultsAdmin theme', () => {
     )
 
     const subtitle = await screen.findByText('Admin results dashboard')
-    const page = subtitle.closest('.min-h-screen')
+    const page = subtitle.closest('.min-h-full')
 
     expect(page).not.toHaveClass('bg-slate-950')
     expect(page).toHaveStyle({

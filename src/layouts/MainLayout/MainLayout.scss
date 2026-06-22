@@ -49,6 +49,12 @@ body {
   padding: 0;
 }
 
+/* Page wrappers inside MainLayout should fill the content area, not the full viewport.
+   Using min-h-screen here creates a second page-height layer and causes double scroll. */
+.main-layout-body > .min-h-screen {
+  min-height: 100%;
+}
+
 /* Đảm bảo Header và Footer không bị cố định */
 .main-layout > header,
 .main-layout > .header {
