@@ -141,6 +141,8 @@ export class ProctoringSocketClient {
       return Promise.resolve(false)
     }
 
+    const nonce = crypto.randomUUID()
+
     return new Promise(resolve => {
       let settled = false
       const finish = (value: boolean) => {
@@ -151,7 +153,16 @@ export class ProctoringSocketClient {
         window.clearTimeout(timeoutId)
         resolve(value)
       }
+
+      const isOwnResponse = (p: unknown): boolean => {
+        if (!isRecord(p) || typeof p.nonce !== 'string') return true
+        return p.nonce === nonce
+      }
+
       const onAck = (ackPayload: unknown) => {
+        if (!isOwnResponse(ackPayload)) {
+          return
+        }
         if (
           lastClientSeq !== undefined &&
           isRecord(ackPayload) &&
@@ -163,6 +174,9 @@ export class ProctoringSocketClient {
         finish(true)
       }
       const onRetry = (retryPayload: unknown) => {
+        if (!isOwnResponse(retryPayload)) {
+          return
+        }
         if (
           lastClientSeq !== undefined &&
           isRecord(retryPayload) &&
@@ -177,7 +191,10 @@ export class ProctoringSocketClient {
 
       this.socket?.on('telemetry.ack', onAck)
       this.socket?.on('telemetry.retry_required', onRetry)
-      this.socket?.emit(eventName, payload)
+      this.socket?.emit(eventName, {
+        ...(payload as Record<string, unknown>),
+        nonce,
+      })
     })
   }
 }

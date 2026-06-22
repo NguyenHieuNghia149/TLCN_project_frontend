@@ -29,7 +29,7 @@ const ChallengePage: React.FC = () => {
     loading,
     rank,
     rankingPoint,
-  } = useInfiniteChallenges(8, topicId, selectedTags)
+  } = useInfiniteChallenges(8, topicId, selectedTags, user?.id)
   const observerRef = useRef<HTMLDivElement | null>(null)
   const [availableTags, setAvailableTags] = useState<string[]>([])
 

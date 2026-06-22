@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { Challenge, Cursor } from '@/types/challenge.types'
 import { challengeService } from '@/services/api/challenge.service'
+import { API_CONFIG } from '@/config/api.config'
 
 type RawChallengeItem = {
   id: string
@@ -45,7 +46,8 @@ function mapChallengeItem(item: RawChallengeItem): Challenge {
 export const useInfiniteChallenges = (
   limit = 10,
   topicId?: string,
-  tags?: string[]
+  tags?: string[],
+  userId?: string
 ) => {
   const [challenges, setChallenges] = useState<Challenge[]>([])
   const [rank, setRank] = useState<number | undefined>(undefined)
@@ -138,6 +140,48 @@ export const useInfiniteChallenges = (
       loadInitial()
     }
   }, [topicId, tags, limit])
+
+  // Fallback: fetch rank from leaderboard API if not provided by challenge list
+  useEffect(() => {
+    if (!userId || rank !== undefined) return
+
+    let cancelled = false
+    const fetchRank = async () => {
+      try {
+        const response = await fetch(
+          `${API_CONFIG.baseURL}/leaderboard/user/${userId}`,
+          {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+          }
+        )
+        if (!response.ok || cancelled) return
+        const data = await response.json()
+        if (data.success && data.data) {
+          const entry = data.data
+          const rankVal =
+            typeof entry.rank === 'string'
+              ? parseInt(entry.rank, 10)
+              : entry.rank
+          const pointsVal =
+            typeof entry.rankingPoint === 'string'
+              ? parseInt(entry.rankingPoint, 10)
+              : entry.rankingPoint
+          if (!cancelled) {
+            if (Number.isFinite(rankVal)) setRank(rankVal)
+            if (Number.isFinite(pointsVal)) setRankingPoint(pointsVal)
+          }
+        }
+      } catch {
+        // Silently ignore — rank is non-critical
+      }
+    }
+    fetchRank()
+    return () => {
+      cancelled = true
+    }
+  }, [userId, rank])
 
   return {
     challenges,
