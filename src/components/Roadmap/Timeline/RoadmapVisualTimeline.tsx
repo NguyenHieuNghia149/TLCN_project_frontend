@@ -146,7 +146,7 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
     const svgW = useMemo(() => containerWidth || 800, [containerWidth])
     const svgH = useMemo(() => {
       if (positions.length === 0) return 200
-      // 90 = bottom padding: label(18) + badges(16) + "đang học"(20) + gap(36)
+      // 90 = bottom padding: label(18) + badges(16) + "studying"(20) + gap(36)
       return Math.max(...positions.map(p => p.y)) + 90 + 90
     }, [positions])
 
@@ -225,7 +225,7 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
           className="rounded-2xl p-5 transition-colors duration-300"
         >
           <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-green-500">
-            Tiến độ
+            Progress
           </p>
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
             {/* ring */}
@@ -245,16 +245,16 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
                 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}
               >
                 <span className="text-green-500">{progress.completed}</span>/
-                {progress.total} hoàn thành ({pct}%)
+                {progress.total} completed ({pct}%)
               </p>
               <p
                 className={`mt-1 text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}
               >
                 {pct >= 80
-                  ? 'Xuất sắc! Bạn gần hoàn thành rồi 🎉'
+                  ? 'Excellent! You are almost done 🎉'
                   : pct >= 50
-                    ? 'Tiếp tục phát huy nhé! 💪'
-                    : 'Bạn đang học rất tốt! Hãy tiếp tục phát huy.'}
+                    ? 'Keep it up! 💪'
+                    : 'You are doing great! Keep going.'}
               </p>
             </div>
 
@@ -287,18 +287,18 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
               >
                 <span className="flex items-center gap-1.5">
                   <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" />
-                  Hoàn thành
+                  Completed
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-400" />
-                  Đang làm
+                  In progress
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span
                     className={`inline-block h-2.5 w-2.5 rounded-full ${isDark ? '' : 'bg-slate-300'}`}
                     style={isDark ? { background: '#334155' } : undefined}
                   />
-                  Chưa bắt đầu
+                  Not started
                 </span>
               </div>
             </div>
@@ -332,7 +332,7 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
                   backgroundSize: '100% 100%, 28px 28px',
                 }
           }
-          className="overflow-x-auto rounded-2xl transition-colors duration-300"
+          className="overflow-x-auto overflow-y-clip rounded-2xl transition-colors duration-300"
         >
           {containerWidth > 0 && (
             <svg
@@ -498,7 +498,7 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
 
                 // Single badge matching actual itemType
                 const badgeLabel =
-                  item.itemType === 'lesson' ? 'BÀI HỌC' : 'BÀI TẬP'
+                  item.itemType === 'lesson' ? 'LESSON' : 'PROBLEM'
                 const badgeColor =
                   item.itemType === 'lesson'
                     ? isDark
@@ -526,7 +526,7 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
                     style={{ cursor: isLocked ? 'not-allowed' : 'pointer' }}
                     role="button"
                     tabIndex={0}
-                    aria-label={`${item.itemTitle} - ${isCompleted ? 'Hoàn thành' : isCurrent ? 'Đang học' : isLocked ? 'Chưa mở' : 'Chưa bắt đầu'}`}
+                    aria-label={`${item.itemTitle} - ${isCompleted ? 'Completed' : isCurrent ? 'Studying' : isLocked ? 'Locked' : 'Not started'}`}
                     aria-disabled={isLocked}
                     data-testid={`item-node-${item.id}`}
                     className="roadmap-node"
@@ -675,7 +675,7 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
                       color={badgeColor}
                     />
 
-                    {/* "Đang học" label for current */}
+                    {/* "Studying" label for current */}
                     {isCurrent && (
                       <g>
                         <rect
@@ -702,7 +702,7 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
                           fontWeight="600"
                           fontFamily="system-ui"
                         >
-                          Đang học
+                          Studying
                         </text>
                       </g>
                     )}
@@ -747,7 +747,7 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
                         fontWeight="700"
                         fontFamily="system-ui, sans-serif"
                       >
-                        🚩 BẮT ĐẦU
+                        🚩 START
                       </text>
                     </g>
                   )
@@ -790,7 +790,7 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
                         fontWeight="700"
                         fontFamily="system-ui, sans-serif"
                       >
-                        🏆 KẾT THÚC
+                        🏆 FINISH
                       </text>
                     </g>
                   )
@@ -804,7 +804,7 @@ export const RoadmapVisualTimeline = React.memo<RoadmapVisualTimelineProps>(
           className={`flex items-center justify-center gap-1.5 text-center text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}
         >
           <span>ℹ</span>
-          Nhấp vào từng bài để xem chi tiết và theo dõi tiến độ.
+          Click each item to view details and track your progress.
         </p>
 
         {/* styles */}

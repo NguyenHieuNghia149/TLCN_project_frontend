@@ -57,6 +57,28 @@ html.dark {
   --exam-timer-critical-bg: rgba(239, 68, 68, 0.12);
   --exam-toolbar-bg: rgba(255, 255, 255, 0.06);
 
+  /* Solution Code Tabs */
+  --sct-bg: #1f1f1f;
+  --sct-bg-secondary: #242424;
+  --sct-pre-bg: #232323;
+  --sct-border: rgba(255, 255, 255, 0.11);
+  --sct-text: #f3f4f6;
+  --sct-text-muted: rgba(255, 255, 255, 0.76);
+  --sct-text-active: #ffffff;
+  --sct-button-bg: rgba(255, 255, 255, 0.03);
+  --sct-button-border: rgba(255, 255, 255, 0.12);
+  --sct-button-hover-bg: rgba(255, 255, 255, 0.08);
+  --sct-button-hover-border: rgba(255, 255, 255, 0.22);
+  --sct-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
+  --sct-backdrop-bg: rgba(8, 10, 14, 0.72);
+  --sct-hl-keyword: #62b0ff;
+  --sct-hl-title: #f8d774;
+  --sct-hl-type: #43d1c0;
+  --sct-hl-string: #f6b17a;
+  --sct-hl-comment: #788191;
+  --sct-hl-number: #d9a5ff;
+  --sct-hl-operator: #d8dde6;
+
   color: #ffffff;
   background-color: #121418;
 }
@@ -95,6 +117,28 @@ html.light {
   --exam-timer-bg: #f0f9ff;
   --exam-timer-critical-bg: #fef2f2;
   --exam-toolbar-bg: #f1f5f9;
+
+  /* Solution Code Tabs */
+  --sct-bg: #ffffff;
+  --sct-bg-secondary: #f6f8fa;
+  --sct-pre-bg: #f6f8fa;
+  --sct-border: #d0d7de;
+  --sct-text: #1a1a1a;
+  --sct-text-muted: #57606a;
+  --sct-text-active: #1a1a1a;
+  --sct-button-bg: #f6f8fa;
+  --sct-button-border: #d0d7de;
+  --sct-button-hover-bg: #eaeef2;
+  --sct-button-hover-border: #afb8c1;
+  --sct-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --sct-backdrop-bg: rgba(255, 255, 255, 0.72);
+  --sct-hl-keyword: #cf222e;
+  --sct-hl-title: #8250df;
+  --sct-hl-type: #0550ae;
+  --sct-hl-string: #0a3069;
+  --sct-hl-comment: #6e7781;
+  --sct-hl-number: #0550ae;
+  --sct-hl-operator: #24292f;
 
   color: #213547;
   background-color: #f0f2f5;

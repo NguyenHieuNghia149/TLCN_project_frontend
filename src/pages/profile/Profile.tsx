@@ -361,13 +361,13 @@ const Profile: React.FC = () => {
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      setUpdateError('Vui lòng chọn file ảnh hợp lệ')
+      setUpdateError('Please select a valid image file')
       return
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      setUpdateError('Kích thước file không được vượt quá 5MB')
+      setUpdateError('File size must not exceed 5MB')
       return
     }
 
@@ -378,7 +378,7 @@ const Profile: React.FC = () => {
       setShowCropper(true)
     }
     reader.onerror = () => {
-      setUpdateError('Không thể đọc file ảnh')
+      setUpdateError('Cannot read image file')
     }
     reader.readAsDataURL(file)
   }

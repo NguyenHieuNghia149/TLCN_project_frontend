@@ -211,7 +211,7 @@ const RoadmapListPage: React.FC = () => {
                     : 'border-blue-300/50 bg-blue-100/50 text-blue-700'
                 }`}
               >
-                Cơ bản
+                Basic
               </span>
             </div>
 
@@ -227,7 +227,7 @@ const RoadmapListPage: React.FC = () => {
                   className={`${isDark ? 'text-slate-400' : 'text-slate-500'}`}
                 >
                   {' '}
-                  bài hoàn thành
+                  items completed
                 </span>
               </div>
             )}
@@ -245,9 +245,9 @@ const RoadmapListPage: React.FC = () => {
             <div
               className={`flex items-center gap-3 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}
             >
-              <span>{lessonCount} bài học</span>
+              <span>{lessonCount} lessons</span>
               <span>•</span>
-              <span>{problemCount} bài tập</span>
+              <span>{problemCount} problems</span>
             </div>
           </div>
 
@@ -260,9 +260,9 @@ const RoadmapListPage: React.FC = () => {
               <ChevronRight size={16} />
               {isInUserList
                 ? percentage > 0
-                  ? 'Tiếp tục học'
-                  : 'Bắt đầu'
-                : 'Xem chi tiết'}
+                  ? 'Continue'
+                  : 'Start'
+                : 'View details'}
             </button>
           </div>
         </div>

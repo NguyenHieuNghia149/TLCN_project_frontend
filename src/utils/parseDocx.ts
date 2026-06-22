@@ -20,7 +20,7 @@ export const parseDocxToHtml = async (
     if (!file || !isValidDocxFile(file)) {
       resolve({
         html: '',
-        error: 'File không hợp lệ. Vui lòng chọn file .docx',
+        error: 'Invalid file. Please select a .docx file',
       })
       return
     }
@@ -34,16 +34,16 @@ export const parseDocxToHtml = async (
         // Trả về HTML thuần túy, không xử lý code
         resolve({ html: result.value || '', error: '' })
       } catch (err) {
-        console.error('Lỗi khi chuyển đổi file docx:', err)
+        console.error('Failed to convert docx file:', err)
         resolve({
           html: '',
-          error: 'Lỗi khi chuyển đổi file. Vui lòng kiểm tra nội dung file.',
+          error: 'Failed to convert file. Please check the file content.',
         })
       }
     }
 
     reader.onerror = () => {
-      resolve({ html: '', error: 'Lỗi khi đọc file' })
+      resolve({ html: '', error: 'Failed to read file' })
     }
 
     reader.readAsArrayBuffer(file)

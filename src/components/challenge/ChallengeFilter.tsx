@@ -21,17 +21,17 @@ export const ChallengeFilter = ({
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-4">
-      <h2 className="text-xl font-bold">{topic ?? 'Tất cả chủ đề'}</h2>
+      <h2 className="text-xl font-bold">{topic ?? 'All topics'}</h2>
 
       <select
         value={difficulty}
         onChange={e => setDifficulty(e.target.value)}
         className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
-        <option value="">Tất cả độ khó</option>
-        <option value="easy">Dễ</option>
-        <option value="medium">Trung bình</option>
-        <option value="hard">Khó</option>
+        <option value="">All difficulties</option>
+        <option value="easy">Easy</option>
+        <option value="medium">Medium</option>
+        <option value="hard">Hard</option>
       </select>
     </div>
   )

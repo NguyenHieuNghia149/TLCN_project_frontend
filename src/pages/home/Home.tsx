@@ -204,7 +204,7 @@ const ContinueRoadmapCard: React.FC<RoadmapCardProps> = ({
   const currentItem = roadmapDetail?.items?.find(
     item => !completedItems.includes(item.id)
   )
-  const currentItemTitle = currentItem?.itemTitle ?? 'Bài tiếp theo'
+  const currentItemTitle = currentItem?.itemTitle ?? 'Next item'
 
   const getRoadmapIcon = (title: string): React.ReactNode => {
     if (title.toLowerCase().includes('c++')) {
@@ -303,7 +303,7 @@ const ContinueRoadmapCard: React.FC<RoadmapCardProps> = ({
                   : 'border-blue-300/50 bg-blue-100/50 text-blue-700'
               }`}
             >
-              Cơ bản
+              Basic
             </span>
           </div>
 
@@ -316,7 +316,7 @@ const ContinueRoadmapCard: React.FC<RoadmapCardProps> = ({
             </span>
             <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>
               {' '}
-              bài hoàn thành
+              items completed
             </span>
           </div>
 
@@ -326,9 +326,9 @@ const ContinueRoadmapCard: React.FC<RoadmapCardProps> = ({
               isDark ? 'text-slate-400' : 'text-slate-500'
             }`}
           >
-            <span>{lessonCount} bài học</span>
+            <span>{lessonCount} lessons</span>
             <span>•</span>
-            <span>{problemCount} bài tập</span>
+            <span>{problemCount} problems</span>
           </div>
         </div>
 
@@ -343,7 +343,7 @@ const ContinueRoadmapCard: React.FC<RoadmapCardProps> = ({
               isDark ? 'text-slate-400' : 'text-slate-500'
             }`}
           >
-            Bài hiện tại
+            Current item
           </div>
           <div
             className={`text-sm font-semibold ${
@@ -423,7 +423,7 @@ const ContinueRoadmapCard: React.FC<RoadmapCardProps> = ({
               className="flex items-center gap-2 rounded-lg bg-green-600 px-6 py-2 font-semibold text-white transition-all duration-200 hover:bg-green-700 hover:shadow-lg hover:shadow-green-500/40"
             >
               <Play size={16} />
-              Tiếp tục học
+              Continue learning
             </button>
             <button
               onClick={() => onRoadmapClick(roadmap.id)}
@@ -433,7 +433,7 @@ const ContinueRoadmapCard: React.FC<RoadmapCardProps> = ({
                   : 'text-blue-600 hover:text-blue-700'
               }`}
             >
-              Xem lộ trình →
+              View roadmap →
             </button>
           </div>
         </div>
@@ -526,7 +526,7 @@ const RoadmapCard: React.FC<RoadmapCardProps2> = ({
               {roadmap.title}
             </h3>
             <span className="inline-block rounded bg-blue-500/20 px-2 py-1 text-xs font-medium text-blue-300">
-              Cơ bản
+              Basic
             </span>
           </div>
         </div>
@@ -541,7 +541,7 @@ const RoadmapCard: React.FC<RoadmapCardProps2> = ({
           <>
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-foreground">
-                {completed}/{total} bài
+                {completed}/{total} items
               </span>
               <span className="text-sm font-semibold text-green-500">
                 {percentage}%
@@ -560,15 +560,15 @@ const RoadmapCard: React.FC<RoadmapCardProps2> = ({
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Clock size={12} />
-                <span>~10 giờ</span>
+                <span>~10 hours</span>
               </div>
               <div className="flex items-center gap-1">
                 <BookOpen size={12} />
-                <span>{lessonCount} bài học</span>
+                <span>{lessonCount} lessons</span>
               </div>
               <div className="flex items-center gap-1">
                 <Terminal size={12} />
-                <span>{problemCount} bài tập</span>
+                <span>{problemCount} problems</span>
               </div>
             </div>
           </>
@@ -579,7 +579,7 @@ const RoadmapCard: React.FC<RoadmapCardProps2> = ({
           <div className="flex items-center justify-center rounded-lg bg-gray-800/50 py-2">
             <div className="flex items-center gap-2 text-xs text-gray-500">
               <Lock size={12} />
-              <span>Hoàn thành roadmap trước</span>
+              <span>Complete the previous roadmap</span>
             </div>
           </div>
         )}
@@ -594,7 +594,7 @@ const RoadmapCard: React.FC<RoadmapCardProps2> = ({
               : 'bg-green-600 text-white hover:bg-green-700 hover:shadow-lg hover:shadow-green-500/25'
           }`}
         >
-          {isLocked ? 'Locked' : percentage > 0 ? 'Tiếp tục' : 'Bắt đầu'}
+          {isLocked ? 'Locked' : percentage > 0 ? 'Continue' : 'Start'}
         </button>
       </div>
     </div>
@@ -979,7 +979,7 @@ const HomePage: React.FC = () => {
                             p => p && p.percentage > 0
                           ).length
                         }{' '}
-                        / {userRoadmaps.length} roadmaps đang học
+                        / {userRoadmaps.length} roadmaps in progress
                       </div>
                     </div>
                     <div className="h-2 w-full rounded-full bg-secondary">

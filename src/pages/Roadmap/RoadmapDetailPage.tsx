@@ -52,7 +52,7 @@ const RoadmapDetailPage: React.FC = () => {
     if (operationError) {
       const errorMsg =
         operationError === 'PREREQUISITE_NOT_MET'
-          ? '❌ Bạn cần hoàn thành bài trước đó trước'
+          ? '❌ You need to complete the previous item first'
           : `❌ ${operationError}`
       message.error(errorMsg)
     }
@@ -84,7 +84,7 @@ const RoadmapDetailPage: React.FC = () => {
       <div className="flex items-center justify-center py-24">
         <div className="flex flex-col items-center gap-3">
           <div className="h-9 w-9 animate-spin rounded-full border-4 border-green-500 border-t-transparent" />
-          <p className="text-sm text-muted-foreground">Đang tải roadmap...</p>
+          <p className="text-sm text-muted-foreground">Loading roadmap...</p>
         </div>
       </div>
     )
