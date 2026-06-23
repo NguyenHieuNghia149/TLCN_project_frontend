@@ -17,7 +17,6 @@ import Alert from '../../../components/common/Alert/Alert'
 import Input from '../../../components/common/Input/Input'
 import Button from '../../../components/common/Button/Button'
 import GoogleButton from '../../../components/auth/GoogleButton/GoogleButton'
-import { googleAuthService } from '../../../services/auth/googleAuth.service'
 import './Login.css'
 
 // Validation schema
@@ -142,22 +141,12 @@ const Login: React.FC = () => {
     [dispatch, message, navigate, location.state]
   )
 
-  const handleGoogleError = useCallback(() => {
-    // Fallback: try One Tap prompt
-    googleAuthService
-      .signInWithGoogle()
-      .then(credential => {
-        return dispatch(loginWithGoogle(credential)).unwrap()
-      })
-      .then(() => {
-        message.success('Login with Google successful!')
-        const redirectTo = location.state?.from?.pathname || '/'
-        navigate(redirectTo)
-      })
-      .catch(() => {
-        // Error handled by Redux
-      })
-  }, [dispatch, message, navigate, location.state])
+  const handleGoogleError = useCallback(
+    (error?: Error) => {
+      message.error(error?.message || 'Google login is currently unavailable')
+    },
+    [message]
+  )
 
   return (
     <div className="login-page">

@@ -129,11 +129,22 @@ export class AuthService {
     const payload = data as {
       data?: {
         user?: User
+        data?:
+          | {
+              user?: User
+            }
+          | User
       }
       user?: User
     }
 
-    return payload.data?.user || payload.user || null
+    const nestedData = payload.data?.data
+    const nestedUser =
+      nestedData && typeof nestedData === 'object' && 'user' in nestedData
+        ? (nestedData as { user?: User }).user
+        : undefined
+
+    return payload.data?.user || nestedUser || payload.user || null
   }
 
   async login(credentials: LoginCredentials): Promise<AuthUserPayload> {

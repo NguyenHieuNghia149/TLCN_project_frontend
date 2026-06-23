@@ -54,6 +54,60 @@ declare global {
 
 class GoogleAuthService {
   private loadingScript = false
+  private idClientInitialized = false
+  private credentialHandler: ((credential: string) => void) | null = null
+  private errorHandler: ((error: Error) => void) | null = null
+
+  private waitForGoogleId(timeoutMs = 5000): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      if (window.google?.accounts?.id) return resolve()
+
+      const startedAt = Date.now()
+      const timer = setInterval(() => {
+        if (window.google?.accounts?.id) {
+          clearInterval(timer)
+          resolve()
+        } else if (Date.now() - startedAt > timeoutMs) {
+          clearInterval(timer)
+          reject(
+            new Error(
+              'Google API not loaded. Current origin: ' + window.location.origin
+            )
+          )
+        }
+      }, 100)
+    })
+  }
+
+  private ensureIdClientInitialized(): void {
+    if (!window.google?.accounts?.id) {
+      throw new Error('Google API not loaded')
+    }
+
+    if (this.idClientInitialized) {
+      return
+    }
+
+    if (!GOOGLE_CLIENT_ID) {
+      throw new Error(
+        'Missing Google Client ID. Please set VITE_GOOGLE_CLIENT_ID in .env file'
+      )
+    }
+
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: (response: GoogleIdCredential) => {
+        if (response?.credential) {
+          this.credentialHandler?.(response.credential)
+          return
+        }
+
+        this.errorHandler?.(new Error('No credential received from Google'))
+      },
+    })
+
+    this.idClientInitialized = true
+  }
 
   initGoogleAuth(): void {
     if (window.google) return
@@ -80,55 +134,27 @@ class GoogleAuthService {
   }
 
   signInWithGoogle(): Promise<string> {
-    const waitForGoogle = (timeoutMs = 5000) =>
-      new Promise<void>((resolve, reject) => {
-        if (window.google?.accounts?.id) return resolve()
-        const startedAt = Date.now()
-        const timer = setInterval(() => {
-          if (window.google?.accounts?.id) {
-            clearInterval(timer)
-            resolve()
-          } else if (Date.now() - startedAt > timeoutMs) {
-            clearInterval(timer)
-            reject(
-              new Error(
-                'Google API not loaded. Current origin: ' +
-                  window.location.origin
-              )
-            )
-          }
-        }, 100)
-      })
-
     return new Promise((resolve, reject) => {
-      if (!GOOGLE_CLIENT_ID) {
-        reject(
-          new Error(
-            'Missing Google Client ID. Please set VITE_GOOGLE_CLIENT_ID in .env file'
-          )
-        )
-        return
-      }
-
       const currentOrigin = window.location.origin
 
-      waitForGoogle()
+      this.initGoogleAuth()
+
+      this.waitForGoogleId()
         .then(() => {
           let settled = false
 
-          window.google!.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            callback: (response: GoogleIdCredential) => {
-              if (settled) return
-              if (response && response.credential) {
-                settled = true
-                resolve(response.credential)
-              } else {
-                settled = true
-                reject(new Error('No credential received from Google'))
-              }
-            },
-          })
+          this.credentialHandler = credential => {
+            if (settled) return
+            settled = true
+            resolve(credential)
+          }
+          this.errorHandler = error => {
+            if (settled) return
+            settled = true
+            reject(error)
+          }
+
+          this.ensureIdClientInitialized()
 
           // Try One Tap first
           try {
@@ -171,54 +197,37 @@ class GoogleAuthService {
     onSuccess: (credential: string) => void,
     onError: (error: Error) => void
   ): void {
-    if (!window.google?.accounts?.id) {
-      onError(new Error('Google API not loaded. Please refresh the page.'))
-      return
-    }
-
-    if (!GOOGLE_CLIENT_ID) {
-      onError(
-        new Error(
-          'Google Client ID not configured. Please set VITE_GOOGLE_CLIENT_ID in .env file.'
-        )
-      )
-      return
-    }
-
     const currentOrigin = window.location.origin
 
-    try {
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: (response: GoogleIdCredential) => {
-          if (response.credential) {
-            onSuccess(response.credential)
-          } else {
-            onError(new Error('No credential received from Google button'))
-          }
-        },
-      })
+    this.initGoogleAuth()
+    void this.waitForGoogleId()
+      .then(() => {
+        this.credentialHandler = onSuccess
+        this.errorHandler = onError
+        this.ensureIdClientInitialized()
 
-      window.google.accounts.id.renderButton(element, {
-        theme: 'filled_blue',
-        size: 'large',
-        type: 'standard',
-        text: 'continue_with',
-        shape: 'rectangular',
-        logo_alignment: 'left',
-        width: element.offsetWidth || 300,
+        element.innerHTML = ''
+        window.google!.accounts.id.renderButton(element, {
+          theme: 'filled_blue',
+          size: 'large',
+          type: 'standard',
+          text: 'continue_with',
+          shape: 'rectangular',
+          logo_alignment: 'left',
+          width: element.offsetWidth || 300,
+        })
       })
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Failed to render Google button'
-      onError(
-        new Error(
-          `${errorMessage}. ` +
-            `Please ensure "${currentOrigin}" is in Authorized JavaScript origins. ` +
-            `Client ID: ${GOOGLE_CLIENT_ID.substring(0, 30)}...`
+      .catch(err => {
+        const errorMessage =
+          err instanceof Error ? err.message : 'Failed to render Google button'
+        onError(
+          new Error(
+            `${errorMessage}. ` +
+              `Please ensure "${currentOrigin}" is in Authorized JavaScript origins. ` +
+              `Client ID: ${GOOGLE_CLIENT_ID.substring(0, 30)}...`
+          )
         )
-      )
-    }
+      })
   }
 
   // authenticateWithBackend removed to avoid duplication with authService.loginWithGoogle

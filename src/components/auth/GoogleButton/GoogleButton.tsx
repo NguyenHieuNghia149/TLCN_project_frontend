@@ -34,50 +34,8 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
     if (disabled) return
 
     let cancelled = false
-    let googleReadyWithButton = false
 
     googleAuthService.initGoogleAuth()
-
-    const tryRender = () => {
-      if (cancelled) return
-
-      if (!buttonRef.current || !window.google?.accounts?.id) {
-        return
-      }
-
-      try {
-        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
-        if (!clientId) {
-          onError?.(new Error('Google Client ID not configured'))
-          return
-        }
-
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          callback: (response: { credential: string }) => {
-            if (response.credential) {
-              onSuccess(response.credential)
-            } else {
-              onError?.(new Error('No credential received'))
-            }
-          },
-        })
-
-        window.google.accounts.id.renderButton(buttonRef.current, {
-          theme,
-          size,
-          text,
-          width: width || buttonRef.current.offsetWidth || 300,
-          logo_alignment,
-        })
-
-        googleReadyWithButton = true
-        setIsGoogleLoaded(true)
-      } catch (err) {
-        setIsGoogleLoaded(false)
-        onError?.(err as Error)
-      }
-    }
 
     let attempts = 0
     const maxAttempts = 50
@@ -85,12 +43,20 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({
     const poll = () => {
       if (cancelled) return
 
-      if (googleReadyWithButton) {
-        return
-      }
-
-      if (window.google?.accounts?.id && buttonRef.current) {
-        tryRender()
+      if (buttonRef.current) {
+        googleAuthService.renderGoogleButton(
+          buttonRef.current,
+          credential => {
+            if (cancelled) return
+            setIsGoogleLoaded(true)
+            onSuccess(credential)
+          },
+          error => {
+            if (cancelled) return
+            setIsGoogleLoaded(false)
+            onError?.(error)
+          }
+        )
         return
       }
 
