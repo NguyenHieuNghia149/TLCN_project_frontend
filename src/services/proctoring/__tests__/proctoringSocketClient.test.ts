@@ -52,6 +52,7 @@ describe('ProctoringSocketClient', () => {
     )
 
     expect(ioMock).toHaveBeenCalledWith('http://localhost:3001/proctoring', {
+      path: '/api/socket.io',
       transports: ['websocket', 'polling'],
       withCredentials: true,
       autoConnect: false,

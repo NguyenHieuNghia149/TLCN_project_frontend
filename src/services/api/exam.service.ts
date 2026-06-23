@@ -9,6 +9,7 @@ import type {
   AdminProctoringReview,
   AdminProctoringReviewDecision,
   AdminProctoringReviewLabelOutcome,
+  AdminProctoringLlmSummaryTranslation,
   AdminUpdateProctoringSettingsPayload,
   AdminUserLookupItem,
   CreateExamPayload,
@@ -730,6 +731,23 @@ export class ExamService {
       payload
     )
     return unwrapResponseData(response.data)
+  }
+
+  async translateAdminProctoringLlmSummary(
+    examId: string,
+    participationId: string,
+    payload: { targetLanguage: 'vi' }
+  ): Promise<AdminProctoringLlmSummaryTranslation> {
+    const response = await apiClient.post(
+      `/admin/exams/${examId}/participations/${participationId}/proctoring/llm-summary/translate`,
+      payload,
+      {
+        timeout: 45000,
+      }
+    )
+    return unwrapResponseData<AdminProctoringLlmSummaryTranslation>(
+      response.data
+    )
   }
 
   async submitExamBySlug(

@@ -72,16 +72,12 @@ const NotificationDropdown: React.FC = () => {
       : window.location.origin
     const socket = io(socketUrl, {
       autoConnect: false,
+      path: '/api/socket.io',
       transports: ['websocket', 'polling'],
       withCredentials: true,
     })
 
     socketRef.current = socket
-
-    const handleConnect = () => {
-      // Authenticate
-      socket.emit('authenticate', { userId: user.id })
-    }
 
     const handleNotificationNew = (newNotification: Notification) => {
       // Add to list and increment unread
@@ -91,12 +87,10 @@ const NotificationDropdown: React.FC = () => {
       // Optional: Play sound or show toast
     }
 
-    socket.on('connect', handleConnect)
     socket.on('notification_new', handleNotificationNew)
     socket.connect()
 
     return () => {
-      socket.off('connect', handleConnect)
       socket.off('notification_new', handleNotificationNew)
       socketRef.current = null
       socket.disconnect()

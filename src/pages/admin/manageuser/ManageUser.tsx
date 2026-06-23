@@ -26,6 +26,7 @@ import { apiClient } from '@/config/axios.config'
 import dayjs from 'dayjs'
 import { BanUserModal } from '@/components/admin/BanUserModal'
 import { adminService } from '@/services/api/adminUser.service'
+import { extractApiErrorMessage } from '@/utils/apiError'
 
 interface ApiResponse {
   data?:
@@ -135,12 +136,10 @@ const ManageUser: React.FC = () => {
           pageSize: pageSize,
           total: totalCount,
         })
-      } catch (error) {
-        const err = error as { response?: { data?: { message?: string } } }
-
+      } catch (error: unknown) {
         notification.error({
           message: 'Error',
-          description: err?.response?.data?.message || 'Failed to fetch users',
+          description: extractApiErrorMessage(error, 'Failed to fetch users'),
           placement: 'topRight',
         })
       } finally {
@@ -198,13 +197,9 @@ const ManageUser: React.FC = () => {
         })
         fetchUsers(pagination.current, pagination.pageSize, searchText)
       } catch (error: unknown) {
-        const err = error as {
-          response?: { data?: { error?: { message?: string } } }
-        }
         notification.error({
           message: 'Error',
-          description:
-            err.response?.data?.error?.message || 'Failed to unban user',
+          description: extractApiErrorMessage(error, 'Failed to unban user'),
           placement: 'topRight',
         })
       }
@@ -255,10 +250,9 @@ const ManageUser: React.FC = () => {
       form.resetFields()
       fetchUsers(pagination.current, pagination.pageSize, searchText)
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
       notification.error({
         message: 'Error',
-        description: err.response?.data?.message || 'Failed to save user',
+        description: extractApiErrorMessage(error, 'Failed to save user'),
         placement: 'topRight',
       })
     }

@@ -6,6 +6,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { challengeService } from '@/services/api/challenge.service'
 import { ChallengeItem } from '@/types/challenge.types'
+import { extractApiErrorMessage } from '@/utils/apiError'
 
 const AdminChallengeList: React.FC = () => {
   const navigate = useNavigate()
@@ -62,10 +63,13 @@ const AdminChallengeList: React.FC = () => {
           pageSize: pageSize,
           total: response.total,
         })
-      } catch {
+      } catch (error: unknown) {
         notification.error({
           message: 'Error',
-          description: 'Failed to load challenges',
+          description: extractApiErrorMessage(
+            error,
+            'Failed to load challenges'
+          ),
           placement: 'topRight',
         })
       } finally {
@@ -138,7 +142,7 @@ const AdminChallengeList: React.FC = () => {
             message: 'Cannot Delete Challenge',
             description: hasSubmissions
               ? 'This challenge cannot be deleted because users have already submitted solutions to it. You can hide it instead by changing its visibility.'
-              : err.response?.data?.message || 'Failed to delete challenge',
+              : extractApiErrorMessage(error, 'Failed to delete challenge'),
             placement: 'topRight',
             duration: 5,
           })

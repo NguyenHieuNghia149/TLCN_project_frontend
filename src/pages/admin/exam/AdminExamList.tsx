@@ -25,6 +25,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import { examService } from '@/services/api/exam.service'
 import type { Exam } from '@/types/exam.types'
+import { extractApiErrorMessage } from '@/utils/apiError'
 
 const PAGE_SIZE = 10
 
@@ -39,147 +40,6 @@ const accessColorMap: Record<string, string> = {
   open_registration: '#2563eb',
   invite_only: '#7c3aed',
   hybrid: '#0891b2',
-}
-
-type ApiValidationErrors = {
-  formErrors?: string[]
-  fieldErrors?: Record<string, string[]>
-}
-
-type ApiErrorPayload = {
-  message?: string
-  error?: {
-    message?: string
-    details?: unknown
-  }
-  errors?: ApiValidationErrors
-}
-
-function pickFirstValidationMessage(
-  errors?: ApiValidationErrors
-): string | null {
-  if (!errors) {
-    return null
-  }
-
-  const firstFormError = errors.formErrors?.find(
-    item => typeof item === 'string' && item.trim().length > 0
-  )
-  if (firstFormError) {
-    return firstFormError
-  }
-
-  const fieldEntries = Object.entries(errors.fieldErrors ?? {})
-  for (const [field, messages] of fieldEntries) {
-    if (!Array.isArray(messages)) {
-      continue
-    }
-
-    const firstMessage = messages.find(
-      message => typeof message === 'string' && message.trim().length > 0
-    )
-    if (firstMessage) {
-      return `${field}: ${firstMessage}`
-    }
-  }
-
-  return null
-}
-
-function pickDetailMessage(details: unknown): string | null {
-  if (typeof details === 'string' && details.trim().length > 0) {
-    return details
-  }
-
-  if (Array.isArray(details)) {
-    for (const detail of details) {
-      if (typeof detail === 'string' && detail.trim().length > 0) {
-        return detail
-      }
-      if (
-        detail &&
-        typeof detail === 'object' &&
-        'message' in detail &&
-        typeof (detail as { message?: unknown }).message === 'string'
-      ) {
-        return (detail as { message: string }).message
-      }
-    }
-  }
-
-  if (details && typeof details === 'object') {
-    if (
-      'message' in details &&
-      typeof (details as { message?: unknown }).message === 'string'
-    ) {
-      return (details as { message: string }).message
-    }
-
-    if (
-      'errors' in details &&
-      (details as { errors?: unknown }).errors &&
-      typeof (details as { errors?: unknown }).errors === 'object'
-    ) {
-      return pickFirstValidationMessage(
-        (details as { errors?: ApiValidationErrors }).errors
-      )
-    }
-
-    const context = details as {
-      currentStatus?: unknown
-      participantCount?: unknown
-      endDate?: unknown
-    }
-    const parts: string[] = []
-    if (typeof context.currentStatus === 'string') {
-      parts.push(`status=${context.currentStatus}`)
-    }
-    if (typeof context.participantCount === 'number') {
-      parts.push(`participants=${context.participantCount}`)
-    }
-    if (typeof context.endDate === 'string') {
-      parts.push(`endDate=${new Date(context.endDate).toLocaleString()}`)
-    }
-    if (parts.length > 0) {
-      return parts.join(', ')
-    }
-  }
-
-  return null
-}
-
-function extractApiErrorMessage(error: unknown, fallback: string): string {
-  if (
-    error &&
-    typeof error === 'object' &&
-    'response' in error &&
-    typeof (error as { response?: unknown }).response === 'object'
-  ) {
-    const payload = (error as { response?: { data?: ApiErrorPayload } })
-      .response?.data
-    if (payload) {
-      const backendMessage = payload.error?.message || payload.message
-      const detailMessage = pickDetailMessage(payload.error?.details)
-      const validationMessage = pickFirstValidationMessage(payload.errors)
-
-      if (
-        backendMessage &&
-        detailMessage &&
-        detailMessage !== backendMessage &&
-        !backendMessage.toLowerCase().includes('validation')
-      ) {
-        return `${backendMessage}: ${detailMessage}`
-      }
-
-      return detailMessage || validationMessage || backendMessage || fallback
-    }
-  }
-
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return error.message
-  }
-
-  return fallback
 }
 
 function isExamEnded(endDate: string): boolean {
@@ -226,6 +86,8 @@ const AdminExamList: React.FC = () => {
     current: Math.max(Number(searchParams.get('page') || '1'), 1),
     pageSize: PAGE_SIZE,
   })
+  const currentPage = pagination.current
+  const pageSize = pagination.pageSize
 
   const fetchAdminExams = useCallback(
     async (search?: string) => {
@@ -269,16 +131,13 @@ const AdminExamList: React.FC = () => {
     })
   }, [allExams, modeFilter, statusFilter])
 
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredExams.length / pagination.pageSize)
-  )
-  const safeCurrentPage = Math.min(pagination.current, totalPages)
+  const totalPages = Math.max(1, Math.ceil(filteredExams.length / pageSize))
+  const safeCurrentPage = Math.min(currentPage, totalPages)
   const pagedExams = useMemo(() => {
-    const start = (safeCurrentPage - 1) * pagination.pageSize
-    const end = start + pagination.pageSize
+    const start = (safeCurrentPage - 1) * pageSize
+    const end = start + pageSize
     return filteredExams.slice(start, end)
-  }, [filteredExams, pagination.pageSize, safeCurrentPage])
+  }, [filteredExams, pageSize, safeCurrentPage])
 
   useEffect(() => {
     const next = new URLSearchParams()
@@ -298,13 +157,13 @@ const AdminExamList: React.FC = () => {
   }, [modeFilter, safeCurrentPage, searchText, setSearchParams, statusFilter])
 
   useEffect(() => {
-    if (safeCurrentPage !== pagination.current) {
+    if (safeCurrentPage !== currentPage) {
       setPagination(current => ({
         ...current,
         current: safeCurrentPage,
       }))
     }
-  }, [pagination.current, safeCurrentPage])
+  }, [currentPage, safeCurrentPage])
 
   const handleTableChange = (newPagination: TablePaginationConfig) => {
     setPagination(current => ({

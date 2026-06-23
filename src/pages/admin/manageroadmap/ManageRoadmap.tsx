@@ -53,6 +53,7 @@ import {
   asyncUpdateAdminRoadmapVisibility,
   asyncCreateAdminRoadmap,
 } from '@/store/slices/adminRoadmapSlice'
+import { extractApiErrorMessage } from '@/utils/apiError'
 
 interface RoadmapItemData {
   id: string
@@ -240,7 +241,7 @@ const ManageRoadmap: React.FC = () => {
     } catch (err: unknown) {
       notification.error({
         message: 'Error',
-        description: String(err || 'Failed to create roadmap'),
+        description: extractApiErrorMessage(err, 'Failed to create roadmap'),
         placement: 'topRight',
       })
     }
@@ -254,10 +255,13 @@ const ManageRoadmap: React.FC = () => {
       const detail = await adminRoadmapAPI.getRoadmapDetail(roadmapId)
       setDetailData(detail)
       setShowDetailModal(true)
-    } catch {
+    } catch (error: unknown) {
       notification.error({
         message: 'Error',
-        description: 'Failed to load roadmap details',
+        description: extractApiErrorMessage(
+          error,
+          'Failed to load roadmap details'
+        ),
         placement: 'topRight',
       })
     } finally {
@@ -347,7 +351,7 @@ const ManageRoadmap: React.FC = () => {
     } catch (err: unknown) {
       notification.error({
         message: 'Error',
-        description: String(err || 'Failed to add item'),
+        description: extractApiErrorMessage(err, 'Failed to add item'),
         placement: 'topRight',
       })
     } finally {
@@ -402,7 +406,10 @@ const ManageRoadmap: React.FC = () => {
     } catch (err: unknown) {
       notification.error({
         message: 'Error',
-        description: String(err || 'Failed to save roadmap details'),
+        description: extractApiErrorMessage(
+          err,
+          'Failed to save roadmap details'
+        ),
         placement: 'topRight',
       })
     } finally {
@@ -516,8 +523,9 @@ const ManageRoadmap: React.FC = () => {
                     } catch (err: unknown) {
                       notification.error({
                         message: 'Error',
-                        description: String(
-                          err || 'Failed to update visibility'
+                        description: extractApiErrorMessage(
+                          err,
+                          'Failed to update visibility'
                         ),
                         placement: 'topRight',
                       })
@@ -553,8 +561,9 @@ const ManageRoadmap: React.FC = () => {
                         } catch (err: unknown) {
                           notification.error({
                             message: 'Error',
-                            description: String(
-                              err || 'Failed to delete roadmap'
+                            description: extractApiErrorMessage(
+                              err,
+                              'Failed to delete roadmap'
                             ),
                             placement: 'topRight',
                           })

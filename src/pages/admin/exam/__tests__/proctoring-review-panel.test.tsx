@@ -441,6 +441,70 @@ describe('ProctoringReviewPanel', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('translates accepted LLM summary on demand without mutating the persisted english summary', async () => {
+    const user = userEvent.setup()
+    const onTranslateLlmSummary = vi
+      .fn()
+      .mockResolvedValue('Can xem lai: roi tab 2 lan, an tab 1 lan.')
+    const review = makeReview()
+    review.llmSummary = {
+      visible: true,
+      status: 'accepted',
+      summaryId: 'llm-summary-1',
+      provider: 'local',
+      modelVersion: 'summary-local-v1',
+      promptVersion: 'proctoring-summary-v1',
+      validationStatus: 'passed',
+      validationScore: 0.94,
+      summaryText: 'Review these signals: focus lost x2 and hidden tab x1.',
+      riskFacts: [],
+      citations: [],
+      missingDataNotes: [],
+      modelNotes: [],
+      completedAt: '2026-06-14T10:10:00.000Z',
+    }
+
+    render(
+      <ProctoringReviewPanel
+        review={review}
+        loading={false}
+        actionLoading={false}
+        onRefresh={vi.fn()}
+        onRecompute={vi.fn()}
+        onReview={vi.fn()}
+        onTranslateLlmSummary={onTranslateLlmSummary}
+      />
+    )
+
+    expect(
+      screen.getByText('Review these signals: focus lost x2 and hidden tab x1.')
+    ).toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole('button', { name: /translate to vietnamese/i })
+    )
+
+    expect(onTranslateLlmSummary).toHaveBeenCalledWith({
+      summaryText: 'Review these signals: focus lost x2 and hidden tab x1.',
+      targetLanguage: 'vi',
+    })
+    expect(
+      await screen.findByText('Can xem lai: roi tab 2 lan, an tab 1 lan.')
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /show english/i })
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /show english/i }))
+
+    expect(
+      screen.getByText('Review these signals: focus lost x2 and hidden tab x1.')
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText('Can xem lai: roi tab 2 lan, an tab 1 lan.')
+    ).not.toBeInTheDocument()
+  })
+
   it('evidence summary renders grouped readable groups with counts, latest time, labels, and badges', () => {
     const review = makeReview()
     review.timeline.items = [

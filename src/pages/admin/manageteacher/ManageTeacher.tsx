@@ -26,6 +26,7 @@ import { apiClient } from '@/config/axios.config'
 import dayjs from 'dayjs'
 import { BanUserModal } from '@/components/admin/BanUserModal'
 import { adminService } from '@/services/api/adminUser.service'
+import { extractApiErrorMessage } from '@/utils/apiError'
 
 interface ApiResponse {
   data?:
@@ -133,12 +134,13 @@ const ManageTeacher: React.FC = () => {
           pageSize: pageSize,
           total: totalCount,
         })
-      } catch (error) {
-        const err = error as { response?: { data?: { message?: string } } }
+      } catch (error: unknown) {
         notification.error({
           message: 'Error',
-          description:
-            err?.response?.data?.message || 'Failed to fetch teachers',
+          description: extractApiErrorMessage(
+            error,
+            'Failed to fetch teachers'
+          ),
           placement: 'topRight',
         })
       } finally {
@@ -196,13 +198,9 @@ const ManageTeacher: React.FC = () => {
         })
         fetchTeachers(pagination.current, pagination.pageSize, searchText)
       } catch (error: unknown) {
-        const err = error as {
-          response?: { data?: { error?: { message?: string } } }
-        }
         notification.error({
           message: 'Error',
-          description:
-            err.response?.data?.error?.message || 'Failed to unban teacher',
+          description: extractApiErrorMessage(error, 'Failed to unban teacher'),
           placement: 'topRight',
         })
       }
@@ -253,10 +251,9 @@ const ManageTeacher: React.FC = () => {
       form.resetFields()
       fetchTeachers(pagination.current, pagination.pageSize, searchText)
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
       notification.error({
         message: 'Error',
-        description: err.response?.data?.message || 'Failed to save teacher',
+        description: extractApiErrorMessage(error, 'Failed to save teacher'),
         placement: 'topRight',
       })
     }

@@ -28,6 +28,10 @@ type ProctoringReviewPanelProps = {
     evidenceConfidence: AdminProctoringEvidenceConfidence
     notes?: string
   }) => Promise<void> | void
+  onTranslateLlmSummary?: (payload: {
+    summaryText: string
+    targetLanguage: 'vi'
+  }) => Promise<string> | string
 }
 
 type CategoryInfo = {
@@ -305,6 +309,7 @@ const ProctoringReviewPanel: React.FC<ProctoringReviewPanelProps> = ({
   onRecompute,
   onReview,
   onLabel,
+  onTranslateLlmSummary,
 }) => {
   const [decision, setDecision] =
     useState<AdminProctoringReviewDecision>('pending')
@@ -315,6 +320,13 @@ const ProctoringReviewPanel: React.FC<ProctoringReviewPanelProps> = ({
     useState<AdminProctoringEvidenceConfidence>('medium')
   const [labelNotes, setLabelNotes] = useState('')
   const [technicalLogOpen, setTechnicalLogOpen] = useState(false)
+  const [translatedLlmSummaryText, setTranslatedLlmSummaryText] = useState<
+    string | null
+  >(null)
+  const [showTranslatedLlmSummary, setShowTranslatedLlmSummary] =
+    useState(false)
+  const [translationLoading, setTranslationLoading] = useState(false)
+  const [translationError, setTranslationError] = useState<string | null>(null)
 
   useEffect(() => {
     const currentDecision = review?.summary?.reviewerDecision
@@ -343,6 +355,13 @@ const ProctoringReviewPanel: React.FC<ProctoringReviewPanelProps> = ({
     review?.summary?.reviewerNotes,
     review?.reviewLabel,
   ])
+
+  useEffect(() => {
+    setTranslatedLlmSummaryText(null)
+    setShowTranslatedLlmSummary(false)
+    setTranslationLoading(false)
+    setTranslationError(null)
+  }, [review?.llmSummary?.summaryId, review?.llmSummary?.summaryText])
 
   const categorizedEvents: CategoryInfo[] = useMemo(() => {
     const items = review?.timeline?.items ?? []
@@ -491,6 +510,11 @@ const ProctoringReviewPanel: React.FC<ProctoringReviewPanelProps> = ({
   const summary = review.summary
   const riskTone = getRiskTone(summary?.riskLevel)
   const finalFlushStatus = getFinalFlushStatusLabel(review)
+  const sourceLlmSummaryText = review?.llmSummary?.summaryText ?? null
+  const displayedLlmSummaryText =
+    showTranslatedLlmSummary && translatedLlmSummaryText
+      ? translatedLlmSummaryText
+      : (sourceLlmSummaryText ?? '--')
 
   return (
     <section className="rounded-xl border p-4">
@@ -539,306 +563,384 @@ const ProctoringReviewPanel: React.FC<ProctoringReviewPanelProps> = ({
         </div>
       ) : null}
 
-      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-        <div className={`rounded-lg border p-3 ${riskTone.card}`}>
-          <p className="text-xs uppercase opacity-70">Risk level</p>
-          <div className="mt-2 flex items-center gap-2">
-            <span
-              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${riskTone.badgeClass}`}
-            >
-              {riskTone.badge}
-            </span>
-          </div>
-          <p className={`mt-2 text-lg font-semibold ${riskTone.text}`}>
-            {summary?.riskLevel ?? '--'}
-          </p>
-        </div>
-        <div className={`rounded-lg border p-3 ${riskTone.card}`}>
-          <p className="text-xs uppercase opacity-70">Risk score</p>
-          <p className={`mt-2 text-lg font-semibold ${riskTone.text}`}>
-            {summary?.riskScore ?? '--'}
-          </p>
-        </div>
-        <div className="rounded-lg border p-3">
-          <p className="text-xs uppercase opacity-70">Final flush</p>
-          <p className="mt-1 text-lg font-semibold">{finalFlushStatus}</p>
-        </div>
-      </div>
-
-      <div
-        className={`mt-4 rounded-lg border p-3 ${
-          hasReviewAttentionSignals
-            ? 'border-amber-200 bg-amber-50/80'
-            : 'border-emerald-200 bg-emerald-50/70'
-        }`}
-      >
-        <p className="text-sm font-semibold">Review attention</p>
-        <p className="mt-1 text-sm font-medium text-slate-900">
-          {hasReviewAttentionSignals
-            ? 'Review recommended'
-            : 'No immediate review attention'}
+      <section className="mt-4 rounded-2xl border p-4">
+        <p className="text-sm font-semibold">Overview</p>
+        <p className="mt-1 text-xs opacity-75">
+          Fast triage summary for reviewers before reading deeper evidence.
         </p>
-        <p className="mt-1 text-xs text-slate-600">
-          {hasReviewAttentionSignals
-            ? 'Several browser or device signals changed during the session. Human review is required before any decision.'
-            : 'No notable browser or device interruptions were recorded.'}
-        </p>
-      </div>
 
-      {/* Evidence summary */}
-      {categorizedEvents.length > 0 && (
-        <div className="mt-4">
-          <p className="text-sm font-semibold">Evidence summary</p>
-          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {categorizedEvents.map(cat => (
-              <div key={cat.key} className="rounded-lg border p-3 text-xs">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium">{cat.label}</span>
-                  {cat.status === 'warning' && (
-                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
-                      Warning
-                    </span>
-                  )}
-                  {cat.status === 'review' && (
-                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700">
-                      Review
-                    </span>
-                  )}
-                  {cat.status === 'info' && (
-                    <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">
-                      Info
-                    </span>
-                  )}
-                </div>
-                <p className="mt-1 opacity-75">
-                  {cat.count} event{cat.count !== 1 ? 's' : ''}
-                </p>
-                {cat.latestTimestamp && (
-                  <p className="opacity-60">
-                    Latest: {formatDate(cat.latestTimestamp)}
-                  </p>
-                )}
-                <div className="mt-2 space-y-1">
-                  {cat.details.map(detail => (
-                    <p
-                      key={detail.key}
-                      className="flex items-start justify-between gap-2 opacity-80"
-                    >
-                      <span>{detail.label}</span>
-                      <span className="whitespace-nowrap opacity-60">
-                        {detail.count}x
-                      </span>
-                    </p>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Notable events */}
-      {notableEvents.length > 0 && (
-        <div className="mt-4">
-          <p className="text-sm font-semibold">Notable events</p>
-          <p className="mt-0.5 text-xs opacity-75">
-            Showing the {Math.min(notableEvents.length, 10)} most recent event
-            {notableEvents.length !== 1 ? 's' : ''}.
-          </p>
-          <div className="mt-2 space-y-1">
-            {notableEvents.map(item => (
-              <div
-                key={item.id}
-                className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-3 py-2 text-xs"
+        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className={`rounded-lg border p-3 ${riskTone.card}`}>
+            <p className="text-xs uppercase opacity-70">Risk level</p>
+            <div className="mt-2 flex items-center gap-2">
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${riskTone.badgeClass}`}
               >
-                <span className="font-medium">
-                  {getEvidenceEventLabel(item)}
-                </span>
-                <span className="opacity-60">
-                  Seq {item.clientSeq} - {formatDate(item.capturedAt)}
-                </span>
-              </div>
-            ))}
+                {riskTone.badge}
+              </span>
+            </div>
+            <p className={`mt-2 text-lg font-semibold ${riskTone.text}`}>
+              {summary?.riskLevel ?? '--'}
+            </p>
+          </div>
+          <div className={`rounded-lg border p-3 ${riskTone.card}`}>
+            <p className="text-xs uppercase opacity-70">Risk score</p>
+            <p className={`mt-2 text-lg font-semibold ${riskTone.text}`}>
+              {summary?.riskScore ?? '--'}
+            </p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs uppercase opacity-70">Final flush</p>
+            <p className="mt-1 text-lg font-semibold">{finalFlushStatus}</p>
           </div>
         </div>
-      )}
 
-      {/* Technical event log (collapsible) */}
-      {review.timeline.items.length > 0 && (
-        <div className="mt-4">
-          <button
-            type="button"
-            className="flex w-full cursor-pointer items-center gap-2 rounded-lg border p-3 text-left text-sm font-semibold hover:bg-gray-50"
-            onClick={() => setTechnicalLogOpen(o => !o)}
-          >
-            {technicalLogOpen ? (
-              <ChevronDown size={16} />
-            ) : (
-              <ChevronRight size={16} />
-            )}
-            Technical event log ({review.timeline.items.length} events)
-          </button>
-          {technicalLogOpen && (
-            <div className="mt-2 space-y-2">
-              {review.timeline.items.map(item => (
-                <article
-                  key={item.id}
-                  className="rounded-lg border p-3 text-sm"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-semibold">{item.eventName}</span>
-                    <span className="text-xs opacity-70">
-                      Seq {item.clientSeq} - {formatDate(item.capturedAt)}
-                    </span>
+        <div
+          className={`mt-4 rounded-lg border p-3 ${
+            hasReviewAttentionSignals
+              ? 'border-amber-200 bg-amber-50/80'
+              : 'border-emerald-200 bg-emerald-50/70'
+          }`}
+        >
+          <p className="text-sm font-semibold">Review attention</p>
+          <p className="mt-1 text-sm font-medium text-slate-900">
+            {hasReviewAttentionSignals
+              ? 'Review recommended'
+              : 'No immediate review attention'}
+          </p>
+          <p className="mt-1 text-xs text-slate-600">
+            {hasReviewAttentionSignals
+              ? 'Several browser or device signals changed during the session. Human review is required before any decision.'
+              : 'No notable browser or device interruptions were recorded.'}
+          </p>
+        </div>
+      </section>
+
+      <section className="mt-4 rounded-2xl border p-4">
+        <p className="text-sm font-semibold">Evidence</p>
+        <p className="mt-1 text-xs opacity-75">
+          Grouped telemetry evidence, recent highlights, and the raw technical
+          log.
+        </p>
+
+        {/* Evidence summary */}
+        {categorizedEvents.length > 0 && (
+          <div className="mt-4">
+            <p className="text-sm font-semibold">Evidence summary</p>
+            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {categorizedEvents.map(cat => (
+                <div key={cat.key} className="rounded-lg border p-3 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium">{cat.label}</span>
+                    {cat.status === 'warning' && (
+                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                        Warning
+                      </span>
+                    )}
+                    {cat.status === 'review' && (
+                      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700">
+                        Review
+                      </span>
+                    )}
+                    {cat.status === 'info' && (
+                      <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">
+                        Info
+                      </span>
+                    )}
                   </div>
-                  <p className="mt-1 text-xs opacity-75">
-                    {item.severity} -{' '}
-                    {item.payloadJson &&
-                    typeof item.payloadJson === 'object' &&
-                    Object.keys(item.payloadJson).length > 0
-                      ? JSON.stringify(item.payloadJson)
-                      : '--'}
+                  <p className="mt-1 opacity-75">
+                    {cat.count} event{cat.count !== 1 ? 's' : ''}
                   </p>
-                </article>
+                  {cat.latestTimestamp && (
+                    <p className="opacity-60">
+                      Latest: {formatDate(cat.latestTimestamp)}
+                    </p>
+                  )}
+                  <div className="mt-2 space-y-1">
+                    {cat.details.map(detail => (
+                      <p
+                        key={detail.key}
+                        className="flex items-start justify-between gap-2 opacity-80"
+                      >
+                        <span>{detail.label}</span>
+                        <span className="whitespace-nowrap opacity-60">
+                          {detail.count}x
+                        </span>
+                      </p>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
-          )}
-        </div>
-      )}
-
-      {review.aiAdvisory ? (
-        <div className="mt-4 rounded-lg border p-3">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold">AI advisory signal</p>
-              <p className="mt-1 text-xs opacity-75">
-                Advisory only. Human review remains required.
-              </p>
-            </div>
-            <span className="text-xs opacity-70">
-              {review.aiAdvisory.visible
-                ? review.aiAdvisory.status
-                : review.aiAdvisory.status.replace(/_/g, ' ')}
-            </span>
           </div>
-          {review.aiAdvisory.visible ? (
-            <div className="mt-3 grid gap-3">
-              <div className="grid grid-cols-1 gap-2 text-xs md:grid-cols-3">
-                <span>Model: {review.aiAdvisory.modelVersion ?? '--'}</span>
-                <span>
-                  Max anomaly score:{' '}
-                  {formatScore(review.aiAdvisory.maxAnomalyScore)}
-                </span>
-                <span>
-                  Latest advisory level:{' '}
-                  {review.aiAdvisory.latestRiskLevel ?? '--'}
-                </span>
-              </div>
-              {review.aiAdvisory.windows.length > 0 ? (
-                <div className="space-y-2">
-                  {review.aiAdvisory.windows.map(window => (
-                    <article
-                      key={`${window.windowId}-${window.riskLevel}`}
-                      className="rounded-lg border p-3 text-sm"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="font-semibold">
-                          {window.riskLevel} window
-                        </span>
-                        <span className="text-xs opacity-70">
-                          {formatScore(window.anomalyScore)} -{' '}
-                          {window.explanationStatus}
-                        </span>
-                      </div>
-                      {window.topContributors.length > 0 ? (
-                        <ul className="mt-2 space-y-1 text-xs">
-                          {window.topContributors.map(contributor => (
-                            <li key={contributor.featureName}>
-                              {contributor.displayLabel}:{' '}
-                              {contributor.numericValue}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : null}
-                    </article>
-                  ))}
+        )}
+
+        {/* Notable events */}
+        {notableEvents.length > 0 && (
+          <div className="mt-4">
+            <p className="text-sm font-semibold">Notable events</p>
+            <p className="mt-0.5 text-xs opacity-75">
+              Showing the {Math.min(notableEvents.length, 10)} most recent event
+              {notableEvents.length !== 1 ? 's' : ''}.
+            </p>
+            <div className="mt-2 space-y-1">
+              {notableEvents.map(item => (
+                <div
+                  key={item.id}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-3 py-2 text-xs"
+                >
+                  <span className="font-medium">
+                    {getEvidenceEventLabel(item)}
+                  </span>
+                  <span className="opacity-60">
+                    Seq {item.clientSeq} - {formatDate(item.capturedAt)}
+                  </span>
                 </div>
-              ) : (
-                <p className="text-sm opacity-75">
-                  No high or critical advisory windows available.
-                </p>
-              )}
+              ))}
             </div>
-          ) : (
-            <p className="mt-3 text-sm opacity-75">
-              {review.aiAdvisory.status === 'hidden_shadow_mode'
-                ? 'AI advisory is hidden because shadow mode is enabled.'
-                : 'AI advisory is hidden until visibility gates pass.'}
-            </p>
-          )}
-        </div>
-      ) : null}
-
-      {review.llmSummary ? (
-        <div className="mt-4 rounded-lg border p-3">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold">LLM review summary</p>
-              <p className="mt-1 text-xs opacity-75">
-                Assistive summary only. Human review remains required.
-              </p>
-            </div>
-            <span className="text-xs opacity-70">
-              {review.llmSummary.status.replace(/_/g, ' ')}
-            </span>
           </div>
-          {!review.llmSummary.visible ? (
-            <p className="mt-3 text-sm opacity-75">
-              {review.llmSummary.status === 'hidden_disabled'
-                ? 'Summary generation is disabled in current proctoring settings.'
-                : review.llmSummary.status === 'unavailable'
-                  ? 'No accepted LLM summary has been generated for this participation yet. Use Recompute to queue one.'
-                  : 'Summary is hidden for this review state.'}
-            </p>
-          ) : review.llmSummary.status === 'accepted' ? (
-            <div className="mt-3 grid gap-3 text-sm">
-              <p>{review.llmSummary.summaryText ?? '--'}</p>
-              <div className="grid grid-cols-1 gap-2 text-xs md:grid-cols-3">
-                <span>Model: {review.llmSummary.modelVersion ?? '--'}</span>
-                <span>
-                  Validation: {review.llmSummary.validationStatus ?? '--'}
-                </span>
-                <span>
-                  Score:{' '}
-                  {formatScore(review.llmSummary.validationScore ?? undefined)}
-                </span>
+        )}
+
+        {/* Technical event log (collapsible) */}
+        {review.timeline.items.length > 0 && (
+          <div className="mt-4">
+            <button
+              type="button"
+              className="flex w-full cursor-pointer items-center gap-2 rounded-lg border p-3 text-left text-sm font-semibold hover:bg-gray-50"
+              onClick={() => setTechnicalLogOpen(o => !o)}
+            >
+              {technicalLogOpen ? (
+                <ChevronDown size={16} />
+              ) : (
+                <ChevronRight size={16} />
+              )}
+              Technical event log ({review.timeline.items.length} events)
+            </button>
+            {technicalLogOpen && (
+              <div className="mt-2 space-y-2">
+                {review.timeline.items.map(item => (
+                  <article
+                    key={item.id}
+                    className="rounded-lg border p-3 text-sm"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-semibold">{item.eventName}</span>
+                      <span className="text-xs opacity-70">
+                        Seq {item.clientSeq} - {formatDate(item.capturedAt)}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs opacity-75">
+                      {item.severity} -{' '}
+                      {item.payloadJson &&
+                      typeof item.payloadJson === 'object' &&
+                      Object.keys(item.payloadJson).length > 0
+                        ? JSON.stringify(item.payloadJson)
+                        : '--'}
+                    </p>
+                  </article>
+                ))}
               </div>
-              {review.llmSummary.riskFacts.length > 0 ? (
-                <ul className="space-y-1 text-xs">
-                  {review.llmSummary.riskFacts.map(fact => (
-                    <li key={`${fact.type}-${fact.count}`}>
-                      {fact.type}: {fact.count}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-              {review.llmSummary.citations.length > 0 ? (
-                <p className="text-xs opacity-75">
-                  Citations:{' '}
-                  {review.llmSummary.citations
-                    .map(citation => citation.eventId)
-                    .join(', ')}
+            )}
+          </div>
+        )}
+      </section>
+
+      <section className="mt-4 rounded-2xl border p-4">
+        <p className="text-sm font-semibold">AI Summary</p>
+        <p className="mt-1 text-xs opacity-75">
+          Assistive AI layers only. Final review decisions remain human-entered.
+        </p>
+
+        {review.aiAdvisory ? (
+          <div className="mt-4 rounded-lg border p-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold">AI advisory signal</p>
+                <p className="mt-1 text-xs opacity-75">
+                  Advisory only. Human review remains required.
                 </p>
-              ) : null}
+              </div>
+              <span className="text-xs opacity-70">
+                {review.aiAdvisory.visible
+                  ? review.aiAdvisory.status
+                  : review.aiAdvisory.status.replace(/_/g, ' ')}
+              </span>
             </div>
-          ) : (
-            <p className="mt-3 text-sm opacity-75">
-              Generated output failed validation and is not shown as an accepted
-              summary.
-            </p>
-          )}
-        </div>
-      ) : null}
+            {review.aiAdvisory.visible ? (
+              <div className="mt-3 grid gap-3">
+                <div className="grid grid-cols-1 gap-2 text-xs md:grid-cols-3">
+                  <span>Model: {review.aiAdvisory.modelVersion ?? '--'}</span>
+                  <span>
+                    Max anomaly score:{' '}
+                    {formatScore(review.aiAdvisory.maxAnomalyScore)}
+                  </span>
+                  <span>
+                    Latest advisory level:{' '}
+                    {review.aiAdvisory.latestRiskLevel ?? '--'}
+                  </span>
+                </div>
+                {review.aiAdvisory.windows.length > 0 ? (
+                  <div className="space-y-2">
+                    {review.aiAdvisory.windows.map(window => (
+                      <article
+                        key={`${window.windowId}-${window.riskLevel}`}
+                        className="rounded-lg border p-3 text-sm"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-semibold">
+                            {window.riskLevel} window
+                          </span>
+                          <span className="text-xs opacity-70">
+                            {formatScore(window.anomalyScore)} -{' '}
+                            {window.explanationStatus}
+                          </span>
+                        </div>
+                        {window.topContributors.length > 0 ? (
+                          <ul className="mt-2 space-y-1 text-xs">
+                            {window.topContributors.map(contributor => (
+                              <li key={contributor.featureName}>
+                                {contributor.displayLabel}:{' '}
+                                {contributor.numericValue}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm opacity-75">
+                    No high or critical advisory windows available.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="mt-3 text-sm opacity-75">
+                {review.aiAdvisory.status === 'hidden_shadow_mode'
+                  ? 'AI advisory is hidden because shadow mode is enabled.'
+                  : 'AI advisory is hidden until visibility gates pass.'}
+              </p>
+            )}
+          </div>
+        ) : null}
+
+        {review.llmSummary ? (
+          <div className="mt-4 rounded-lg border p-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold">LLM review summary</p>
+                <p className="mt-1 text-xs opacity-75">
+                  Assistive summary only. Human review remains required.
+                </p>
+              </div>
+              <span className="text-xs opacity-70">
+                {review.llmSummary.status.replace(/_/g, ' ')}
+              </span>
+            </div>
+            {!review.llmSummary.visible ? (
+              <p className="mt-3 text-sm opacity-75">
+                {review.llmSummary.status === 'hidden_disabled'
+                  ? 'Summary generation is disabled in current proctoring settings.'
+                  : review.llmSummary.status === 'unavailable'
+                    ? 'No accepted LLM summary has been generated for this participation yet. Use Recompute to queue one.'
+                    : 'Summary is hidden for this review state.'}
+              </p>
+            ) : review.llmSummary.status === 'accepted' ? (
+              <div className="mt-3 grid gap-3 text-sm">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <p>{displayedLlmSummaryText}</p>
+                  {onTranslateLlmSummary && sourceLlmSummaryText ? (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={actionLoading || translationLoading}
+                      onClick={() => {
+                        if (showTranslatedLlmSummary) {
+                          setShowTranslatedLlmSummary(false)
+                          setTranslationError(null)
+                          return
+                        }
+
+                        if (translatedLlmSummaryText) {
+                          setShowTranslatedLlmSummary(true)
+                          setTranslationError(null)
+                          return
+                        }
+
+                        setTranslationLoading(true)
+                        setTranslationError(null)
+                        Promise.resolve(
+                          onTranslateLlmSummary({
+                            summaryText: sourceLlmSummaryText,
+                            targetLanguage: 'vi',
+                          })
+                        )
+                          .then(translatedText => {
+                            setTranslatedLlmSummaryText(translatedText)
+                            setShowTranslatedLlmSummary(true)
+                          })
+                          .catch((error: unknown) => {
+                            setTranslationError(
+                              error instanceof Error && error.message.trim()
+                                ? error.message
+                                : 'Unable to translate this summary right now.'
+                            )
+                          })
+                          .finally(() => {
+                            setTranslationLoading(false)
+                          })
+                      }}
+                    >
+                      {translationLoading
+                        ? 'Translating...'
+                        : showTranslatedLlmSummary
+                          ? 'Show English'
+                          : 'Translate to Vietnamese'}
+                    </Button>
+                  ) : null}
+                </div>
+                {translationError ? (
+                  <p className="text-xs text-rose-700">{translationError}</p>
+                ) : null}
+                <div className="grid grid-cols-1 gap-2 text-xs md:grid-cols-3">
+                  <span>Model: {review.llmSummary.modelVersion ?? '--'}</span>
+                  <span>
+                    Validation: {review.llmSummary.validationStatus ?? '--'}
+                  </span>
+                  <span>
+                    Score:{' '}
+                    {formatScore(
+                      review.llmSummary.validationScore ?? undefined
+                    )}
+                  </span>
+                </div>
+                {review.llmSummary.riskFacts.length > 0 ? (
+                  <ul className="space-y-1 text-xs">
+                    {review.llmSummary.riskFacts.map(fact => (
+                      <li key={`${fact.type}-${fact.count}`}>
+                        {fact.type}: {fact.count}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                {review.llmSummary.citations.length > 0 ? (
+                  <p className="text-xs opacity-75">
+                    Citations:{' '}
+                    {review.llmSummary.citations
+                      .map(citation => citation.eventId)
+                      .join(', ')}
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <p className="mt-3 text-sm opacity-75">
+                Generated output failed validation and is not shown as an
+                accepted summary.
+              </p>
+            )}
+          </div>
+        ) : null}
+      </section>
 
       {/* Official review decision — moved above model evaluation label */}
       <form

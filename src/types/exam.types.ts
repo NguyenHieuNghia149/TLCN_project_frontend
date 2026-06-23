@@ -347,6 +347,11 @@ export interface AdminProctoringLlmSummary {
   completedAt?: string | null
 }
 
+export interface AdminProctoringLlmSummaryTranslation {
+  translatedText: string
+  targetLanguage: 'vi'
+}
+
 export interface AdminProctoringReview {
   summary: {
     id: string

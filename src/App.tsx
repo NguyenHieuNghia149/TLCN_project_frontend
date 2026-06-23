@@ -1,13 +1,13 @@
-import { useEffect, Suspense } from 'react'
+import { Suspense, useEffect } from 'react'
 import { RouterProvider } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { Toaster } from 'react-hot-toast'
-import './App.css'
+import { App as AntdApp, ConfigProvider, Spin, theme as antdTheme } from 'antd'
 
+import './App.css'
+import { useTheme } from '@/contexts/useTheme'
 import router from './routes'
 import { initializeSession, logoutUser } from './store/slices/authSlice'
-import { ConfigProvider, App as AntdApp, theme as antdTheme, Spin } from 'antd'
-import { useTheme } from '@/contexts/useTheme'
 import { AppDispatch, RootState } from './store/stores'
 
 let sessionBootInitializationInFlight: Promise<unknown> | null = null
@@ -15,8 +15,6 @@ let sessionBootInitializationInFlight: Promise<unknown> | null = null
 function App() {
   const dispatch = useDispatch<AppDispatch>()
   const { theme } = useTheme()
-
-  // ✅ Wait for session initialization before rendering app
   const isSessionLoading = useSelector(
     (state: RootState) => state.auth.session.isLoading
   )
@@ -34,11 +32,7 @@ function App() {
       sessionBootInitializationInFlight = trackedInitialization
     }
 
-    // Listen for auth:failed event from axios interceptor
-    // This happens when refresh token fails during API calls
     const handleAuthFailed = async () => {
-      // Clear auth state and logout user
-      // Navigation will be handled by ProtectedRoute components
       await dispatch(logoutUser())
     }
 
@@ -49,8 +43,6 @@ function App() {
     }
   }, [dispatch])
 
-  // ✅ Show loading spinner while initializing session
-  // This prevents API calls before access token is ready
   if (isSessionLoading) {
     return (
       <ConfigProvider

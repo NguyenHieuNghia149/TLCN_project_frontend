@@ -1,23 +1,9 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { adminService } from '@/services/api/adminUser.service'
 import type { BannedUser } from '@/services/api/adminUser.service'
+import { extractApiErrorMessage } from '@/utils/apiError'
 
 type RejectValue = string
-
-interface ErrorPayload {
-  response?: {
-    data?: {
-      error?: {
-        message?: string
-      }
-    }
-  }
-}
-
-const getErrorMessage = (error: unknown, fallback: string): string => {
-  const message = (error as ErrorPayload)?.response?.data?.error?.message
-  return typeof message === 'string' ? message : fallback
-}
 
 interface AdminState {
   bannedUsers: {
@@ -62,7 +48,9 @@ export const asyncBanUser = createAsyncThunk(
       const response = await adminService.banUser(userId, reason)
       return response.data
     } catch (error: unknown) {
-      return rejectWithValue(getErrorMessage(error, 'Failed to ban user'))
+      return rejectWithValue(
+        extractApiErrorMessage(error, 'Failed to ban user')
+      )
     }
   }
 )
@@ -74,7 +62,9 @@ export const asyncUnbanUser = createAsyncThunk(
       const response = await adminService.unbanUser(userId)
       return response.data
     } catch (error: unknown) {
-      return rejectWithValue(getErrorMessage(error, 'Failed to unban user'))
+      return rejectWithValue(
+        extractApiErrorMessage(error, 'Failed to unban user')
+      )
     }
   }
 )
@@ -90,7 +80,7 @@ export const asyncFetchBannedUsers = createAsyncThunk(
       return response.data
     } catch (error: unknown) {
       return rejectWithValue(
-        getErrorMessage(error, 'Failed to fetch banned users')
+        extractApiErrorMessage(error, 'Failed to fetch banned users')
       )
     }
   }

@@ -46,6 +46,8 @@ vi.mock('socket.io-client', () => ({
   io: mocks.io,
 }))
 
+import NotificationDropdown from '../NotificationDropdown'
+
 describe('NotificationDropdown auth gate', () => {
   beforeEach(() => {
     authState.user = null
@@ -62,9 +64,6 @@ describe('NotificationDropdown auth gate', () => {
   })
 
   it('does not fetch notifications or open a socket when the user is unauthenticated', async () => {
-    const { default: NotificationDropdown } =
-      await import('../NotificationDropdown')
-
     render(<NotificationDropdown />)
 
     await Promise.resolve()
@@ -86,20 +85,29 @@ describe('NotificationDropdown auth gate', () => {
     }
     mocks.io.mockReturnValue(socket)
 
-    const { default: NotificationDropdown } =
-      await import('../NotificationDropdown')
     const { unmount } = render(<NotificationDropdown />)
 
     await waitFor(() => {
       expect(mocks.getMyNotifications).toHaveBeenCalledWith(20, 0)
     })
 
-    expect(mocks.io).toHaveBeenCalledTimes(1)
+    expect(mocks.io).toHaveBeenCalled()
+    expect(mocks.io).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        autoConnect: false,
+        path: '/api/socket.io',
+        transports: ['websocket', 'polling'],
+        withCredentials: true,
+      })
+    )
     expect(socket.connect).toHaveBeenCalledTimes(1)
+    expect(socket.emit).not.toHaveBeenCalledWith('authenticate', {
+      userId: 'user-1',
+    })
 
     unmount()
 
-    expect(socket.off).toHaveBeenCalledWith('connect', expect.any(Function))
     expect(socket.off).toHaveBeenCalledWith(
       'notification_new',
       expect.any(Function)

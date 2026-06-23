@@ -1,6 +1,10 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
-import { authService, ApiError } from '../../services/auth/auth.service'
-import { STORAGE_KEYS } from '@/config/api.config'
+import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit'
+import { ApiError, authService } from '../../services/auth/auth.service'
+import {
+  extractErrorCode,
+  isAuthenticationRecoveryCandidate,
+  isTerminalRefreshError,
+} from '@/config/api.config'
 import type {
   LoginCredentials,
   RegisterData as ClientRegisterData,
@@ -56,7 +60,6 @@ const initialSessionState: SessionState = {
   user: null,
   isAuthenticated: false,
   isLoading: true,
-  // isLaoding: true,
 }
 
 const initialLoginState: LoginState = {
@@ -77,124 +80,55 @@ const initialRegisterState: RegisterState = {
   pendingRegistration: null,
 }
 
-const SESSION_USER_KEY = 'auth_user_data'
-
-const persistSessionSnapshot = (
-  user: User | null,
-  isAuthenticated: boolean
-) => {
-  if (typeof window === 'undefined') return
-  try {
-    if (isAuthenticated) {
-      window.localStorage.setItem(STORAGE_KEYS.IS_AUTHENTICATED, 'true')
-      if (user && typeof sessionStorage !== 'undefined') {
-        sessionStorage.setItem(SESSION_USER_KEY, JSON.stringify(user))
-      }
-    } else {
-      window.localStorage.removeItem(STORAGE_KEYS.IS_AUTHENTICATED)
-      window.localStorage.removeItem(STORAGE_KEYS.USER)
-      if (typeof sessionStorage !== 'undefined') {
-        sessionStorage.removeItem(SESSION_USER_KEY)
-      }
-    }
-  } catch {
-    // Ignore storage errors to keep auth flow running
-  }
-}
-
-const hydrateSessionState = (): SessionState => {
-  if (typeof window === 'undefined') {
-    return { ...initialSessionState }
-  }
-
-  try {
-    const storedAuth =
-      window.localStorage.getItem(STORAGE_KEYS.IS_AUTHENTICATED) === 'true'
-
-    if (storedAuth) {
-      let user: User | null = null
-      try {
-        if (typeof sessionStorage !== 'undefined') {
-          const raw = sessionStorage.getItem(SESSION_USER_KEY)
-          if (raw) user = JSON.parse(raw) as User
-        }
-      } catch {
-        // ignore parse errors
-      }
-      return {
-        user,
-        isAuthenticated: true,
-        isLoading: true,
-      }
-    }
-  } catch {
-    // Fall back to default if parsing fails
-  }
-
-  return { ...initialSessionState }
-}
-
 const initialState: AuthState = {
-  session: hydrateSessionState(),
+  session: { ...initialSessionState },
   login: initialLoginState,
   register: initialRegisterState,
 }
 
-// Async thunks
+function shouldClearSessionAfterRefreshFailure(error: unknown): boolean {
+  return (
+    isTerminalRefreshError(error) ||
+    (error instanceof Error && error.message === 'Not authenticated') ||
+    extractErrorCode(error) === 'AUTHENTICATION_ERROR' ||
+    extractErrorCode(error) === '401'
+  )
+}
+
 export const initializeSession = createAsyncThunk<
   User,
   void,
   {
     rejectValue: {
       message: string
-      isRefreshTokenExpired: boolean
       shouldClearSession: boolean
     }
   }
->('auth/refreshToken', async (_, { rejectWithValue }) => {
+>('auth/initializeSession', async (_, { rejectWithValue }) => {
   try {
-    const { accessToken, user } = await authService.refreshToken()
-    if (!accessToken || !user) {
-      throw new Error('Missing session data')
-    }
-    persistSessionSnapshot(user, true)
-    return user
+    return await authService.getCurrentUser()
   } catch (error) {
-    const errorCode =
-      error instanceof Error ? (error as { code?: string }).code : undefined
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown error'
-    const isRefreshTokenExpired =
-      errorMessage === 'Refresh token expired or revoked' ||
-      errorCode === 'REFRESH_TOKEN_EXPIRED' ||
-      errorCode === 'TOKEN_EXPIRED' ||
-      errorCode === 'REFRESH_TOKEN_NOT_FOUND'
-
-    if (isRefreshTokenExpired) {
-      authService.clearAllAuthData()
-      persistSessionSnapshot(null, false)
+    if (!isAuthenticationRecoveryCandidate(error)) {
       return rejectWithValue({
-        message: 'Refresh token expired or revoked',
-        isRefreshTokenExpired: true,
-        shouldClearSession: true,
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Session initialization failed',
+        shouldClearSession: false,
       })
     }
 
-    if (errorCode === 'AUTHENTICATION_ERROR') {
-      authService.clearAllAuthData()
-      persistSessionSnapshot(null, false)
+    try {
+      return await authService.refreshToken()
+    } catch (refreshError) {
       return rejectWithValue({
-        message: 'Not authenticated',
-        isRefreshTokenExpired: false,
-        shouldClearSession: true,
+        message:
+          refreshError instanceof Error
+            ? refreshError.message
+            : 'Session refresh unavailable',
+        shouldClearSession: shouldClearSessionAfterRefreshFailure(refreshError),
       })
     }
-
-    return rejectWithValue({
-      message: errorMessage || 'Session refresh unavailable',
-      isRefreshTokenExpired: false,
-      shouldClearSession: false,
-    })
   }
 })
 
@@ -205,7 +139,6 @@ export const loginUser = createAsyncThunk<
 >('auth/login', async (credentials, { rejectWithValue }) => {
   try {
     const { user } = await authService.login(credentials)
-    persistSessionSnapshot(user, true)
     return user
   } catch (error) {
     if (error instanceof ApiError) {
@@ -234,7 +167,6 @@ export const loginWithGoogle = createAsyncThunk<
 >('auth/loginWithGoogle', async (idToken, { rejectWithValue }) => {
   try {
     const { user } = await authService.loginWithGoogle(idToken)
-    persistSessionSnapshot(user, true)
     return user
   } catch (error) {
     if (error instanceof ApiError) {
@@ -247,11 +179,7 @@ export const loginWithGoogle = createAsyncThunk<
 })
 
 export const logoutUser = createAsyncThunk<void>('auth/logout', async () => {
-  try {
-    await authService.logout()
-  } finally {
-    persistSessionSnapshot(null, false)
-  }
+  await authService.logout()
 })
 
 export const sendOTP = createAsyncThunk<
@@ -340,7 +268,6 @@ const authSlice = createSlice({
     },
   },
   extraReducers: builder => {
-    // Initialize session
     builder
       .addCase(initializeSession.pending, state => {
         state.session.isLoading = true
@@ -359,7 +286,6 @@ const authSlice = createSlice({
         state.session.isLoading = false
       })
 
-    // Login
     builder
       .addCase(loginUser.pending, (state, action) => {
         state.login.isLoading = true
@@ -387,7 +313,6 @@ const authSlice = createSlice({
         state.login.lastAttempt = action.meta.arg
       })
 
-    // Login with Google
     builder
       .addCase(loginWithGoogle.pending, state => {
         state.login.isLoading = true
@@ -406,23 +331,19 @@ const authSlice = createSlice({
         state.login.error = action.payload?.message || 'Google login failed'
       })
 
-    // Logout
     builder
       .addCase(logoutUser.pending, state => {
         state.session.isLoading = true
       })
       .addCase(logoutUser.fulfilled, state => {
-        // Reset to initial state but set isLoading to false to allow redirect
         state.session = { ...initialSessionState, isLoading: false }
         state.login = initialLoginState
       })
       .addCase(logoutUser.rejected, state => {
-        // Even if logout fails, clear auth state and allow redirect
         state.session = { ...initialSessionState, isLoading: false }
         state.login = initialLoginState
       })
 
-    // Send OTP
     builder
       .addCase(sendOTP.pending, state => {
         state.register.isLoading = true
@@ -447,7 +368,6 @@ const authSlice = createSlice({
         }
       )
 
-    // Register (finalize after OTP entered)
     builder
       .addCase(registerUser.pending, state => {
         state.register.isLoading = true
@@ -482,4 +402,5 @@ export const {
   clearLoginError,
   clearLoginFieldError,
 } = authSlice.actions
+
 export default authSlice.reducer

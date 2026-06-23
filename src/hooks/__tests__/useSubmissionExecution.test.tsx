@@ -79,6 +79,13 @@ describe('useSubmissionExecution', () => {
       })
     })
 
+    expect(
+      submissionsServiceMock.createSubmissionEventSource
+    ).toHaveBeenCalledWith('run-only-1')
+    expect(
+      submissionsServiceMock.createSubmissionEventSource.mock.calls[0]
+    ).toHaveLength(1)
+
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5000)
     })
@@ -120,6 +127,12 @@ describe('useSubmissionExecution', () => {
     })
 
     expect(submissionsServiceMock.getSubmission).not.toHaveBeenCalled()
+    expect(
+      submissionsServiceMock.createSubmissionEventSource
+    ).toHaveBeenNthCalledWith(1, 'run-only-1')
+    expect(
+      submissionsServiceMock.createSubmissionEventSource.mock.calls[0]
+    ).toHaveLength(1)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1000)
@@ -128,6 +141,12 @@ describe('useSubmissionExecution', () => {
     expect(
       submissionsServiceMock.createSubmissionEventSource
     ).toHaveBeenCalledTimes(2)
+    expect(
+      submissionsServiceMock.createSubmissionEventSource
+    ).toHaveBeenNthCalledWith(2, 'run-only-1')
+    expect(
+      submissionsServiceMock.createSubmissionEventSource.mock.calls[1]
+    ).toHaveLength(1)
     expect(result.current.output.status).toBe('running')
     expect(result.current.output.isSubmit).toBe(false)
   })

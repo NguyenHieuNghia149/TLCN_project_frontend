@@ -8,6 +8,7 @@ import {
   type AdminRoadmapListParams,
   type AdminRoadmapRow,
 } from '@/services/api/adminRoadmap.service'
+import { extractApiErrorMessage } from '@/utils/apiError'
 
 type RejectValue = string
 
@@ -41,14 +42,6 @@ const initialState: AdminRoadmapState = {
   operation: { loading: false, error: null, success: false },
 }
 
-type ErrorPayload = {
-  response?: { data?: { error?: { message?: string } } }
-}
-const getErrorMessage = (error: unknown, fallback: string): string => {
-  const message = (error as ErrorPayload)?.response?.data?.error?.message
-  return typeof message === 'string' ? message : fallback
-}
-
 export const asyncFetchAdminRoadmaps = createAsyncThunk<
   {
     roadmaps: AdminRoadmapRow[]
@@ -61,7 +54,9 @@ export const asyncFetchAdminRoadmaps = createAsyncThunk<
     const response = await adminRoadmapAPI.listRoadmaps(params)
     return response.data
   } catch (error) {
-    return rejectWithValue(getErrorMessage(error, 'Failed to fetch roadmaps'))
+    return rejectWithValue(
+      extractApiErrorMessage(error, 'Failed to fetch roadmaps')
+    )
   }
 })
 
@@ -77,7 +72,7 @@ export const asyncUpdateAdminRoadmapVisibility = createAsyncThunk<
       return response.data
     } catch (error) {
       return rejectWithValue(
-        getErrorMessage(error, 'Failed to update visibility')
+        extractApiErrorMessage(error, 'Failed to update visibility')
       )
     }
   }
@@ -92,7 +87,9 @@ export const asyncDeleteAdminRoadmap = createAsyncThunk<
     await adminRoadmapAPI.deleteRoadmap(id)
     return { id }
   } catch (error) {
-    return rejectWithValue(getErrorMessage(error, 'Failed to delete roadmap'))
+    return rejectWithValue(
+      extractApiErrorMessage(error, 'Failed to delete roadmap')
+    )
   }
 })
 
@@ -105,7 +102,9 @@ export const asyncCreateAdminRoadmap = createAsyncThunk<
     const response = await adminRoadmapAPI.createRoadmap(roadmapData)
     return response.data.roadmap as AdminRoadmapRow
   } catch (error) {
-    return rejectWithValue(getErrorMessage(error, 'Failed to create roadmap'))
+    return rejectWithValue(
+      extractApiErrorMessage(error, 'Failed to create roadmap')
+    )
   }
 })
 

@@ -24,6 +24,7 @@ import {
 import adminTopicAPI, {
   AdminTopicResponse,
 } from '@/services/api/adminTopic.service'
+import { extractApiErrorMessage } from '@/utils/apiError'
 
 interface TopicItem {
   id: string
@@ -92,11 +93,10 @@ const ManageTopic: React.FC = () => {
           }
         }
         setTopicStats(stats)
-      } catch (error) {
-        const err = error as { response?: { data?: { message?: string } } }
+      } catch (error: unknown) {
         notification.error({
           message: 'Error',
-          description: err?.response?.data?.message || 'Failed to fetch topics',
+          description: extractApiErrorMessage(error, 'Failed to fetch topics'),
           placement: 'topRight',
         })
       } finally {
@@ -170,10 +170,9 @@ const ManageTopic: React.FC = () => {
       setDeleteVerifyModal(null)
       setVerifyInput('')
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
       notification.error({
         message: 'Error',
-        description: err.response?.data?.message || 'Failed to delete topic',
+        description: extractApiErrorMessage(error, 'Failed to delete topic'),
         placement: 'topRight',
       })
     }
@@ -221,10 +220,9 @@ const ManageTopic: React.FC = () => {
       form.resetFields()
       fetchTopics(pagination.current, pagination.pageSize, searchText)
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
       notification.error({
         message: 'Error',
-        description: err.response?.data?.message || 'Failed to save topic',
+        description: extractApiErrorMessage(error, 'Failed to save topic'),
         placement: 'topRight',
       })
     }

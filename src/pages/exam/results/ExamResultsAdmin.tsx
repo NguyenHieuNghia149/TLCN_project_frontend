@@ -7,7 +7,7 @@ import React, {
 } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Calendar, Code, RefreshCw, Search } from 'lucide-react'
-import { App, Drawer } from 'antd'
+import { App, Drawer, Tabs } from 'antd'
 
 import Button from '@/components/common/Button/Button'
 import Input from '@/components/common/Input/Input'
@@ -224,6 +224,9 @@ const ExamResultsAdmin: React.FC = () => {
   const [detailsLoading, setDetailsLoading] = useState(false)
   const [proctoringLoading, setProctoringLoading] = useState(false)
   const [proctoringActionLoading, setProctoringActionLoading] = useState(false)
+  const [submissionDetailTab, setSubmissionDetailTab] = useState<
+    'candidate_code' | 'ai_review'
+  >('candidate_code')
 
   const fetchProctoringReviewWithRetry = useCallback(
     async (options?: {
@@ -420,6 +423,41 @@ const ExamResultsAdmin: React.FC = () => {
     () => normalizeSubmissionDetails(selectedDetails),
     [selectedDetails]
   )
+  const submissionOverviewCards = useMemo(() => {
+    if (!submissionDetail) {
+      return []
+    }
+
+    return [
+      {
+        key: 'participation',
+        label: 'Participation',
+        value: submissionDetail.participationId,
+        accent: 'text-slate-900',
+      },
+      {
+        key: 'submitted_at',
+        label: 'Submitted at',
+        value: formatOptionalDateTime(submissionDetail.submittedAt),
+        accent: 'text-slate-900',
+      },
+      {
+        key: 'duration',
+        label: 'Duration',
+        value:
+          submissionDetail.durationMinutes !== null
+            ? `${submissionDetail.durationMinutes} minutes`
+            : '--',
+        accent: 'text-slate-900',
+      },
+      {
+        key: 'total_score',
+        label: 'Total score',
+        value: String(submissionDetail.totalScore ?? '--'),
+        accent: 'text-emerald-700',
+      },
+    ]
+  }, [submissionDetail])
 
   const openSubmissionDetails = useCallback(
     async (participationId: string) => {
@@ -428,6 +466,7 @@ const ExamResultsAdmin: React.FC = () => {
       setSelectedDetails(null)
       setSelectedProctoringReview(null)
       setProctoringActionStatus(null)
+      setSubmissionDetailTab('candidate_code')
       setDetailsLoading(true)
       setProctoringLoading(true)
 
@@ -656,6 +695,23 @@ const ExamResultsAdmin: React.FC = () => {
       }
     },
     [examId, notification, selectedParticipationId]
+  )
+
+  const handleTranslateLlmSummary = useCallback(
+    async (payload: { summaryText: string; targetLanguage: 'vi' }) => {
+      if (!examId || !selectedParticipationId) {
+        throw new Error('No participation is selected for translation.')
+      }
+      const result = await examService.translateAdminProctoringLlmSummary(
+        examId,
+        selectedParticipationId,
+        {
+          targetLanguage: payload.targetLanguage,
+        }
+      )
+      return result.translatedText
+    },
+    [examId, selectedParticipationId]
   )
 
   if (loading) {
@@ -893,219 +949,293 @@ const ExamResultsAdmin: React.FC = () => {
         <Drawer
           title="Submission details"
           open={!!selectedParticipationId && !!selectedDetails}
-          width={720}
+          width={960}
           onClose={() => {
             setSelectedParticipationId(null)
             setSelectedDetails(null)
             setSelectedProctoringReview(null)
             setProctoringActionStatus(null)
+            setSubmissionDetailTab('candidate_code')
           }}
           destroyOnClose
         >
           {selectedParticipationId && submissionDetail ? (
             <div className="space-y-4">
-              <section className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div
-                  className="rounded-xl border p-3"
-                  style={themeStyles.drawerCard}
-                >
-                  <p
-                    className="text-xs font-semibold uppercase"
-                    style={themeStyles.drawerMuted}
-                  >
-                    Candidate
-                  </p>
-                  <p
-                    className="mt-1 text-sm font-semibold"
-                    style={themeStyles.drawerStrong}
-                  >
-                    {submissionDetail.userName}
-                  </p>
-                  <p className="mt-1 text-xs" style={themeStyles.drawerMuted}>
-                    {submissionDetail.email}
-                  </p>
+              <section
+                className="overflow-hidden rounded-2xl border"
+                style={themeStyles.drawerCard}
+              >
+                <div className="border-b px-5 py-4" style={themeStyles.card}>
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <p
+                        className="text-xs font-semibold uppercase tracking-[0.18em]"
+                        style={themeStyles.drawerMuted}
+                      >
+                        Candidate
+                      </p>
+                      <p
+                        className="mt-2 text-xl font-semibold"
+                        style={themeStyles.drawerStrong}
+                      >
+                        {submissionDetail.userName}
+                      </p>
+                      <p
+                        className="mt-1 text-sm"
+                        style={themeStyles.drawerMuted}
+                      >
+                        {submissionDetail.email}
+                      </p>
+                    </div>
+                    <div className="max-w-sm">
+                      <p
+                        className="text-xs font-semibold uppercase tracking-[0.18em]"
+                        style={themeStyles.drawerMuted}
+                      >
+                        Exam
+                      </p>
+                      <p
+                        className="mt-2 text-sm"
+                        style={themeStyles.drawerStrong}
+                      >
+                        {exam.title}
+                      </p>
+                      <p
+                        className="mt-1 text-xs"
+                        style={themeStyles.drawerMuted}
+                      >
+                        Submission details separated into candidate work and AI
+                        review.
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div
-                  className="rounded-xl border p-3"
-                  style={themeStyles.drawerCard}
-                >
-                  <p
-                    className="text-xs font-semibold uppercase"
-                    style={themeStyles.drawerMuted}
-                  >
-                    Participation
-                  </p>
-                  <p
-                    className="mt-1 break-all text-sm"
-                    style={themeStyles.drawerStrong}
-                  >
-                    {submissionDetail.participationId}
-                  </p>
-                </div>
-                <div
-                  className="rounded-xl border p-3"
-                  style={themeStyles.drawerCard}
-                >
-                  <p
-                    className="text-xs font-semibold uppercase"
-                    style={themeStyles.drawerMuted}
-                  >
-                    Started at
-                  </p>
-                  <p className="mt-1 text-sm" style={themeStyles.drawerStrong}>
-                    {formatOptionalDateTime(submissionDetail.startedAt)}
-                  </p>
-                </div>
-                <div
-                  className="rounded-xl border p-3"
-                  style={themeStyles.drawerCard}
-                >
-                  <p
-                    className="text-xs font-semibold uppercase"
-                    style={themeStyles.drawerMuted}
-                  >
-                    Submitted at
-                  </p>
-                  <p className="mt-1 text-sm" style={themeStyles.drawerStrong}>
-                    {formatOptionalDateTime(submissionDetail.submittedAt)}
-                  </p>
-                </div>
-                <div
-                  className="rounded-xl border p-3"
-                  style={themeStyles.drawerCard}
-                >
-                  <p
-                    className="text-xs font-semibold uppercase"
-                    style={themeStyles.drawerMuted}
-                  >
-                    Duration
-                  </p>
-                  <p
-                    className="mt-1 text-sm font-semibold"
-                    style={themeStyles.drawerStrong}
-                  >
-                    {submissionDetail.durationMinutes !== null
-                      ? `${submissionDetail.durationMinutes} minutes`
-                      : '--'}
-                  </p>
-                </div>
-                <div
-                  className="rounded-xl border p-3"
-                  style={themeStyles.drawerCard}
-                >
-                  <p
-                    className="text-xs font-semibold uppercase"
-                    style={themeStyles.drawerMuted}
-                  >
-                    Total score
-                  </p>
-                  <p
-                    className="mt-1 text-sm font-semibold"
-                    style={themeStyles.drawerStrong}
-                  >
-                    {submissionDetail.totalScore ?? '--'}
-                  </p>
+                <div className="grid grid-cols-1 gap-px bg-slate-200 md:grid-cols-4">
+                  {submissionOverviewCards.map(card => (
+                    <div
+                      key={card.key}
+                      className="bg-white px-5 py-4"
+                      style={themeStyles.drawerCard}
+                    >
+                      <p
+                        className="text-[11px] font-semibold uppercase tracking-[0.16em]"
+                        style={themeStyles.drawerMuted}
+                      >
+                        {card.label}
+                      </p>
+                      <p
+                        className={`mt-2 break-all text-sm font-semibold ${card.accent}`}
+                      >
+                        {card.value}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               </section>
 
-              <ProctoringReviewPanel
-                review={selectedProctoringReview}
-                loading={proctoringLoading}
-                actionLoading={proctoringActionLoading}
-                actionStatus={proctoringActionStatus}
-                onRefresh={() => {
-                  void refreshSelectedProctoringReview()
-                }}
-                onRecompute={() => {
-                  void handleRecomputeProctoringReview()
-                }}
-                onReview={handleReviewProctoring}
-                onLabel={handleLabelProctoringReview}
-              />
-
-              <section>
-                <h3
-                  className="text-sm font-semibold"
-                  style={themeStyles.drawerStrong}
-                >
-                  Challenge details
-                </h3>
-                {submissionDetail.solutions.length === 0 ? (
-                  <p
-                    className="mt-2 rounded-lg border p-3 text-sm"
-                    style={themeStyles.drawerCard}
-                  >
-                    No challenge submission data for this participation.
-                  </p>
-                ) : (
-                  <div className="mt-3 space-y-3">
-                    {submissionDetail.solutions.map(solution => (
-                      <article
-                        key={solution.challengeId}
-                        className="rounded-xl border p-4"
-                        style={themeStyles.drawerCard}
-                      >
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <div>
-                            <p
-                              className="text-sm font-semibold"
-                              style={themeStyles.drawerStrong}
-                            >
-                              {solution.challengeTitle}
-                            </p>
-                            <p
-                              className="mt-0.5 text-xs"
-                              style={themeStyles.drawerMuted}
-                            >
-                              {solution.challengeId}
-                            </p>
-                          </div>
-                          <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                            Score: {solution.score ?? '--'}
-                          </span>
-                        </div>
-
-                        <div
-                          className="mt-3 grid grid-cols-1 gap-2 text-xs md:grid-cols-3"
-                          style={themeStyles.drawerMuted}
+              <Tabs
+                activeKey={submissionDetailTab}
+                destroyOnHidden
+                onChange={key =>
+                  setSubmissionDetailTab(key as 'candidate_code' | 'ai_review')
+                }
+                items={[
+                  {
+                    key: 'candidate_code',
+                    label: 'Candidate & Code',
+                    children: (
+                      <div className="space-y-4 pt-2">
+                        <section
+                          className="rounded-2xl border p-5"
+                          style={themeStyles.drawerCard}
                         >
-                          <p>
-                            <span className="font-semibold">Language:</span>{' '}
-                            {solution.language}
-                          </p>
-                          <p>
-                            <span className="font-semibold">Submitted:</span>{' '}
-                            {formatOptionalDateTime(solution.submittedAt)}
-                          </p>
-                          <p>
-                            <span className="font-semibold">Testcases:</span>{' '}
-                            {solution.totalTests > 0
-                              ? `${solution.passedCount}/${solution.totalTests} passed`
-                              : 'No testcase data'}
-                          </p>
-                        </div>
-
-                        <div className="mt-3">
+                          <h3
+                            className="text-base font-semibold"
+                            style={themeStyles.drawerStrong}
+                          >
+                            Candidate snapshot
+                          </h3>
                           <p
-                            className="mb-1 text-xs font-semibold uppercase tracking-wide"
+                            className="mt-1 text-sm"
                             style={themeStyles.drawerMuted}
                           >
-                            Code
+                            Submission timing and candidate identity for this
+                            participation.
                           </p>
-                          <pre
-                            className="max-h-64 overflow-auto rounded-lg border p-3 text-xs"
-                            style={themeStyles.codeBlock}
+                          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div
+                              className="rounded-xl border p-4"
+                              style={themeStyles.card}
+                            >
+                              <p
+                                className="text-xs font-semibold uppercase tracking-wide"
+                                style={themeStyles.drawerMuted}
+                              >
+                                Candidate
+                              </p>
+                              <p
+                                className="mt-2 text-sm font-semibold"
+                                style={themeStyles.drawerStrong}
+                              >
+                                {submissionDetail.userName}
+                              </p>
+                              <p
+                                className="mt-1 text-xs"
+                                style={themeStyles.drawerMuted}
+                              >
+                                {submissionDetail.email}
+                              </p>
+                            </div>
+                            <div
+                              className="rounded-xl border p-4"
+                              style={themeStyles.card}
+                            >
+                              <p
+                                className="text-xs font-semibold uppercase tracking-wide"
+                                style={themeStyles.drawerMuted}
+                              >
+                                Started at
+                              </p>
+                              <p
+                                className="mt-2 text-sm font-semibold"
+                                style={themeStyles.drawerStrong}
+                              >
+                                {formatOptionalDateTime(
+                                  submissionDetail.startedAt
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                        </section>
+
+                        <section
+                          className="rounded-2xl border p-5"
+                          style={themeStyles.drawerCard}
+                        >
+                          <h3
+                            className="text-base font-semibold"
+                            style={themeStyles.drawerStrong}
                           >
-                            {solution.code.trim()
-                              ? solution.code
-                              : '// No code submitted'}
-                          </pre>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                )}
-              </section>
+                            Challenge details
+                          </h3>
+                          <p
+                            className="mt-1 text-sm"
+                            style={themeStyles.drawerMuted}
+                          >
+                            Review each submitted solution before drilling into
+                            source code.
+                          </p>
+                          {submissionDetail.solutions.length === 0 ? (
+                            <p
+                              className="mt-4 rounded-lg border p-3 text-sm"
+                              style={themeStyles.card}
+                            >
+                              No challenge submission data for this
+                              participation.
+                            </p>
+                          ) : (
+                            <div className="mt-4 space-y-3">
+                              {submissionDetail.solutions.map(solution => (
+                                <article
+                                  key={solution.challengeId}
+                                  className="overflow-hidden rounded-xl border"
+                                  style={themeStyles.card}
+                                >
+                                  <div className="flex flex-wrap items-start justify-between gap-3 border-b px-4 py-4">
+                                    <div>
+                                      <p
+                                        className="text-sm font-semibold"
+                                        style={themeStyles.drawerStrong}
+                                      >
+                                        {solution.challengeTitle}
+                                      </p>
+                                      <p
+                                        className="mt-1 text-xs"
+                                        style={themeStyles.drawerMuted}
+                                      >
+                                        {solution.challengeId}
+                                      </p>
+                                    </div>
+                                    <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                      Score: {solution.score ?? '--'}
+                                    </span>
+                                  </div>
+                                  <div
+                                    className="grid grid-cols-1 gap-3 px-4 py-3 text-xs md:grid-cols-3"
+                                    style={themeStyles.drawerMuted}
+                                  >
+                                    <p>
+                                      <span className="font-semibold">
+                                        Language:
+                                      </span>{' '}
+                                      {solution.language}
+                                    </p>
+                                    <p>
+                                      <span className="font-semibold">
+                                        Submitted:
+                                      </span>{' '}
+                                      {formatOptionalDateTime(
+                                        solution.submittedAt
+                                      )}
+                                    </p>
+                                    <p>
+                                      <span className="font-semibold">
+                                        Testcases:
+                                      </span>{' '}
+                                      {solution.totalTests > 0
+                                        ? `${solution.passedCount}/${solution.totalTests} passed`
+                                        : 'No testcase data'}
+                                    </p>
+                                  </div>
+                                  <div className="px-4 pb-4">
+                                    <p
+                                      className="mb-2 text-xs font-semibold uppercase tracking-wide"
+                                      style={themeStyles.drawerMuted}
+                                    >
+                                      Code
+                                    </p>
+                                    <pre
+                                      className="max-h-72 overflow-auto rounded-xl border p-4 text-xs"
+                                      style={themeStyles.codeBlock}
+                                    >
+                                      {solution.code.trim()
+                                        ? solution.code
+                                        : '// No code submitted'}
+                                    </pre>
+                                  </div>
+                                </article>
+                              ))}
+                            </div>
+                          )}
+                        </section>
+                      </div>
+                    ),
+                  },
+                  {
+                    key: 'ai_review',
+                    label: 'AI Review',
+                    children: (
+                      <div className="pt-2">
+                        <ProctoringReviewPanel
+                          review={selectedProctoringReview}
+                          loading={proctoringLoading}
+                          actionLoading={proctoringActionLoading}
+                          actionStatus={proctoringActionStatus}
+                          onRefresh={() => {
+                            void refreshSelectedProctoringReview()
+                          }}
+                          onRecompute={() => {
+                            void handleRecomputeProctoringReview()
+                          }}
+                          onReview={handleReviewProctoring}
+                          onLabel={handleLabelProctoringReview}
+                          onTranslateLlmSummary={handleTranslateLlmSummary}
+                        />
+                      </div>
+                    ),
+                  },
+                ]}
+              />
             </div>
           ) : null}
         </Drawer>

@@ -1,6 +1,5 @@
 import { API_CONFIG } from '@/config/api.config'
 import { apiClient } from '@/config/axios.config'
-import { tokenManager } from '@/services/auth/token.service'
 import type {
   RunOrSubmitPayload,
   RunResponseWrapper,
@@ -18,10 +17,7 @@ class FetchSubmissionStream implements SubmissionStreamConnection {
   private readonly decoder = new TextDecoder()
   private buffer = ''
 
-  constructor(
-    private readonly url: string,
-    private readonly accessToken: string | null
-  ) {
+  constructor(private readonly url: string) {
     void this.start()
   }
 
@@ -35,9 +31,6 @@ class FetchSubmissionStream implements SubmissionStreamConnection {
         method: 'GET',
         headers: {
           Accept: 'text/event-stream',
-          ...(this.accessToken
-            ? { Authorization: `Bearer ${this.accessToken}` }
-            : {}),
         },
         credentials: API_CONFIG.withCredentials ? 'include' : 'same-origin',
         cache: 'no-store',
@@ -107,7 +100,6 @@ class SubmissionsService {
   async runCode(
     payload: RunOrSubmitPayload
   ): Promise<RunResponseWrapper['data']> {
-    // Note: callers must pass `participationId` explicitly (Redux preferred).
     const res = await apiClient.post('/submissions/run', payload)
     const json = res.data as RunResponseWrapper
     if (!json?.success || !json.data?.submissionId) {
@@ -120,7 +112,6 @@ class SubmissionsService {
   }
 
   async submitCode(payload: RunOrSubmitPayload): Promise<SubmitResponseData> {
-    // Note: callers must pass `participationId` explicitly (Redux preferred).
     const res = await apiClient.post('/submissions', payload)
     const json = res.data as SubmitResponseWrapper
     if (res.status !== 201 || !json?.success) {
@@ -154,22 +145,14 @@ class SubmissionsService {
 
   buildSubmissionStreamUrl(submissionId: string): string {
     const baseUrl = API_CONFIG.baseURL.replace(/\/+$/, '')
-    const streamUrl = new URL(`${baseUrl}/submissions/stream/${submissionId}`)
-    const accessToken = tokenManager.getAccessToken()
-
-    if (accessToken) {
-      streamUrl.searchParams.set('token', accessToken)
-    }
-
-    return streamUrl.toString()
+    return new URL(`${baseUrl}/submissions/stream/${submissionId}`).toString()
   }
 
   createSubmissionEventSource(
     submissionId: string
   ): SubmissionStreamConnection {
     return new FetchSubmissionStream(
-      this.buildSubmissionStreamUrl(submissionId),
-      tokenManager.getAccessToken()
+      this.buildSubmissionStreamUrl(submissionId)
     )
   }
 

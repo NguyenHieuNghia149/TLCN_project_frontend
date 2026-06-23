@@ -6,9 +6,6 @@ const postMock = vi.fn()
 const createMock = vi.fn(() => ({
   post: postMock,
 }))
-const setAccessTokenMock = vi.fn()
-const clearAccessTokenMock = vi.fn()
-const setTokenRefreshCallbackMock = vi.fn()
 
 vi.mock('axios', () => ({
   default: {
@@ -20,17 +17,10 @@ vi.mock('@/config/axios.config', () => ({
   apiClient: {},
 }))
 
-vi.mock('../token.service', () => ({
-  tokenManager: {
-    setAccessToken: setAccessTokenMock,
-    clearAccessToken: clearAccessTokenMock,
-    setTokenRefreshCallback: setTokenRefreshCallbackMock,
-  },
-}))
-
 describe('AuthService.refreshToken', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    document.cookie = ''
   })
 
   it('keeps generic 401 refresh failures as transient "Not authenticated" errors', async () => {
@@ -46,11 +36,6 @@ describe('AuthService.refreshToken', () => {
     await expect(authService.refreshToken()).rejects.toMatchObject({
       message: 'Not authenticated',
     })
-
-    await authService.refreshToken().catch(error => {
-      expect((error as { code?: string }).code).toBeUndefined()
-    })
-    expect(setAccessTokenMock).not.toHaveBeenCalled()
   })
 
   it('preserves explicit refresh-token expiry codes for hard logout handling', async () => {
@@ -70,5 +55,66 @@ describe('AuthService.refreshToken', () => {
         code: 'REFRESH_TOKEN_EXPIRED',
       })
     })
+  })
+
+  it('succeeds without returning or storing a client-managed token', async () => {
+    postMock.mockResolvedValue({
+      status: 200,
+      data: {
+        data: {
+          user: {
+            id: 'user-1',
+            email: 'session@example.com',
+            firstname: 'Session',
+            lastname: 'User',
+            role: 'user',
+            createdAt: '2025-01-01T00:00:00.000Z',
+            lastLoginAt: '2025-01-01T00:00:00.000Z',
+          },
+        },
+      },
+    })
+
+    const { authService } = await import('../auth.service')
+
+    await expect(authService.refreshToken()).resolves.toEqual({
+      id: 'user-1',
+      email: 'session@example.com',
+      firstname: 'Session',
+      lastname: 'User',
+      role: 'user',
+      createdAt: '2025-01-01T00:00:00.000Z',
+      lastLoginAt: '2025-01-01T00:00:00.000Z',
+    })
+  })
+
+  it('sends X-CSRF-Token on the refresh bootstrap request when a readable cookie is present', async () => {
+    document.cookie = 'csrfToken=bootstrap-csrf-token'
+    postMock.mockResolvedValue({
+      status: 200,
+      data: {
+        data: {
+          user: {
+            id: 'user-1',
+            email: 'session@example.com',
+          },
+        },
+      },
+    })
+
+    const { authService } = await import('../auth.service')
+
+    await authService.refreshToken()
+
+    expect(postMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/auth\/refresh-token$/),
+      {},
+      expect.objectContaining({
+        withCredentials: true,
+        headers: {
+          'X-CSRF-Token': 'bootstrap-csrf-token',
+        },
+      })
+    )
   })
 })

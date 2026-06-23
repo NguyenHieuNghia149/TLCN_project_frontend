@@ -54,9 +54,6 @@ vi.mock('@/services/api/exam.service', () => ({
 vi.mock('@/hooks/useExamProctoring', () => ({
   useExamProctoring: () => mocks.proctoringObj,
 }))
-vi.mock('@/services/auth/token.service', () => ({
-  tokenManager: { setAccessToken: vi.fn() },
-}))
 vi.mock('@/store/slices/examSlice', () => ({ setParticipation: vi.fn() }))
 vi.mock('@/store/slices/authSlice', () => ({ initializeSession: vi.fn() }))
 vi.mock('@/components/common/LoadingSpinner', () => ({ default: () => null }))

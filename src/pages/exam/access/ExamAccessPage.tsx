@@ -18,7 +18,6 @@ import ProctoringEntryModal from '@/pages/exam/access/components/ProctoringEntry
 import { useExamProctoring } from '@/hooks/useExamProctoring'
 import { isLegacyExamId } from '@/pages/exam/legacy/legacy-exam-redirect'
 import { examService } from '@/services/api/exam.service'
-import { tokenManager } from '@/services/auth/token.service'
 import { setParticipation } from '@/store/slices/examSlice'
 import { initializeSession } from '@/store/slices/authSlice'
 import type { AppDispatch } from '@/store/stores'
@@ -315,9 +314,6 @@ const ExamAccessPage: React.FC = () => {
       setActionLoading(true)
       setError(null)
       const result = await examService.verifyExamOtp(examSlug, otpForm)
-      if (result.tokens?.accessToken) {
-        tokenManager.setAccessToken(result.tokens.accessToken)
-      }
       await dispatch(initializeSession()).unwrap()
       await refreshAccessState()
       setAccessState(result)
@@ -354,7 +350,6 @@ const ExamAccessPage: React.FC = () => {
       }
       proctoring.markStartSucceeded()
 
-      // Store clientSessionId for workspace to reuse
       if (result.participationId && proctoring.clientSessionId) {
         try {
           window.sessionStorage.setItem(

@@ -57,6 +57,7 @@ export class ProctoringSocketClient {
     if (!this.socket) {
       this.socket = io(`${this.baseURL}/proctoring`, {
         transports: ['websocket', 'polling'],
+        path: '/api/socket.io',
         withCredentials: true,
         autoConnect: false,
         reconnection: true,

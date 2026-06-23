@@ -73,6 +73,7 @@ import type {
   Exam,
   ProctoringSettings,
 } from '@/types/exam.types'
+import { extractApiErrorMessage } from '@/utils/apiError'
 
 const STEP_ITEMS = [
   { key: 'basic', title: 'Basic' },
@@ -213,53 +214,6 @@ function toParticipantRows(
 
 function normalizeParticipantsList(payload: unknown): AdminExamParticipant[] {
   return Array.isArray(payload) ? (payload as AdminExamParticipant[]) : []
-}
-
-function extractErrorMessage(fallbackMessage: string, error: unknown): string {
-  if (typeof error === 'string' && error.trim().length > 0) {
-    return error
-  }
-
-  if (typeof error === 'object' && error !== null && 'response' in error) {
-    const responsePayload = (
-      error as {
-        response?: {
-          data?: {
-            message?: string
-            error?: {
-              message?: string
-              details?: unknown
-            }
-          }
-        }
-      }
-    ).response?.data
-
-    if (responsePayload?.error?.message) {
-      let detailMsg = ''
-      if (typeof responsePayload.error.details === 'string') {
-        detailMsg = `: ${responsePayload.error.details}`
-      } else if (Array.isArray(responsePayload.error.details)) {
-        const strDetails = responsePayload.error.details.filter(
-          d => typeof d === 'string'
-        )
-        if (strDetails.length > 0) {
-          detailMsg = `: ${strDetails.join(', ')}`
-        }
-      }
-      return `${responsePayload.error.message}${detailMsg}`
-    }
-
-    if (responsePayload?.message) {
-      return responsePayload.message
-    }
-  }
-
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return error.message
-  }
-
-  return fallbackMessage
 }
 
 const AdminCreateExam: React.FC = () => {
@@ -421,7 +375,7 @@ const AdminCreateExam: React.FC = () => {
   }
 
   const handleError = (fallbackMessage: string, error: unknown) => {
-    const message = extractErrorMessage(fallbackMessage, error)
+    const message = extractApiErrorMessage(error, fallbackMessage)
     notification.error({
       message: 'Error',
       description: message,

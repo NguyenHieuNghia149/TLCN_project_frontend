@@ -3,65 +3,143 @@ import axios, {
   AxiosInstance,
   InternalAxiosRequestConfig,
 } from 'axios'
-import { API_CONFIG } from './api.config'
-import { tokenManager } from '../services/auth/token.service'
 
-let refreshPromise: Promise<string> | null = null
+import {
+  API_CONFIG,
+  extractErrorCode,
+  isTerminalRefreshErrorCode,
+} from './api.config'
 
-async function refreshAccessTokenWithBackoff(): Promise<string> {
-  if (refreshPromise) return refreshPromise
+let refreshPromise: Promise<void> | null = null
+
+const CSRF_COOKIE_NAME = 'csrfToken'
+const CSRF_HEADER_NAME = 'X-CSRF-Token'
+const MUTATING_METHODS = new Set(['post', 'put', 'patch', 'delete'])
+const PUBLIC_AUTH_BOOTSTRAP_RETRY_SKIP_PATHS = new Set([
+  '/auth/register',
+  '/auth/login',
+  '/auth/google',
+  '/auth/refresh-token',
+  '/auth/logout',
+  '/auth/send-verification-email',
+  '/auth/send-reset-otp',
+  '/auth/verify-otp',
+  '/auth/reset-password',
+])
+
+function readCookie(name: string): string | undefined {
+  if (typeof document === 'undefined' || typeof document.cookie !== 'string') {
+    return undefined
+  }
+
+  const cookiePrefix = `${name}=`
+  const cookieEntry = document.cookie
+    .split(';')
+    .map(part => part.trim())
+    .find(part => part.startsWith(cookiePrefix))
+
+  if (!cookieEntry) {
+    return undefined
+  }
+
+  const rawValue = cookieEntry.slice(cookiePrefix.length)
+  return rawValue ? decodeURIComponent(rawValue) : undefined
+}
+
+function attachCsrfHeader(
+  headers: InternalAxiosRequestConfig['headers'],
+  method?: string
+): void {
+  if (!method || !MUTATING_METHODS.has(method.toLowerCase())) {
+    return
+  }
+
+  const csrfToken = readCookie(CSRF_COOKIE_NAME)
+  if (!csrfToken) {
+    return
+  }
+
+  if (
+    typeof (headers as { set?: (name: string, value: string) => void }).set ===
+    'function'
+  ) {
+    ;(headers as { set: (name: string, value: string) => void }).set(
+      CSRF_HEADER_NAME,
+      csrfToken
+    )
+    return
+  }
+
+  ;(headers as Record<string, string>)[CSRF_HEADER_NAME] = csrfToken
+}
+
+function shouldSkipRefreshRetry(url?: string): boolean {
+  if (!url) {
+    return false
+  }
+
+  return Array.from(PUBLIC_AUTH_BOOTSTRAP_RETRY_SKIP_PATHS).some(path =>
+    url.includes(path)
+  )
+}
+
+async function refreshSessionWithBackoff(): Promise<void> {
+  if (refreshPromise) {
+    return refreshPromise
+  }
 
   refreshPromise = (async () => {
     const delays = [200, 500]
+
     for (let i = 0; i <= delays.length; i++) {
       try {
-        const refreshResponse = await axios.post<{
-          data?: { tokens?: { accessToken?: string }; accessToken?: string }
-        }>(
+        await axios.post(
           `${API_CONFIG.baseURL}/auth/refresh-token`,
           {},
-          { withCredentials: true }
+          {
+            withCredentials: true,
+            headers: (() => {
+              const csrfToken = readCookie(CSRF_COOKIE_NAME)
+
+              if (!csrfToken) {
+                return undefined
+              }
+
+              return {
+                [CSRF_HEADER_NAME]: csrfToken,
+              }
+            })(),
+          }
         )
-
-        const nested = refreshResponse.data?.data as
-          | { tokens?: { accessToken?: string }; accessToken?: string }
-          | undefined
-        const accessToken =
-          nested?.tokens?.accessToken ||
-          nested?.accessToken ||
-          (refreshResponse as unknown as { data: { accessToken?: string } })
-            .data.accessToken
-
-        if (!accessToken) {
-          throw new Error('Access token not found in refresh response')
-        }
-        tokenManager.setAccessToken(accessToken)
-        return accessToken
+        return
       } catch (err) {
-        const anyErr = err as {
-          response?: { status?: number; data?: { code?: string } }
-        }
-        const status = anyErr.response?.status
-        const code = anyErr.response?.data?.code
-        // do not retry on auth errors
-        if (
-          status === 401 ||
-          code === 'NO_REFRESH_TOKEN' ||
-          code === 'REFRESH_TOKEN_EXPIRED'
-        ) {
+        const code = extractErrorCode(err)
+
+        if (code === '401' || isTerminalRefreshErrorCode(code)) {
           throw err
         }
-        // retry only on network/5xx
+
+        const status =
+          typeof err === 'object' &&
+          err !== null &&
+          'response' in err &&
+          typeof (err as { response?: { status?: unknown } }).response
+            ?.status === 'number'
+            ? (err as { response?: { status?: number } }).response?.status
+            : undefined
+
         if (
           i < delays.length &&
           (!status || (status >= 500 && status <= 599))
         ) {
-          await new Promise(r => setTimeout(r, delays[i]))
+          await new Promise(resolve => setTimeout(resolve, delays[i]))
           continue
         }
+
         throw err
       }
     }
+
     throw new Error('Unexpected refresh flow termination')
   })().finally(() => {
     refreshPromise = null
@@ -72,9 +150,9 @@ async function refreshAccessTokenWithBackoff(): Promise<string> {
 
 class AxiosInstanceManager {
   private instance: AxiosInstance
-  private isRefreshing: boolean = false
+  private isRefreshing = false
   private failedQueue: Array<{
-    resolve: (value?: unknown) => void
+    resolve: () => void
     reject: (error: unknown) => void
   }> = []
 
@@ -91,40 +169,32 @@ class AxiosInstanceManager {
     this.setupInterceptors()
   }
 
-  private processQueue(
-    error: unknown | null,
-    token: string | null = null
-  ): void {
-    this.failedQueue.forEach(prom => {
+  private processQueue(error: unknown | null): void {
+    this.failedQueue.forEach(pendingRequest => {
       if (error) {
-        prom.reject(error)
-      } else {
-        prom.resolve(token)
+        pendingRequest.reject(error)
+        return
       }
+
+      pendingRequest.resolve()
     })
     this.failedQueue = []
   }
 
   private setupInterceptors(): void {
-    // Request interceptor
     this.instance.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
-        const token = tokenManager.getAccessToken()
-        if (token && config.headers) {
-          config.headers.Authorization = `Bearer ${token}`
-        }
-
-        // Don't set Content-Type for FormData - let browser set it automatically
         if (config.data instanceof FormData) {
           delete config.headers['Content-Type']
         }
+
+        attachCsrfHeader(config.headers, config.method)
 
         return config
       },
       (error: AxiosError) => Promise.reject(error)
     )
 
-    // Response interceptor
     this.instance.interceptors.response.use(
       response => response,
       async (error: AxiosError) => {
@@ -133,38 +203,12 @@ class AxiosInstanceManager {
           _retryCount?: number
         }
 
-        // Suppress console errors for 401 on refresh-token (expected when not logged in)
-        if (
-          error.response?.status === 401 &&
-          originalRequest.url?.includes('/auth/refresh-token')
-        ) {
-          // Silently handle 401 on refresh-token - this is expected when user is not logged in
-          // Don't log to console to avoid noise
-        }
-
-        // Don't retry these paths
-        const skipRetryPaths = [
-          '/auth/login',
-          '/auth/refresh-token',
-          '/auth/logout',
-        ]
-        const shouldSkipRetry = skipRetryPaths.some(path =>
-          originalRequest.url?.includes(path)
-        )
+        const shouldSkipRetry = shouldSkipRefreshRetry(originalRequest.url)
 
         const statusIs401 = error.response?.status === 401
-        // Prefer explicit backend code, but fall back to any 401
-        const errorCode =
-          (error.response as unknown as { data?: { code?: string } })?.data
-            ?.code || (error as unknown as { code?: string }).code
-        // Don't attempt refresh if refresh token itself is expired, missing, or not found
-        // These errors mean the user must log in again
-        const isRefreshTokenError =
-          errorCode === 'REFRESH_TOKEN_EXPIRED' ||
-          errorCode === 'REFRESH_TOKEN_NOT_FOUND' ||
-          errorCode === 'NO_REFRESH_TOKEN'
-
-        const shouldAttemptRefresh = statusIs401 && !isRefreshTokenError
+        const errorCode = extractErrorCode(error)
+        const shouldAttemptRefresh =
+          statusIs401 && !isTerminalRefreshErrorCode(errorCode)
 
         if (
           shouldAttemptRefresh &&
@@ -173,13 +217,9 @@ class AxiosInstanceManager {
         ) {
           if (this.isRefreshing) {
             try {
-              const token = await new Promise((resolve, reject) => {
+              await new Promise<void>((resolve, reject) => {
                 this.failedQueue.push({ resolve, reject })
               })
-
-              if (originalRequest.headers && typeof token === 'string') {
-                originalRequest.headers.Authorization = `Bearer ${token}`
-              }
               return this.instance(originalRequest)
             } catch (err) {
               return Promise.reject(err)
@@ -191,33 +231,18 @@ class AxiosInstanceManager {
           this.isRefreshing = true
 
           try {
-            // Single-flight refresh with light backoff when network/5xx
-            const accessToken = await refreshAccessTokenWithBackoff()
-
-            // Update authorization header
-            if (originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${accessToken}`
-            }
-
-            // Process all queued requests
-            this.processQueue(null, accessToken)
-
-            // Retry original request
+            await refreshSessionWithBackoff()
+            this.processQueue(null)
             return this.instance(originalRequest)
           } catch (refreshError) {
             this.processQueue(refreshError)
-
-            // Clear tokens and trigger auth failure
-            tokenManager.clearAccessToken()
             window.dispatchEvent(new CustomEvent('auth:failed'))
-
             return Promise.reject(refreshError)
           } finally {
             this.isRefreshing = false
           }
         }
 
-        // If error is not 401 or retry failed, reject with original error
         return Promise.reject(error)
       }
     )
