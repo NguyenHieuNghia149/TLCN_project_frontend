@@ -11,6 +11,11 @@ import {
 } from './api.config'
 
 let refreshPromise: Promise<void> | null = null
+let csrfTokenValue: string | null = null
+
+export function setCsrfTokenValue(value: string): void {
+  csrfTokenValue = value
+}
 
 const CSRF_COOKIE_NAME = 'csrfToken'
 const CSRF_HEADER_NAME = 'X-CSRF-Token'
@@ -54,7 +59,7 @@ function attachCsrfHeader(
     return
   }
 
-  const csrfToken = readCookie(CSRF_COOKIE_NAME)
+  const csrfToken = csrfTokenValue ?? readCookie(CSRF_COOKIE_NAME)
   if (!csrfToken) {
     return
   }
@@ -93,24 +98,21 @@ async function refreshSessionWithBackoff(): Promise<void> {
 
     for (let i = 0; i <= delays.length; i++) {
       try {
-        await axios.post(
+        const csrfToken = csrfTokenValue ?? readCookie(CSRF_COOKIE_NAME)
+        const res = await axios.post(
           `${API_CONFIG.baseURL}/auth/refresh-token`,
           {},
           {
             withCredentials: true,
-            headers: (() => {
-              const csrfToken = readCookie(CSRF_COOKIE_NAME)
-
-              if (!csrfToken) {
-                return undefined
-              }
-
-              return {
-                [CSRF_HEADER_NAME]: csrfToken,
-              }
-            })(),
+            headers: csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : undefined,
           }
         )
+
+        const bodyCsrf = res.data?.csrfToken
+        if (typeof bodyCsrf === 'string' && bodyCsrf.length > 0) {
+          csrfTokenValue = bodyCsrf
+        }
+
         return
       } catch (err) {
         const code = extractErrorCode(err)

@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { apiClient } from '@/config/axios.config'
+import { apiClient, setCsrfTokenValue } from '@/config/axios.config'
 import {
   API_CONFIG,
   extractErrorCode,
@@ -16,6 +16,28 @@ const CSRF_COOKIE_NAME = 'csrfToken'
 const CSRF_HEADER_NAME = 'X-CSRF-Token'
 
 export class AuthService {
+  private readHeaderValue(headers: unknown, name: string): string | undefined {
+    if (!headers || typeof headers !== 'object') {
+      return undefined
+    }
+
+    const normalizedName = name.toLowerCase()
+    const candidate = headers as {
+      get?: (headerName: string) => string | null | undefined
+      [key: string]: unknown
+    }
+
+    if (typeof candidate.get === 'function') {
+      const value = candidate.get(name) ?? candidate.get(normalizedName)
+      return typeof value === 'string' && value.length > 0 ? value : undefined
+    }
+
+    const directValue = candidate[name] ?? candidate[normalizedName]
+    return typeof directValue === 'string' && directValue.length > 0
+      ? directValue
+      : undefined
+  }
+
   private readCookie(name: string): string | undefined {
     if (
       typeof document === 'undefined' ||
@@ -147,9 +169,19 @@ export class AuthService {
     return payload.data?.user || nestedUser || payload.user || null
   }
 
+  private captureCsrfToken(data: unknown): void {
+    if (data && typeof data === 'object' && 'csrfToken' in data) {
+      const token = (data as { csrfToken: unknown }).csrfToken
+      if (typeof token === 'string' && token.length > 0) {
+        setCsrfTokenValue(token)
+      }
+    }
+  }
+
   async login(credentials: LoginCredentials): Promise<AuthUserPayload> {
     try {
       const response = await apiClient.post('/auth/login', credentials)
+      this.captureCsrfToken(response.data)
       const user = this.extractUserPayload(response.data)
 
       if (!user) {
@@ -165,6 +197,7 @@ export class AuthService {
   async loginWithGoogle(idToken: string): Promise<AuthUserPayload> {
     try {
       const response = await apiClient.post('/auth/google', { idToken })
+      this.captureCsrfToken(response.data)
       const user = this.extractUserPayload(response.data)
 
       if (!user) {
@@ -208,24 +241,21 @@ export class AuthService {
         validateStatus: () => true,
       })
 
+      const csrfToken = this.readCookie(CSRF_COOKIE_NAME)
+
       const response = await silentAxios.post(
         `${API_CONFIG.baseURL}/auth/refresh-token`,
         {},
         {
           withCredentials: true,
-          headers: (() => {
-            const csrfToken = this.readCookie(CSRF_COOKIE_NAME)
-
-            if (!csrfToken) {
-              return undefined
-            }
-
-            return {
-              [CSRF_HEADER_NAME]: csrfToken,
-            }
-          })(),
+          headers: csrfToken ? { [CSRF_HEADER_NAME]: csrfToken } : undefined,
         }
       )
+
+      const bodyCsrf = response.data?.csrfToken
+      if (typeof bodyCsrf === 'string' && bodyCsrf.length > 0) {
+        setCsrfTokenValue(bodyCsrf)
+      }
 
       if (response.status === 401) {
         const errorCode = extractErrorCode({
@@ -326,6 +356,14 @@ export class AuthService {
   async getCurrentUser(): Promise<User> {
     try {
       const response = await apiClient.get('/auth/me')
+      const headerCsrfToken = this.readHeaderValue(
+        response.headers,
+        CSRF_HEADER_NAME
+      )
+      if (headerCsrfToken) {
+        setCsrfTokenValue(headerCsrfToken)
+      }
+      this.captureCsrfToken(response.data)
       const user = this.extractUserPayload(response.data) || response.data?.data
 
       if (!user) {
