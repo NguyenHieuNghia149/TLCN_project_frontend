@@ -238,6 +238,27 @@ function formatScore(value: number | undefined) {
   return typeof value === 'number' ? value.toFixed(2) : '--'
 }
 
+function getLlmSummaryStatusMessage(
+  llmSummary: NonNullable<AdminProctoringReview['llmSummary']>
+) {
+  switch (llmSummary.status) {
+    case 'hidden_disabled':
+      return 'Summary generation is disabled in current proctoring settings.'
+    case 'unavailable':
+      return 'No accepted LLM summary has been generated for this participation yet. Use Recompute to queue one.'
+    case 'validation_failed':
+      return 'Generated output failed validation and is not shown as an accepted summary.'
+    case 'provider_failed':
+      return 'Summary generation failed at the provider step. Recompute to retry after the provider path is healthy.'
+    case 'dead_letter':
+      return 'Summary generation exhausted retries and was moved to dead letter. Recompute to create a new attempt.'
+    case 'pending':
+      return 'Summary generation is still pending. Refresh or recompute after the current attempt finishes.'
+    default:
+      return 'Summary is hidden for this review state.'
+  }
+}
+
 function getRiskTone(riskLevel: string | null | undefined) {
   const normalized = String(riskLevel ?? '').toLowerCase()
   if (normalized === 'critical') {
@@ -864,11 +885,7 @@ const ProctoringReviewPanel: React.FC<ProctoringReviewPanelProps> = ({
             </div>
             {!review.llmSummary.visible ? (
               <p className="mt-3 text-sm opacity-75">
-                {review.llmSummary.status === 'hidden_disabled'
-                  ? 'Summary generation is disabled in current proctoring settings.'
-                  : review.llmSummary.status === 'unavailable'
-                    ? 'No accepted LLM summary has been generated for this participation yet. Use Recompute to queue one.'
-                    : 'Summary is hidden for this review state.'}
+                {getLlmSummaryStatusMessage(review.llmSummary)}
               </p>
             ) : review.llmSummary.status === 'accepted' ? (
               <div className="mt-3 grid gap-3 text-sm">

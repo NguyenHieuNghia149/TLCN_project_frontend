@@ -780,6 +780,42 @@ describe('ProctoringReviewPanel', () => {
     ).toBeInTheDocument()
   })
 
+  it('shows a specific message when LLM summary output failed validation', () => {
+    const review = makeReview()
+    review.llmSummary = {
+      visible: false,
+      status: 'validation_failed',
+      summaryId: 'llm-summary-1',
+      provider: 'local',
+      modelVersion: 'summary-local-v1',
+      promptVersion: 'proctoring-summary-v1',
+      validationStatus: 'failed',
+      validationScore: 0.41,
+      riskFacts: [],
+      citations: [],
+      missingDataNotes: [],
+      modelNotes: [],
+      completedAt: '2026-06-14T10:10:00.000Z',
+    }
+
+    render(
+      <ProctoringReviewPanel
+        review={review}
+        loading={false}
+        actionLoading={false}
+        onRefresh={vi.fn()}
+        onRecompute={vi.fn()}
+        onReview={vi.fn()}
+      />
+    )
+
+    expect(
+      screen.getByText(
+        /Generated output failed validation and is not shown as an accepted summary\./i
+      )
+    ).toBeInTheDocument()
+  })
+
   it('review attention card does not change the official review decision', async () => {
     const onReview = vi.fn().mockResolvedValue(undefined)
     const user = userEvent.setup()

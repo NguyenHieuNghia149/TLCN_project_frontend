@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('@/config/axios.config', () => ({
   apiClient: {
     post: vi.fn(),
+    put: vi.fn(),
   },
 }))
 
@@ -39,6 +40,41 @@ describe('ExamService', () => {
       '/admin/exams/exam-1/participations/participation-1/proctoring/llm-summary/translate',
       { targetLanguage: 'vi' },
       { timeout: 45000 }
+    )
+  })
+
+  it('updates admin proctoring settings with PUT', async () => {
+    vi.mocked(apiClient.put).mockResolvedValue({
+      data: {
+        data: {
+          examId: 'exam-1',
+          enabled: true,
+          aiShadowMode: false,
+          aiAdvisoryVisible: true,
+        },
+      },
+    } as never)
+
+    await expect(
+      service.updateAdminProctoringSettings('exam-1', {
+        enabled: true,
+        aiShadowMode: false,
+        aiAdvisoryVisible: true,
+      })
+    ).resolves.toMatchObject({
+      examId: 'exam-1',
+      enabled: true,
+      aiShadowMode: false,
+      aiAdvisoryVisible: true,
+    })
+
+    expect(apiClient.put).toHaveBeenCalledWith(
+      '/admin/exams/exam-1/proctoring/settings',
+      {
+        enabled: true,
+        aiShadowMode: false,
+        aiAdvisoryVisible: true,
+      }
     )
   })
 })

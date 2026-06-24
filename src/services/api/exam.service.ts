@@ -586,7 +586,7 @@ export class ExamService {
     examId: string,
     payload: AdminUpdateProctoringSettingsPayload
   ): Promise<ProctoringSettings> {
-    const response = await apiClient.post(
+    const response = await apiClient.put(
       `/admin/exams/${examId}/proctoring/settings`,
       payload
     )
