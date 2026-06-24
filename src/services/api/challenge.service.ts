@@ -23,7 +23,11 @@ export class ChallengeService {
     topicId: string,
     limit: number = 10,
     cursor: Cursor | null = null,
-    tags?: string[]
+    filters?: {
+      tags?: string[]
+      search?: string
+      difficulties?: string[]
+    }
   ): Promise<PaginatedResponse<ChallengeItem>> {
     const params: Record<string, string> = {
       limit: limit.toString(),
@@ -35,8 +39,16 @@ export class ChallengeService {
     }
 
     // Add tags if provided
-    if (tags && tags.length > 0) {
-      params.tags = tags.join(',')
+    if (filters?.tags && filters.tags.length > 0) {
+      params.tags = filters.tags.join(',')
+    }
+
+    if (filters?.search?.trim()) {
+      params.q = filters.search.trim()
+    }
+
+    if (filters?.difficulties && filters.difficulties.length > 0) {
+      params.difficulty = filters.difficulties.join(',')
     }
 
     const response = await apiClient.get(
@@ -89,11 +101,15 @@ export class ChallengeService {
     page: number = 1,
     limit: number = 10,
     search?: string,
+    difficulty?: string,
+    tags?: string[],
     sortField?: string,
     sortOrder?: 'asc' | 'desc'
   ) {
     const params: Record<string, string | number> = { page, limit }
     if (search) params.q = search
+    if (difficulty) params.difficulty = difficulty
+    if (tags && tags.length > 0) params.tags = tags.join(',')
     if (sortField) params.sortField = sortField
     if (sortOrder) params.sortOrder = sortOrder
 

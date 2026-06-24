@@ -47,7 +47,9 @@ export const useInfiniteChallenges = (
   limit = 10,
   topicId?: string,
   tags?: string[],
-  userId?: string
+  userId?: string,
+  search?: string,
+  difficulties?: string[]
 ) => {
   const [challenges, setChallenges] = useState<Challenge[]>([])
   const [rank, setRank] = useState<number | undefined>(undefined)
@@ -70,7 +72,11 @@ export const useInfiniteChallenges = (
         topicId,
         limit,
         nextCursor,
-        tags
+        {
+          tags,
+          search,
+          difficulties,
+        }
       )
 
       // Map ChallengeItem to Challenge format
@@ -93,7 +99,7 @@ export const useInfiniteChallenges = (
     } finally {
       setLoading(false)
     }
-  }, [topicId, limit, nextCursor, tags, loading, hasMore])
+  }, [topicId, limit, nextCursor, tags, search, difficulties, loading, hasMore])
 
   /**
    * Reset and load initial data when topicId or tags change
@@ -114,7 +120,11 @@ export const useInfiniteChallenges = (
             topicId,
             limit,
             null, // No cursor for initial load
-            tags
+            {
+              tags,
+              search,
+              difficulties,
+            }
           )
 
           // Map ChallengeItem to Challenge format
@@ -139,7 +149,7 @@ export const useInfiniteChallenges = (
 
       loadInitial()
     }
-  }, [topicId, tags, limit])
+  }, [topicId, tags, limit, search, difficulties])
 
   // Fallback: fetch rank from leaderboard API if not provided by challenge list
   useEffect(() => {

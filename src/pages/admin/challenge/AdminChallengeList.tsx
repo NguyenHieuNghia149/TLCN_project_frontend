@@ -54,6 +54,8 @@ const AdminChallengeList: React.FC = () => {
           page,
           pageSize,
           search,
+          undefined,
+          undefined,
           sField,
           sOrder
         )

@@ -68,6 +68,13 @@ describe('ProctoringReviewPanel', () => {
     cleanup()
   })
 
+  function getLlmSummaryCard() {
+    const heading = screen.getByText(/LLM review summary/i)
+    const card = heading.closest('.rounded-lg')
+    expect(card).not.toBeNull()
+    return card as HTMLElement
+  }
+
   it('shows deterministic evidence without AI results and saves a neutral review decision', async () => {
     const onReview = vi.fn().mockResolvedValue(undefined)
     const user = userEvent.setup()
@@ -405,7 +412,8 @@ describe('ProctoringReviewPanel', () => {
       promptVersion: 'proctoring-summary-v1',
       validationStatus: 'passed',
       validationScore: 0.94,
-      summaryText: 'The timeline contains one focus change event.',
+      summaryText:
+        'Review these signals: focus lost x1. Timeline highlights: 2026-06-12 10:00 candidate left the exam tab. Missing data: no camera continuity events.',
       riskFacts: [
         {
           type: 'focus_change',
@@ -431,8 +439,17 @@ describe('ProctoringReviewPanel', () => {
       />
     )
 
+    const llmCard = getLlmSummaryCard()
+
+    expect(within(llmCard).getByText('Overview')).toBeInTheDocument()
+    expect(within(llmCard).getByText(/focus lost x1/i)).toBeInTheDocument()
+    expect(within(llmCard).getByText('Timeline highlights')).toBeInTheDocument()
     expect(
-      screen.getByText(/The timeline contains one focus change event/i)
+      within(llmCard).getByText(/2026-06-12 10:00 candidate left the exam tab/i)
+    ).toBeInTheDocument()
+    expect(within(llmCard).getByText('Missing data')).toBeInTheDocument()
+    expect(
+      within(llmCard).getByText(/no camera continuity events/i)
     ).toBeInTheDocument()
     expect(screen.getByText(/Validation: passed/i)).toBeInTheDocument()
     expect(screen.getByText(/focus_change: 1/i)).toBeInTheDocument()
@@ -445,7 +462,9 @@ describe('ProctoringReviewPanel', () => {
     const user = userEvent.setup()
     const onTranslateLlmSummary = vi
       .fn()
-      .mockResolvedValue('Can xem lai: roi tab 2 lan, an tab 1 lan.')
+      .mockResolvedValue(
+        'Can xem lai cac tin hieu sau: roi tab 2 lan; an tab 1 lan. Moc thoi gian noi bat: 2026-06-12 10:00 roi tab. Du lieu con thieu: khong co camera continuity.'
+      )
     const review = makeReview()
     review.llmSummary = {
       visible: true,
@@ -456,7 +475,8 @@ describe('ProctoringReviewPanel', () => {
       promptVersion: 'proctoring-summary-v1',
       validationStatus: 'passed',
       validationScore: 0.94,
-      summaryText: 'Review these signals: focus lost x2 and hidden tab x1.',
+      summaryText:
+        'Review these signals: focus lost x2; hidden tab x1. Timeline highlights: 2026-06-12 10:00 focus lost. Missing data: no camera continuity.',
       riskFacts: [],
       citations: [],
       missingDataNotes: [],
@@ -476,20 +496,25 @@ describe('ProctoringReviewPanel', () => {
       />
     )
 
-    expect(
-      screen.getByText('Review these signals: focus lost x2 and hidden tab x1.')
-    ).toBeInTheDocument()
+    expect(screen.getByText(/focus lost x2/i)).toBeInTheDocument()
+    expect(screen.getByText(/hidden tab x1/i)).toBeInTheDocument()
 
     await user.click(
       screen.getByRole('button', { name: /translate to vietnamese/i })
     )
 
     expect(onTranslateLlmSummary).toHaveBeenCalledWith({
-      summaryText: 'Review these signals: focus lost x2 and hidden tab x1.',
+      summaryText:
+        'Review these signals: focus lost x2; hidden tab x1. Timeline highlights: 2026-06-12 10:00 focus lost. Missing data: no camera continuity.',
       targetLanguage: 'vi',
     })
+    const llmCard = getLlmSummaryCard()
+    expect(within(llmCard).getByText('Overview')).toBeInTheDocument()
+    expect(within(llmCard).getByText(/roi tab 2 lan/i)).toBeInTheDocument()
+    expect(within(llmCard).getByText(/an tab 1 lan/i)).toBeInTheDocument()
+    expect(within(llmCard).getByText('Timeline highlights')).toBeInTheDocument()
     expect(
-      await screen.findByText('Can xem lai: roi tab 2 lan, an tab 1 lan.')
+      within(llmCard).getByText(/2026-06-12 10:00 roi tab/i)
     ).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: /show english/i })
@@ -497,12 +522,8 @@ describe('ProctoringReviewPanel', () => {
 
     await user.click(screen.getByRole('button', { name: /show english/i }))
 
-    expect(
-      screen.getByText('Review these signals: focus lost x2 and hidden tab x1.')
-    ).toBeInTheDocument()
-    expect(
-      screen.queryByText('Can xem lai: roi tab 2 lan, an tab 1 lan.')
-    ).not.toBeInTheDocument()
+    expect(screen.getByText(/focus lost x2/i)).toBeInTheDocument()
+    expect(screen.queryByText(/roi tab 2 lan/i)).not.toBeInTheDocument()
   })
 
   it('evidence summary renders grouped readable groups with counts, latest time, labels, and badges', () => {

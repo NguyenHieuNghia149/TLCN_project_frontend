@@ -22,6 +22,10 @@ const ChallengePage: React.FC = () => {
   }, [rawCategory])
 
   const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [query, setQuery] = useState<string>('')
+  const [difficulties, setDifficulties] = useState<string[]>([])
+  const [showSolved, setShowSolved] = useState<boolean>(false)
+  const [showFavorites, setShowFavorites] = useState<boolean>(false)
   const {
     challenges,
     fetchMoreChallenges,
@@ -29,15 +33,16 @@ const ChallengePage: React.FC = () => {
     loading,
     rank,
     rankingPoint,
-  } = useInfiniteChallenges(8, topicId, selectedTags, user?.id)
+  } = useInfiniteChallenges(
+    8,
+    topicId,
+    selectedTags,
+    user?.id,
+    query,
+    difficulties
+  )
   const observerRef = useRef<HTMLDivElement | null>(null)
   const [availableTags, setAvailableTags] = useState<string[]>([])
-
-  // Filters state
-  const [query, setQuery] = useState<string>('')
-  const [difficulties, setDifficulties] = useState<string[]>([])
-  const [showSolved, setShowSolved] = useState<boolean>(false)
-  const [showFavorites, setShowFavorites] = useState<boolean>(false)
 
   const toggleDifficulty = (value: string) => {
     setDifficulties(prev =>
@@ -87,15 +92,11 @@ const ChallengePage: React.FC = () => {
 
   const filtered = useMemo(() => {
     return challenges.filter(c => {
-      if (query && !c.title.toLowerCase().includes(query.toLowerCase()))
-        return false
-      if (difficulties.length > 0 && !difficulties.includes(c.difficulty))
-        return false
       if (showSolved && !c.isSolved) return false
       if (showFavorites && !c.isFavorite) return false
       return true
     })
-  }, [challenges, query, difficulties, showSolved, showFavorites])
+  }, [challenges, showSolved, showFavorites])
 
   const rankDisplay = useMemo(() => {
     const value = typeof rank === 'number' ? rank : undefined
