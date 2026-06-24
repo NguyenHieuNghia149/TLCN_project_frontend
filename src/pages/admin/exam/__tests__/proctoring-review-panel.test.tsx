@@ -441,6 +441,10 @@ describe('ProctoringReviewPanel', () => {
 
     const llmCard = getLlmSummaryCard()
 
+    expect(within(llmCard).getByText('Narrative summary')).toBeInTheDocument()
+    expect(
+      within(llmCard).getByText(/use the evidence details below/i)
+    ).toBeInTheDocument()
     expect(within(llmCard).getByText('Overview')).toBeInTheDocument()
     expect(within(llmCard).getByText(/focus lost x1/i)).toBeInTheDocument()
     expect(within(llmCard).getByText('Timeline highlights')).toBeInTheDocument()
@@ -505,17 +509,18 @@ describe('ProctoringReviewPanel', () => {
 
     expect(onTranslateLlmSummary).toHaveBeenCalledWith({
       summaryText:
-        'Review these signals: focus lost x2; hidden tab x1. Timeline highlights: 2026-06-12 10:00 focus lost. Missing data: no camera continuity.',
+        'No structured risk facts were extracted, but the timeline still contains reviewable events. Key moments included 2026-06-12 10:00 paste. Use the evidence details below to confirm whether follow-up is needed.',
       targetLanguage: 'vi',
     })
     const llmCard = getLlmSummaryCard()
-    expect(within(llmCard).getByText('Overview')).toBeInTheDocument()
     expect(within(llmCard).getByText(/roi tab 2 lan/i)).toBeInTheDocument()
     expect(within(llmCard).getByText(/an tab 1 lan/i)).toBeInTheDocument()
     expect(within(llmCard).getByText('Timeline highlights')).toBeInTheDocument()
     expect(
-      within(llmCard).getByText(/2026-06-12 10:00 roi tab/i)
+      within(llmCard).getByText(/2026-06-12 10:00 focus lost/i)
     ).toBeInTheDocument()
+    expect(within(llmCard).getByText(/focus lost x2/i)).toBeInTheDocument()
+    expect(within(llmCard).getByText(/hidden tab x1/i)).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: /show english/i })
     ).toBeInTheDocument()

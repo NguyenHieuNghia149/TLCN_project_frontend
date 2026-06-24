@@ -229,19 +229,18 @@ describe('ExamResultsAdmin submission detail tabs', () => {
       'aria-selected',
       'true'
     )
-    expect(await screen.findByText('Overview')).toBeInTheDocument()
+    expect((await screen.findAllByText('Overview')).length).toBeGreaterThan(0)
     expect(screen.getByText('Evidence')).toBeInTheDocument()
     expect(screen.getByText('AI Summary')).toBeInTheDocument()
 
-    const aiPanel = screen
-      .getByText('Overview')
-      .closest('.rounded-2xl')?.parentElement
+    const overviewHeadings = screen.getAllByText('Overview')
+    const aiPanel = overviewHeadings[0]?.closest('.rounded-2xl')?.parentElement
     expect(aiPanel).not.toBeNull()
     expect(screen.getByText('Risk level')).toBeInTheDocument()
     expect(screen.getByText('Evidence summary')).toBeInTheDocument()
     expect(screen.getByText('LLM review summary')).toBeInTheDocument()
 
-    const overviewSection = screen.getByText('Overview').closest('section')
+    const overviewSection = overviewHeadings[0]?.closest('section')
     expect(overviewSection).not.toBeNull()
     expect(
       within(overviewSection as HTMLElement).getByText('Review attention')

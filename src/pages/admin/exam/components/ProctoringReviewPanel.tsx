@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
 
 import Button from '@/components/common/Button/Button'
+import {
+  buildLlmNarrativeSummary,
+  parseLlmSummarySections,
+} from '@/pages/admin/exam/components/proctoringLlmSummary'
 import type {
   AdminProctoringEvidenceConfidence,
   AdminProctoringReview,
@@ -232,107 +236,6 @@ function formatDate(iso: string | null) {
 
 function formatScore(value: number | undefined) {
   return typeof value === 'number' ? value.toFixed(2) : '--'
-}
-
-type SummarySection = {
-  key: 'overview' | 'timeline' | 'missing'
-  title: string
-  lines: string[]
-}
-
-const SUMMARY_SECTION_PATTERNS: Array<{
-  key: SummarySection['key']
-  title: string
-  pattern: RegExp
-}> = [
-  {
-    key: 'overview',
-    title: 'Overview',
-    pattern: /(Review these signals:|Can xem lai(?: cac)? tin hieu sau:)/i,
-  },
-  {
-    key: 'timeline',
-    title: 'Timeline highlights',
-    pattern: /(Timeline highlights:|Moc thoi gian noi bat:)/i,
-  },
-  {
-    key: 'missing',
-    title: 'Missing data',
-    pattern: /(Missing data:|Du lieu con thieu:)/i,
-  },
-]
-
-function splitSummaryLines(value: string) {
-  return value
-    .split(';')
-    .map(line => line.trim())
-    .filter(Boolean)
-}
-
-function parseLlmSummarySections(text: string): SummarySection[] {
-  const normalized = text.trim()
-  if (!normalized) {
-    return []
-  }
-
-  const matches = SUMMARY_SECTION_PATTERNS.flatMap(section => {
-    const match = section.pattern.exec(normalized)
-    if (!match || typeof match.index !== 'number') {
-      return []
-    }
-    return [{ ...section, index: match.index, matchedText: match[0] }]
-  }).sort((a, b) => a.index - b.index)
-
-  if (matches.length === 0) {
-    return [
-      {
-        key: 'overview',
-        title: 'Overview',
-        lines: [normalized],
-      },
-    ]
-  }
-
-  const sections: SummarySection[] = []
-
-  const leadingText = normalized.slice(0, matches[0]!.index).trim()
-  if (leadingText) {
-    sections.push({
-      key: 'overview',
-      title: 'Overview',
-      lines: [leadingText],
-    })
-  }
-
-  for (let index = 0; index < matches.length; index += 1) {
-    const current = matches[index]!
-    const next = matches[index + 1]
-    const start = current.index + current.matchedText.length
-    const end = next ? next.index : normalized.length
-    const content = normalized.slice(start, end).trim()
-    if (!content) {
-      continue
-    }
-
-    const lines = splitSummaryLines(content)
-    if (lines.length === 0) {
-      continue
-    }
-
-    const existing = sections.find(section => section.key === current.key)
-    if (existing) {
-      existing.lines.push(...lines)
-      continue
-    }
-
-    sections.push({
-      key: current.key,
-      title: current.title,
-      lines,
-    })
-  }
-
-  return sections
 }
 
 function getRiskTone(riskLevel: string | null | undefined) {
@@ -588,13 +491,29 @@ const ProctoringReviewPanel: React.FC<ProctoringReviewPanelProps> = ({
   }, [review])
 
   const sourceLlmSummaryText = review?.llmSummary?.summaryText ?? null
-  const displayedLlmSummaryText =
+  const sourceLlmNarrativeText = useMemo(() => {
+    if (!review?.llmSummary) {
+      return null
+    }
+    return buildLlmNarrativeSummary({
+      summaryText: review.llmSummary.summaryText ?? null,
+      riskFacts: review.llmSummary.riskFacts ?? [],
+      citations: review.llmSummary.citations ?? [],
+      missingDataNotes: review.llmSummary.missingDataNotes ?? [],
+      timeline: (review.timeline?.items ?? []).map(item => ({
+        eventId: item.id,
+        eventName: item.eventName,
+        capturedAt: item.capturedAt,
+      })),
+    })
+  }, [review])
+  const displayedLlmNarrativeText =
     showTranslatedLlmSummary && translatedLlmSummaryText
       ? translatedLlmSummaryText
-      : (sourceLlmSummaryText ?? '--')
+      : (sourceLlmNarrativeText ?? '--')
   const llmSummarySections = useMemo(
-    () => parseLlmSummarySections(displayedLlmSummaryText),
-    [displayedLlmSummaryText]
+    () => parseLlmSummarySections(sourceLlmSummaryText ?? '--'),
+    [sourceLlmSummaryText]
   )
 
   if (loading) {
@@ -955,6 +874,14 @@ const ProctoringReviewPanel: React.FC<ProctoringReviewPanelProps> = ({
               <div className="mt-3 grid gap-3 text-sm">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0 flex-1 space-y-3">
+                    <div className="rounded-lg border bg-slate-50/70 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                        Narrative summary
+                      </p>
+                      <p className="mt-2 text-sm text-slate-900">
+                        {displayedLlmNarrativeText}
+                      </p>
+                    </div>
                     {llmSummarySections.map(section => (
                       <div
                         key={section.key}
@@ -976,7 +903,7 @@ const ProctoringReviewPanel: React.FC<ProctoringReviewPanelProps> = ({
                       </div>
                     ))}
                   </div>
-                  {onTranslateLlmSummary && sourceLlmSummaryText ? (
+                  {onTranslateLlmSummary && sourceLlmNarrativeText ? (
                     <Button
                       size="sm"
                       variant="secondary"
@@ -998,7 +925,7 @@ const ProctoringReviewPanel: React.FC<ProctoringReviewPanelProps> = ({
                         setTranslationError(null)
                         Promise.resolve(
                           onTranslateLlmSummary({
-                            summaryText: sourceLlmSummaryText,
+                            summaryText: sourceLlmNarrativeText,
                             targetLanguage: 'vi',
                           })
                         )
