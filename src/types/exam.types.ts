@@ -334,6 +334,7 @@ export interface AdminProctoringLlmSummary {
   promptVersion?: string
   validationStatus?: string
   validationScore?: number | null
+  validationErrors?: string[]
   summaryText?: string
   riskFacts: Array<{
     type: string

@@ -791,6 +791,7 @@ describe('ProctoringReviewPanel', () => {
       promptVersion: 'proctoring-summary-v1',
       validationStatus: 'failed',
       validationScore: 0.41,
+      validationErrors: ['below_validation_threshold'],
       riskFacts: [],
       citations: [],
       missingDataNotes: [],
@@ -813,6 +814,9 @@ describe('ProctoringReviewPanel', () => {
       screen.getByText(
         /Generated output failed validation and is not shown as an accepted summary\./i
       )
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/Validation details: below validation threshold/i)
     ).toBeInTheDocument()
   })
 

@@ -259,6 +259,37 @@ function getLlmSummaryStatusMessage(
   }
 }
 
+function formatValidationErrorCode(code: string) {
+  switch (code) {
+    case 'below_validation_threshold':
+      return 'below validation threshold'
+    case 'judge_unavailable':
+      return 'judge unavailable'
+    case 'schema_validation_failed':
+      return 'schema validation failed'
+    case 'non_json_output':
+      return 'non-JSON output'
+    case 'unknown_citation':
+      return 'unknown citation'
+    case 'unknown_risk_fact_event':
+      return 'unknown risk-fact event'
+    case 'unsupported_risk_fact':
+      return 'unsupported risk fact'
+    case 'banned_accusation_language':
+      return 'banned accusation language'
+    case 'provider_failed':
+      return 'provider failed'
+    case 'provider_timeout':
+      return 'provider timeout'
+    case 'provider_disabled':
+      return 'provider disabled'
+    case 'summary_generation_failed':
+      return 'summary generation failed'
+    default:
+      return code.replace(/_/g, ' ')
+  }
+}
+
 function getRiskTone(riskLevel: string | null | undefined) {
   const normalized = String(riskLevel ?? '').toLowerCase()
   if (normalized === 'critical') {
@@ -884,9 +915,18 @@ const ProctoringReviewPanel: React.FC<ProctoringReviewPanelProps> = ({
               </span>
             </div>
             {!review.llmSummary.visible ? (
-              <p className="mt-3 text-sm opacity-75">
-                {getLlmSummaryStatusMessage(review.llmSummary)}
-              </p>
+              <div className="mt-3 grid gap-2 text-sm opacity-75">
+                <p>{getLlmSummaryStatusMessage(review.llmSummary)}</p>
+                {review.llmSummary.validationErrors &&
+                review.llmSummary.validationErrors.length > 0 ? (
+                  <p className="text-xs opacity-80">
+                    Validation details:{' '}
+                    {review.llmSummary.validationErrors
+                      .map(formatValidationErrorCode)
+                      .join(', ')}
+                  </p>
+                ) : null}
+              </div>
             ) : review.llmSummary.status === 'accepted' ? (
               <div className="mt-3 grid gap-3 text-sm">
                 <div className="flex flex-wrap items-start justify-between gap-2">
