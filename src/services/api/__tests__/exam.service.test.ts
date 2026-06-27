@@ -77,4 +77,105 @@ describe('ExamService', () => {
       }
     )
   })
+
+  it('falls back to POST when updating admin proctoring settings returns 404 on PUT', async () => {
+    vi.mocked(apiClient.put).mockRejectedValue({
+      response: {
+        status: 404,
+      },
+    } as never)
+    vi.mocked(apiClient.post).mockResolvedValue({
+      data: {
+        data: {
+          examId: 'exam-1',
+          enabled: true,
+          aiShadowMode: true,
+          aiAdvisoryVisible: false,
+        },
+      },
+    } as never)
+
+    await expect(
+      service.updateAdminProctoringSettings('exam-1', {
+        enabled: true,
+        aiShadowMode: true,
+        aiAdvisoryVisible: false,
+      })
+    ).resolves.toMatchObject({
+      examId: 'exam-1',
+      enabled: true,
+      aiShadowMode: true,
+      aiAdvisoryVisible: false,
+    })
+
+    expect(apiClient.put).toHaveBeenCalledWith(
+      '/admin/exams/exam-1/proctoring/settings',
+      {
+        enabled: true,
+        aiShadowMode: true,
+        aiAdvisoryVisible: false,
+      }
+    )
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/admin/exams/exam-1/proctoring/settings',
+      {
+        enabled: true,
+        aiShadowMode: true,
+        aiAdvisoryVisible: false,
+      }
+    )
+  })
+
+  it('does not fall back to POST when PUT returns a domain 404 error payload', async () => {
+    vi.mocked(apiClient.put).mockRejectedValue({
+      response: {
+        status: 404,
+        data: {
+          error: {
+            code: 'EXAM_NOT_FOUND',
+            message: 'Exam not found',
+          },
+        },
+      },
+    } as never)
+
+    await expect(
+      service.updateAdminProctoringSettings('exam-404', {
+        enabled: true,
+        aiShadowMode: false,
+        aiAdvisoryVisible: true,
+      })
+    ).rejects.toMatchObject({
+      response: {
+        status: 404,
+      },
+    })
+
+    expect(apiClient.post).not.toHaveBeenCalled()
+  })
+
+  it('does not fall back to POST when PUT returns a 404 with a top-level message', async () => {
+    vi.mocked(apiClient.put).mockRejectedValue({
+      response: {
+        status: 404,
+        data: {
+          message: 'Exam not found',
+        },
+      },
+    } as never)
+
+    await expect(
+      service.updateAdminProctoringSettings('exam-404', {
+        enabled: true,
+        aiShadowMode: false,
+        aiAdvisoryVisible: true,
+      })
+    ).rejects.toMatchObject({
+      response: {
+        status: 404,
+      },
+    })
+
+    expect(apiClient.post).not.toHaveBeenCalled()
+  })
 })

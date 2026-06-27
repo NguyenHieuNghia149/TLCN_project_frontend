@@ -14,6 +14,7 @@ import type {
   AdminUpdateProctoringSettingsPayload,
   ProctoringSettings,
 } from '@/types/exam.types'
+import { extractApiErrorMessage } from '@/utils/apiError'
 
 const { Text } = Typography
 
@@ -51,6 +52,9 @@ const ProctoringSettingsPanel: React.FC<ProctoringSettingsPanelProps> = ({
   const [aiShadowMode, setAiShadowMode] = useState(
     initialSettings?.aiShadowMode ?? true
   )
+  const [aiAnomalyEnabled, setAiAnomalyEnabled] = useState(
+    initialSettings?.aiAnomalyEnabled ?? true
+  )
   const [aiAdvisoryVisible, setAiAdvisoryVisible] = useState(
     initialSettings?.aiAdvisoryVisible ?? false
   )
@@ -78,6 +82,7 @@ const ProctoringSettingsPanel: React.FC<ProctoringSettingsPanelProps> = ({
         (initialSettings.clipboardPolicy as 'log_only' | 'block' | 'ignore') ??
           'log_only'
       )
+      setAiAnomalyEnabled(initialSettings.aiAnomalyEnabled ?? true)
       setAiShadowMode(initialSettings.aiShadowMode ?? true)
       setAiAdvisoryVisible(initialSettings.aiAdvisoryVisible ?? false)
       setLlmSummaryEnabled(initialSettings.llmSummaryEnabled ?? false)
@@ -113,7 +118,7 @@ const ProctoringSettingsPanel: React.FC<ProctoringSettingsPanelProps> = ({
         requireFullscreen,
         requireMonitorDisplaySurface: false,
         clipboardPolicy,
-        aiAnomalyEnabled: true,
+        aiAnomalyEnabled,
         aiShadowMode,
         aiAdvisoryVisible: aiShadowMode ? false : aiAdvisoryVisible,
         llmSummaryEnabled,
@@ -129,9 +134,7 @@ const ProctoringSettingsPanel: React.FC<ProctoringSettingsPanelProps> = ({
       })
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : 'Failed to save proctoring settings'
+        extractApiErrorMessage(err, 'Failed to save proctoring settings')
       )
     } finally {
       setSaving(false)

@@ -140,6 +140,32 @@ describe('ProctoringSettingsPanel', () => {
     expect(payload.aiAdvisoryVisible).toBe(true)
   })
 
+  it('preserves aiAnomalyEnabled=false when saving existing settings', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue(undefined)
+
+    render(
+      <ProctoringSettingsPanel
+        examId="exam-1"
+        initialSettings={makeSettings({
+          aiAnomalyEnabled: false,
+        })}
+        onSave={onSave}
+      />
+    )
+
+    await user.click(
+      screen.getByRole('button', { name: /save proctoring settings/i })
+    )
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledTimes(1)
+    })
+
+    const payload = onSave.mock.calls[0][0]
+    expect(payload.aiAnomalyEnabled).toBe(false)
+  })
+
   it('requires privacy approval fields before enabling LLM summary', async () => {
     const user = userEvent.setup()
     const onSave = vi.fn().mockResolvedValue(undefined)
@@ -238,6 +264,35 @@ describe('ProctoringSettingsPanel', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/network error/i)).toBeInTheDocument()
+    })
+  })
+
+  it('shows backend error details instead of a generic axios status message', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockRejectedValue({
+      message: 'Request failed with status code 404',
+      response: {
+        data: {
+          message: 'Exam not found',
+          code: 'EXAM_NOT_FOUND',
+        },
+      },
+    })
+
+    render(
+      <ProctoringSettingsPanel
+        examId="exam-1"
+        initialSettings={makeSettings()}
+        onSave={onSave}
+      />
+    )
+
+    await user.click(
+      screen.getByRole('button', { name: /save proctoring settings/i })
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText(/exam not found/i)).toBeInTheDocument()
     })
   })
 

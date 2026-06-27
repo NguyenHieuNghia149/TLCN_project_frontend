@@ -145,6 +145,51 @@ function unwrapArrayResponse<T>(payload: unknown): T[] {
   return []
 }
 
+function shouldRetryLegacyProctoringSettingsPost(error: unknown): boolean {
+  if (!error || typeof error !== 'object' || !('response' in error)) {
+    return false
+  }
+
+  const response = error.response
+  if (!response || typeof response !== 'object' || !('status' in response)) {
+    return false
+  }
+
+  if (response.status !== 404) {
+    return false
+  }
+
+  if ('data' in response && typeof response.data === 'string') {
+    return response.data.trim().length === 0
+  }
+
+  const data =
+    'data' in response && response.data && typeof response.data === 'object'
+      ? response.data
+      : null
+
+  const topLevelMessage =
+    data && 'message' in data && typeof data.message === 'string'
+      ? data.message.trim()
+      : ''
+  const nestedError =
+    data && 'error' in data && data.error && typeof data.error === 'object'
+      ? data.error
+      : null
+  const nestedMessage =
+    nestedError &&
+    'message' in nestedError &&
+    typeof nestedError.message === 'string'
+      ? nestedError.message.trim()
+      : ''
+  const nestedCode =
+    nestedError && 'code' in nestedError && typeof nestedError.code === 'string'
+      ? nestedError.code.trim()
+      : ''
+
+  return !(topLevelMessage || nestedMessage || nestedCode)
+}
+
 export class ExamService {
   async getAdminExams(
     limit = 10,
@@ -586,10 +631,19 @@ export class ExamService {
     examId: string,
     payload: AdminUpdateProctoringSettingsPayload
   ): Promise<ProctoringSettings> {
-    const response = await apiClient.put(
-      `/admin/exams/${examId}/proctoring/settings`,
-      payload
-    )
+    const url = `/admin/exams/${examId}/proctoring/settings`
+    let response
+
+    try {
+      response = await apiClient.put(url, payload)
+    } catch (error) {
+      if (!shouldRetryLegacyProctoringSettingsPost(error)) {
+        throw error
+      }
+
+      response = await apiClient.post(url, payload)
+    }
+
     return unwrapResponseData<ProctoringSettings>(response.data)
   }
 
