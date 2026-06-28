@@ -54,6 +54,22 @@ type CategoryInfo = {
 type ReviewTimelineItem =
   NonNullable<AdminProctoringReview>['timeline']['items'][number]
 
+type AiAdvisoryWindow = NonNullable<
+  AdminProctoringReview['aiAdvisory']
+>['windows'][number]
+
+type AiAdvisoryInsight = {
+  attentionLevel: string
+  summaryText: string
+  keySignals: string[]
+  relevantMoments: string[]
+  recommendedReview: string
+  windowsAnalyzed: number
+  highPriorityWindows: number
+  riskCounts: Record<string, number>
+  explanationStatus: string
+}
+
 const reviewLabelOutcomeLabels: Record<
   AdminProctoringReviewLabelOutcome,
   string
@@ -238,6 +254,163 @@ function formatScore(value: number | undefined) {
   return typeof value === 'number' ? value.toFixed(2) : '--'
 }
 
+const ADVISORY_RISK_ORDER: Record<string, number> = {
+  critical: 4,
+  high: 3,
+  medium: 2,
+  low: 1,
+}
+
+function formatRiskLabel(value: string | null | undefined) {
+  const normalized = String(value ?? 'low').toLowerCase()
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1)
+}
+
+function rankRisk(value: string | null | undefined) {
+  return ADVISORY_RISK_ORDER[String(value ?? '').toLowerCase()] ?? 0
+}
+
+function pluralize(count: number, singular: string, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`
+}
+
+function formatAiExplanationStatus(
+  status: string | undefined,
+  riskLevel: string | undefined
+) {
+  switch (status) {
+    case 'completed':
+      return 'Explanation available'
+    case 'failed':
+      return 'Explanation failed'
+    case 'skipped':
+      return 'Explanation skipped'
+    case 'pending':
+      return 'Explanation pending'
+    case 'not_requested':
+      return rankRisk(riskLevel) >= ADVISORY_RISK_ORDER.high
+        ? 'Explanation not available yet'
+        : 'Not generated because this window is not high priority'
+    default:
+      return '--'
+  }
+}
+
+function formatWindowRange(window: AiAdvisoryWindow) {
+  const start = formatDate(window.windowStart)
+  const end = formatDate(window.windowEnd)
+  if (start === '--' && end === '--') return null
+  if (end === '--') return start
+  if (start === '--') return end
+  return `${start} - ${end}`
+}
+
+function buildAiAdvisoryInsight(
+  review: AdminProctoringReview,
+  notableEvents: ReviewTimelineItem[]
+): AiAdvisoryInsight {
+  const advisory = review.aiAdvisory
+  const windows = advisory?.windows ?? []
+  const highestWindow = [...windows].sort(
+    (a, b) =>
+      rankRisk(b.riskLevel) - rankRisk(a.riskLevel) ||
+      b.anomalyScore - a.anomalyScore
+  )[0]
+  const attentionLevel = formatRiskLabel(
+    advisory?.latestRiskLevel ?? highestWindow?.riskLevel ?? 'low'
+  )
+  const highPriorityWindows = windows.filter(
+    window => rankRisk(window.riskLevel) >= ADVISORY_RISK_ORDER.high
+  ).length
+  const reviewWindows = windows
+    .filter(window => rankRisk(window.riskLevel) >= ADVISORY_RISK_ORDER.medium)
+    .sort(
+      (a, b) =>
+        rankRisk(b.riskLevel) - rankRisk(a.riskLevel) ||
+        b.anomalyScore - a.anomalyScore
+    )
+
+  const riskCounts = windows.reduce<Record<string, number>>((acc, window) => {
+    const key = String(window.riskLevel ?? 'unknown').toLowerCase()
+    acc[key] = (acc[key] ?? 0) + 1
+    return acc
+  }, {})
+
+  const signalCounts = new Map<string, { label: string; count: number }>()
+  for (const window of reviewWindows.length > 0 ? reviewWindows : windows) {
+    for (const contributor of window.topContributors ?? []) {
+      const label = contributor.displayLabel || contributor.featureName
+      const existing = signalCounts.get(label) ?? { label, count: 0 }
+      existing.count += 1
+      signalCounts.set(label, existing)
+    }
+  }
+
+  for (const event of notableEvents) {
+    if (!REVIEW_ATTENTION_EVENT_NAMES.has(event.eventName)) continue
+    const label = getEvidenceEventLabel(event)
+    const existing = signalCounts.get(label) ?? { label, count: 0 }
+    existing.count += 1
+    signalCounts.set(label, existing)
+  }
+
+  const keySignals = Array.from(signalCounts.values())
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+    .slice(0, 4)
+    .map(signal =>
+      signal.count > 1
+        ? `${signal.label}: ${pluralize(signal.count, 'signal')}`
+        : signal.label
+    )
+
+  const relevantMoments = [
+    ...reviewWindows.slice(0, 3).flatMap(window => {
+      const range = formatWindowRange(window)
+      if (!range) return []
+      return [`${range}: ${formatRiskLabel(window.riskLevel)} attention period`]
+    }),
+    ...notableEvents
+      .filter(event => REVIEW_ATTENTION_EVENT_NAMES.has(event.eventName))
+      .slice(0, 3)
+      .map(
+        event =>
+          `${formatDate(event.capturedAt)}: ${getEvidenceEventLabel(event)}`
+      ),
+  ].slice(0, 4)
+
+  const hasReviewSignals =
+    rankRisk(attentionLevel) >= ADVISORY_RISK_ORDER.medium ||
+    keySignals.length > 0
+  const summaryText = hasReviewSignals
+    ? `AI found ${pluralize(keySignals.length || reviewWindows.length, 'browser-behavior signal')} that may need review.`
+    : 'AI did not identify high-priority browser behavior in this attempt.'
+  const recommendedReview =
+    rankRisk(attentionLevel) >= ADVISORY_RISK_ORDER.high
+      ? 'Review the highlighted moments and compare them with the evidence timeline before making a final decision.'
+      : hasReviewSignals
+        ? 'Check the key signals and relevant moments before deciding whether follow-up is needed.'
+        : 'No AI-highlighted issue. Review the deterministic timeline only if policy requires it.'
+
+  return {
+    attentionLevel,
+    summaryText,
+    keySignals:
+      keySignals.length > 0 ? keySignals : ['No AI-highlighted event.'],
+    relevantMoments:
+      relevantMoments.length > 0
+        ? relevantMoments
+        : ['No AI-highlighted moment.'],
+    recommendedReview,
+    windowsAnalyzed: windows.length,
+    highPriorityWindows,
+    riskCounts,
+    explanationStatus: formatAiExplanationStatus(
+      highestWindow?.explanationStatus,
+      highestWindow?.riskLevel
+    ),
+  }
+}
+
 function getLlmSummaryStatusMessage(
   llmSummary: NonNullable<AdminProctoringReview['llmSummary']>
 ) {
@@ -383,6 +556,7 @@ const ProctoringReviewPanel: React.FC<ProctoringReviewPanelProps> = ({
     useState(false)
   const [translationLoading, setTranslationLoading] = useState(false)
   const [translationError, setTranslationError] = useState<string | null>(null)
+  const [aiTechnicalDetailsOpen, setAiTechnicalDetailsOpen] = useState(false)
 
   useEffect(() => {
     const currentDecision = review?.summary?.reviewerDecision
@@ -418,6 +592,10 @@ const ProctoringReviewPanel: React.FC<ProctoringReviewPanelProps> = ({
     setTranslationLoading(false)
     setTranslationError(null)
   }, [review?.llmSummary?.summaryId, review?.llmSummary?.summaryText])
+
+  useEffect(() => {
+    setAiTechnicalDetailsOpen(false)
+  }, [review?.summary?.id])
 
   const categorizedEvents: CategoryInfo[] = useMemo(() => {
     const items = review?.timeline?.items ?? []
@@ -529,6 +707,11 @@ const ProctoringReviewPanel: React.FC<ProctoringReviewPanelProps> = ({
       })
       .slice(0, 10)
   }, [review])
+
+  const aiAdvisoryInsight = useMemo(() => {
+    if (!review?.aiAdvisory) return null
+    return buildAiAdvisoryInsight(review, notableEvents)
+  }, [notableEvents, review])
 
   const hasReviewAttentionSignals = useMemo(() => {
     const items = review?.timeline?.items ?? []
@@ -844,52 +1027,95 @@ const ProctoringReviewPanel: React.FC<ProctoringReviewPanelProps> = ({
               </span>
             </div>
             {review.aiAdvisory.visible ? (
-              <div className="mt-3 grid gap-3">
-                <div className="grid grid-cols-1 gap-2 text-xs md:grid-cols-3">
-                  <span>Model: {review.aiAdvisory.modelVersion ?? '--'}</span>
-                  <span>
-                    Max anomaly score:{' '}
-                    {formatScore(review.aiAdvisory.maxAnomalyScore)}
-                  </span>
-                  <span>
-                    Latest advisory level:{' '}
-                    {review.aiAdvisory.latestRiskLevel ?? '--'}
-                  </span>
-                </div>
-                {review.aiAdvisory.windows.length > 0 ? (
-                  <div className="space-y-2">
-                    {review.aiAdvisory.windows.map(window => (
-                      <article
-                        key={`${window.windowId}-${window.riskLevel}`}
-                        className="rounded-lg border p-3 text-sm"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="font-semibold">
-                            {window.riskLevel} window
-                          </span>
-                          <span className="text-xs opacity-70">
-                            {formatScore(window.anomalyScore)} -{' '}
-                            {window.explanationStatus}
-                          </span>
-                        </div>
-                        {window.topContributors.length > 0 ? (
-                          <ul className="mt-2 space-y-1 text-xs">
-                            {window.topContributors.map(contributor => (
-                              <li key={contributor.featureName}>
-                                {contributor.displayLabel}:{' '}
-                                {contributor.numericValue}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : null}
-                      </article>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm opacity-75">
-                    No high or critical advisory windows available.
+              <div className="mt-3 grid gap-3 text-sm">
+                <div className="rounded-lg border bg-slate-50/70 p-3">
+                  <p className="text-xs font-semibold uppercase text-slate-600">
+                    Attention level
                   </p>
-                )}
+                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                    {aiAdvisoryInsight?.attentionLevel ?? '--'}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    {aiAdvisoryInsight?.summaryText}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs font-semibold uppercase text-slate-600">
+                      Key signals
+                    </p>
+                    <ul className="mt-2 space-y-1 text-xs">
+                      {aiAdvisoryInsight?.keySignals.map(signal => (
+                        <li key={signal}>{signal}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs font-semibold uppercase text-slate-600">
+                      Most relevant moments
+                    </p>
+                    <ul className="mt-2 space-y-1 text-xs">
+                      {aiAdvisoryInsight?.relevantMoments.map(moment => (
+                        <li key={moment}>{moment}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3">
+                  <p className="text-xs font-semibold uppercase text-amber-800">
+                    Recommended review
+                  </p>
+                  <p className="mt-1 text-xs text-amber-900">
+                    {aiAdvisoryInsight?.recommendedReview}
+                  </p>
+                </div>
+
+                <div>
+                  <button
+                    type="button"
+                    className="flex w-full cursor-pointer items-center gap-2 rounded-lg border p-3 text-left text-sm font-semibold hover:bg-gray-50"
+                    onClick={() => setAiTechnicalDetailsOpen(open => !open)}
+                  >
+                    {aiTechnicalDetailsOpen ? (
+                      <ChevronDown size={16} />
+                    ) : (
+                      <ChevronRight size={16} />
+                    )}
+                    Technical details
+                  </button>
+                  {aiTechnicalDetailsOpen ? (
+                    <div className="mt-2 grid gap-2 rounded-lg border p-3 text-xs">
+                      <span>
+                        Model: {review.aiAdvisory.modelVersion ?? '--'}
+                      </span>
+                      <span>
+                        Windows analyzed:{' '}
+                        {aiAdvisoryInsight?.windowsAnalyzed ?? 0}
+                      </span>
+                      <span>
+                        High/critical windows:{' '}
+                        {aiAdvisoryInsight?.highPriorityWindows ?? 0}
+                      </span>
+                      <span>
+                        Max anomaly score:{' '}
+                        {formatScore(review.aiAdvisory.maxAnomalyScore)}
+                      </span>
+                      <span>
+                        Risk distribution: low{' '}
+                        {aiAdvisoryInsight?.riskCounts.low ?? 0}, medium{' '}
+                        {aiAdvisoryInsight?.riskCounts.medium ?? 0}, high{' '}
+                        {aiAdvisoryInsight?.riskCounts.high ?? 0}, critical{' '}
+                        {aiAdvisoryInsight?.riskCounts.critical ?? 0}
+                      </span>
+                      <span>
+                        Explanation status:{' '}
+                        {aiAdvisoryInsight?.explanationStatus ?? '--'}
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
               </div>
             ) : (
               <p className="mt-3 text-sm opacity-75">

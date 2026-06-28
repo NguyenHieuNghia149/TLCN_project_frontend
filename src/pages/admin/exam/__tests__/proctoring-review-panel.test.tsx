@@ -113,8 +113,33 @@ describe('ProctoringReviewPanel', () => {
     })
   })
 
-  it('shows gated advisory AI signal without accusation framing', () => {
+  it('shows advisory AI as evidence highlights with technical details hidden by default', async () => {
+    const user = userEvent.setup()
     const review = makeReview()
+    review.timeline.items = [
+      {
+        id: 'event-1',
+        type: 'telemetry.batch',
+        eventName: 'visibility_hidden',
+        severity: 'warning',
+        clientSeq: 1,
+        capturedAt: '2026-06-12T10:01:00.000Z',
+        receivedAt: '2026-06-12T10:01:01.000Z',
+        finalFlushReceiptId: null,
+        payloadJson: { eventName: 'visibility_hidden' },
+      },
+      {
+        id: 'event-2',
+        type: 'telemetry.batch',
+        eventName: 'fullscreen_exit',
+        severity: 'warning',
+        clientSeq: 2,
+        capturedAt: '2026-06-12T10:02:00.000Z',
+        receivedAt: '2026-06-12T10:02:01.000Z',
+        finalFlushReceiptId: null,
+        payloadJson: { eventName: 'fullscreen_exit' },
+      },
+    ]
     review.aiAdvisory = {
       visible: true,
       status: 'visible',
@@ -159,8 +184,26 @@ describe('ProctoringReviewPanel', () => {
     expect(
       screen.getByText(/Advisory only\. Human review remains required\./i)
     ).toBeInTheDocument()
-    expect(screen.getByText(/iforest-v1/i)).toBeInTheDocument()
+    expect(screen.getByText(/Attention level/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/critical/i).length).toBeGreaterThan(0)
+    expect(screen.getByText(/Key signals/i)).toBeInTheDocument()
     expect(screen.getByText(/Page hidden duration/i)).toBeInTheDocument()
+    expect(screen.getByText(/Most relevant moments/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/Exam tab was hidden/i).length).toBeGreaterThan(
+      0
+    )
+    expect(screen.getByText(/Recommended review/i)).toBeInTheDocument()
+    expect(screen.queryByText(/critical window/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/0\.91 - completed/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/iforest-v1/i)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /technical details/i }))
+
+    expect(screen.getByText(/Model: iforest-v1/i)).toBeInTheDocument()
+    expect(screen.getByText(/Max anomaly score: 0\.91/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/Explanation status: Explanation available/i)
+    ).toBeInTheDocument()
     expect(
       screen.queryByText(/cheat|fraud|guilty|caught/i)
     ).not.toBeInTheDocument()
