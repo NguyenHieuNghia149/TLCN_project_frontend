@@ -557,7 +557,7 @@ const ExamResultsAdmin: React.FC = () => {
       )
       const payload = await fetchProctoringReviewWithRetry({
         initialReview: previousReview,
-        pollUntilSettled: true,
+        pollUntilSettled: false,
       })
       if (!payload) {
         return

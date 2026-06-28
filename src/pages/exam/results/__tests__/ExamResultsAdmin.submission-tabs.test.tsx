@@ -2,10 +2,17 @@
 
 import '@testing-library/jest-dom/vitest'
 import { App } from 'antd'
-import { render, screen, within } from '@testing-library/react'
+import {
+  act,
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AdminThemeContext } from '@/contexts/AdminThemeContextDef'
 import ExamResultsAdmin from '@/pages/exam/results/ExamResultsAdmin'
@@ -49,6 +56,8 @@ function renderPage() {
 
 describe('ExamResultsAdmin submission detail tabs', () => {
   beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useRealTimers()
     vi.mocked(examService.getAdminExamById).mockResolvedValue({
       id: 'exam-1',
       slug: 'spring-midterm',
@@ -183,6 +192,11 @@ describe('ExamResultsAdmin submission detail tabs', () => {
     } as Awaited<ReturnType<typeof examService.getAdminProctoringReview>>)
   })
 
+  afterEach(() => {
+    cleanup()
+    vi.useRealTimers()
+  })
+
   it('opens submission details with Candidate & Code as the default tab and moves AI content into a separate tab', async () => {
     const user = userEvent.setup()
 
@@ -245,5 +259,82 @@ describe('ExamResultsAdmin submission detail tabs', () => {
     expect(
       within(overviewSection as HTMLElement).getByText('Review attention')
     ).toBeInTheDocument()
+  })
+
+  it('refreshes proctoring review once after recompute instead of polling repeatedly', async () => {
+    const user = userEvent.setup()
+    const pendingReview = {
+      summary: {
+        id: 'summary-1',
+        examId: 'exam-1',
+        participationId: 'participation-1',
+        riskScore: 24,
+        riskLevel: 'low',
+        eventCountsJson: { focus_lost: 2 },
+        velocityJson: {},
+        finalFlushStatus: 'persisted',
+        deterministicSchemaVersion: 'phase-1-deterministic-risk-v1',
+        computedAt: '2026-06-23T02:04:00.000Z',
+        reviewerDecision: 'pending',
+        reviewerId: null,
+        reviewerNotes: null,
+        reviewedAt: null,
+      },
+      timeline: {
+        items: [],
+        total: 0,
+        limit: 50,
+        offset: 0,
+      },
+      evidence: {
+        consent: [],
+        precheck: [],
+        bypass: [],
+        finalFlush: [],
+        dataRequests: [],
+      },
+      aiAdvisory: {
+        visible: false,
+        status: 'hidden_shadow_mode',
+        windows: [],
+      },
+      llmSummary: {
+        visible: false,
+        status: 'pending',
+        riskFacts: [],
+        citations: [],
+        missingDataNotes: [],
+        modelNotes: [],
+      },
+    } as Awaited<ReturnType<typeof examService.getAdminProctoringReview>>
+
+    vi.mocked(examService.getAdminProctoringReview).mockResolvedValue(
+      pendingReview
+    )
+    vi.mocked(examService.recomputeAdminProctoringReview).mockResolvedValue(
+      pendingReview.summary
+    )
+
+    const view = renderPage()
+
+    await user.click(
+      await screen.findByRole('button', { name: /view details/i })
+    )
+    await user.click(await screen.findByRole('tab', { name: /ai review/i }))
+
+    await user.click(await screen.findByRole('button', { name: /recompute/i }))
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/deterministic proctoring review was recomputed/i)
+      ).toBeInTheDocument()
+    })
+
+    expect(examService.recomputeAdminProctoringReview).toHaveBeenCalledTimes(1)
+    expect(examService.getAdminProctoringReview).toHaveBeenCalledTimes(2)
+    await act(async () => {
+      await Promise.resolve()
+    })
+    view.unmount()
   })
 })
